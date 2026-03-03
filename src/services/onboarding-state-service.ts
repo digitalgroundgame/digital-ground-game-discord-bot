@@ -34,11 +34,7 @@ export class OnboardingStateService {
    * Queue a welcome thread creation for a member who just received an interest role.
    * The thread will be created in the welcome channel after the configured delay period.
    */
-  public queueChannelCreation(
-    member: GuildMember,
-    teamName: string,
-    roleId: string,
-  ): void {
+  public queueChannelCreation(member: GuildMember, teamName: string, roleId: string): void {
     const key = this.getKey(member.guild.id, member.id, roleId)
 
     // If already pending for this role, don't queue again
@@ -75,11 +71,7 @@ export class OnboardingStateService {
   /**
    * Cancel a pending welcome thread creation if the role was removed during the delay period.
    */
-  public cancelPendingCreation(
-    guildId: string,
-    memberId: string,
-    roleId: string,
-  ): boolean {
+  public cancelPendingCreation(guildId: string, memberId: string, roleId: string): boolean {
     const key = this.getKey(guildId, memberId, roleId)
     const pending = this.pendingOnboardings.get(key)
 
@@ -93,48 +85,6 @@ export class OnboardingStateService {
     }
 
     return false
-  }
-
-  /**
-   * Cancel all pending creations for a member (e.g., if they leave the server).
-   */
-  public cancelAllForMember(guildId: string, memberId: string): number {
-    let cancelled = 0
-
-    for (const [key, pending] of this.pendingOnboardings.entries()) {
-      if (pending.guildId === guildId && pending.memberId === memberId) {
-        clearTimeout(pending.timeoutId)
-        this.pendingOnboardings.delete(key)
-        cancelled++
-      }
-    }
-
-    if (cancelled > 0) {
-      Logger.info(
-        `Cancelled ${cancelled} pending welcome thread creation(s) for member ${memberId}`,
-      )
-    }
-
-    return cancelled
-  }
-
-  /**
-   * Check if there's a pending creation for a specific role.
-   */
-  public hasPendingCreation(
-    guildId: string,
-    memberId: string,
-    roleId: string,
-  ): boolean {
-    const key = this.getKey(guildId, memberId, roleId)
-    return this.pendingOnboardings.has(key)
-  }
-
-  /**
-   * Get count of all pending creations.
-   */
-  public getPendingCount(): number {
-    return this.pendingOnboardings.size
   }
 
   /**

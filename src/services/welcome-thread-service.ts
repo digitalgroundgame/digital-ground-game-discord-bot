@@ -54,9 +54,7 @@ export class WelcomeThreadService {
     if (!config) return null
     const name = config.channelName.toLowerCase()
     const channel = guild.channels.cache.find(
-      (c) =>
-        c.type === ChannelType.GuildText &&
-        c.name.toLowerCase() === name,
+      (c) => c.type === ChannelType.GuildText && c.name.toLowerCase() === name,
     ) as TextChannel | undefined
     return channel ?? null
   }
@@ -64,9 +62,7 @@ export class WelcomeThreadService {
   /**
    * Count active (non-archived) threads in the welcome channel.
    */
-  public static async getActiveWelcomeThreadCount(
-    channel: TextChannel,
-  ): Promise<number> {
+  public static async getActiveWelcomeThreadCount(channel: TextChannel): Promise<number> {
     const active = await channel.threads.fetchActive()
     return active.threads.size
   }
@@ -93,9 +89,7 @@ export class WelcomeThreadService {
   /**
    * Fetch all threads (active + archived) in the welcome channel.
    */
-  public static async getAllWelcomeThreads(
-    channel: TextChannel,
-  ): Promise<ThreadChannel[]> {
+  public static async getAllWelcomeThreads(channel: TextChannel): Promise<ThreadChannel[]> {
     const threads: ThreadChannel[] = []
 
     // Fetch active threads
@@ -149,9 +143,7 @@ export class WelcomeThreadService {
     if (allThreads.length < maxTotal) return
 
     // Sort by creation date ascending (oldest first)
-    allThreads.sort(
-      (a, b) => (a.createdTimestamp ?? 0) - (b.createdTimestamp ?? 0),
-    )
+    allThreads.sort((a, b) => (a.createdTimestamp ?? 0) - (b.createdTimestamp ?? 0))
 
     // Delete enough threads to make room for 1 new thread
     const toDelete = allThreads.length - maxTotal + 1
@@ -162,39 +154,27 @@ export class WelcomeThreadService {
         Logger.info(
           `Deleting oldest welcome thread "${thread.name}" to stay under ${maxTotal} total thread limit`,
         )
-        await thread.delete(
-          `Exceeded max total threads limit of ${maxTotal}`,
-        )
+        await thread.delete(`Exceeded max total threads limit of ${maxTotal}`)
       } catch (error) {
-        Logger.error(
-          `Failed to delete old welcome thread "${thread.name}":`,
-          error,
-        )
+        Logger.error(`Failed to delete old welcome thread "${thread.name}":`, error)
       }
     }
   }
 
   private static createThreadName(username: string, userId: string): string {
-    const MAX_LENGTH = 100;
-    const PREFIX = 'welcome-';
-    const SEPARATOR = '-';
+    const MAX_LENGTH = 100
+    const PREFIX = 'welcome-'
+    const SEPARATOR = '-'
 
-    const sanitizedUsername = username
-      .replace(/[^a-zA-Z0-9-_]/g, '-');
+    const sanitizedUsername = username.replace(/[^a-zA-Z0-9-_]/g, '-')
 
-    const reservedLength =
-      PREFIX.length +
-      SEPARATOR.length +
-      userId.length;
+    const reservedLength = PREFIX.length + SEPARATOR.length + userId.length
 
-    const maxUsernameLength = MAX_LENGTH - reservedLength;
+    const maxUsernameLength = MAX_LENGTH - reservedLength
 
-    const truncatedUsername = sanitizedUsername.slice(
-      0,
-      Math.max(0, maxUsernameLength)
-    );
+    const truncatedUsername = sanitizedUsername.slice(0, Math.max(0, maxUsernameLength))
 
-    return `${PREFIX}${truncatedUsername}${SEPARATOR}${userId}`;
+    return `${PREFIX}${truncatedUsername}${SEPARATOR}${userId}`
   }
 
   /**
@@ -202,9 +182,7 @@ export class WelcomeThreadService {
    * send the standard welcome message. Returns the thread or null if cap reached,
    * config missing, or user already has a thread.
    */
-  public static async createWelcomeThread(
-    member: GuildMember,
-  ): Promise<ThreadChannel | null> {
+  public static async createWelcomeThread(member: GuildMember): Promise<ThreadChannel | null> {
     const config = this.getConfig()
     if (!config) {
       Logger.warn('Welcome thread config (welcomeThread.channelName) is missing')
@@ -227,9 +205,7 @@ export class WelcomeThreadService {
 
     const alreadyHas = await this.memberHasActiveWelcomeThread(channel, member.id)
     if (alreadyHas) {
-      Logger.info(
-        `Member ${member.user.tag} already has an active welcome thread, skipping`,
-      )
+      Logger.info(`Member ${member.user.tag} already has an active welcome thread, skipping`)
       return null
     }
 
@@ -255,18 +231,16 @@ export class WelcomeThreadService {
       await thread.members.add(member.id)
     } catch (error) {
       Logger.error(`Failed to add member ${member.user.tag} to welcome thread:`, error)
-      await thread.delete('Failed to add member').catch(() => { })
+      await thread.delete('Failed to add member').catch(() => {
+        Logger.error(`Failed to delete welcome thread ${thread.name} after failed member addition`)
+      })
       return null
     }
 
     const roleIds = new Set<string>()
-    const welcomeRole = member.guild.roles.cache.find(
-      (r) => r.name === config.welcomeTeamRoleName,
-    )
+    const welcomeRole = member.guild.roles.cache.find((r) => r.name === config.welcomeTeamRoleName)
     const modRole = member.guild.roles.cache.find((r) => r.name === config.modRoleName)
-    const directorRole = member.guild.roles.cache.find(
-      (r) => r.name === config.directorRoleName,
-    )
+    const directorRole = member.guild.roles.cache.find((r) => r.name === config.directorRoleName)
     if (welcomeRole) roleIds.add(welcomeRole.id)
     if (modRole) roleIds.add(modRole.id)
     if (directorRole) roleIds.add(directorRole.id)
@@ -283,11 +257,10 @@ export class WelcomeThreadService {
       if (userId === member.id) continue
       try {
         await thread.members.add(userId)
-      } catch {
-        // Skip if we can't add (e.g. left server, permissions)
+      } catch (error) {
+        Logger.error(`Failed to add member ${userId} to welcome thread:`, error)
       }
     }
-
 
     const welcomeMessage = `
 We are a grassroots Liberal political activism community committed to protecting individual liberties, the rule of law, and equal justice.

@@ -3,15 +3,15 @@ import { RateLimiter } from 'discord.js-rate-limiter'
 import { createRequire } from 'node:module'
 
 import { type EventHandler } from './event-handler.js'
+import type { MemberUpdateContext, MemberUpdateUseCase } from './member-update-types.js'
 import { Logger } from '../services/logger.js'
-import { type OnboardingStateService } from '../services/onboarding-state-service.js'
 
 const require = createRequire(import.meta.url)
 const Config = require('../../config/config.json')
 
 /**
- * Handles GuildMemberUpdate events to detect when users receive team roles
- * via the Discord "Channels & Roles" tab onboarding flow.
+ * Handles GuildMemberUpdate events by running registered use cases.
+ * Each use case runs independently; one bailing or failing does not affect others.
  */
 export class GuildMemberUpdateHandler implements EventHandler {
   private rateLimiter = new RateLimiter(
@@ -19,12 +19,11 @@ export class GuildMemberUpdateHandler implements EventHandler {
     (Config.rateLimiting.buttons?.interval ?? 30) * 1000,
   )
 
-  constructor(private readonly onboardingStateService: OnboardingStateService) {}
+  constructor(private readonly useCases: MemberUpdateUseCase[]) {}
 
   /**
    * Process a GuildMemberUpdate event.
-   * Detects role additions that match configured team interest roles
-   * and queues welcome thread creation with a delay.
+   * Applies shared guards (bots, rate limit), builds context, then runs each use case.
    */
   public async process(
     oldMember: GuildMember | PartialGuildMember,
@@ -39,52 +38,18 @@ export class GuildMemberUpdateHandler implements EventHandler {
       return
     }
 
-    const teams = Config.teams as Record<
-      string,
-      { interestRoleName?: string }
-    > | undefined
-
-    if (!teams) {
-      return
-    }
-
     const oldRoles = oldMember.roles.cache
     const newRoles = newMember.roles.cache
-
-    const addedRoles = newRoles.filter((role) => !oldRoles.has(role.id))
-    const removedRoles = oldRoles.filter((role) => !newRoles.has(role.id))
-
-    // Handle added team roles - check if role matches any interest role in teams config
-    for (const [roleId, role] of addedRoles) {
-      const teamName = Object.keys(teams).find(
-        (team) => teams[team]?.interestRoleName === role.name,
-      )
-
-      if (teamName) {
-        Logger.info(
-          `Detected team interest role addition: ${newMember.user.tag} received "${role.name}" (team: ${teamName})`,
-        )
-
-        this.onboardingStateService.queueChannelCreation(newMember, teamName, roleId)
-      }
+    const context: MemberUpdateContext = {
+      addedRoles: newRoles.filter((role) => !oldRoles.has(role.id)),
+      removedRoles: oldRoles.filter((role) => !newRoles.has(role.id)),
     }
 
-    // Handle removed team roles - cancel pending channel creation
-    for (const [roleId, role] of removedRoles) {
-      const teamName = Object.keys(teams).find(
-        (team) => teams[team]?.interestRoleName === role.name,
-      )
-
-      if (teamName) {
-        Logger.info(
-          `Detected team interest role removal: ${newMember.user.tag} lost "${role.name}" (team: ${teamName})`,
-        )
-
-        this.onboardingStateService.cancelPendingCreation(
-          newMember.guild.id,
-          newMember.id,
-          roleId,
-        )
+    for (const useCase of this.useCases) {
+      try {
+        await useCase.handle(oldMember, newMember, context)
+      } catch (err) {
+        Logger.error(err, 'Member update use case threw; other use cases still run')
       }
     }
   }

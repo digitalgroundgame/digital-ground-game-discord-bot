@@ -94,8 +94,7 @@
     "directorRoleName": "Director",
     "maxActiveThreads": 50,
     "maxTotalThreads": 500,
-    "inactivityDays": 5,
-    "welcomeMessage": "Hello and welcome to Digital Ground Game (DGG)! We are a grassroots, Liberal, political activism community. Our core mission is to uphold the values of Liberalism such as individual liberties, the rule of law, and equality in justice. We do so by organizing political action through our server's weekly Call To Action (CTA), phonebanking, canvassing, and our team projects. We also partner with other politically like-minded organizations, Unfuck America for example, where we work side by side to protect liberal values. We take a pragmatic and evidence based approach to solve the most pressing problems plaguing our society today in hopes of improving the material conditions of all Americans. Such work isn't always glamorous, and it is almost never easy, but at the end of the day we are here to fight the good fight. If you wish to be a part of that fight, take it from us, it is easier when you aren't alone. We would love your support, and welcome your company.\nIf you wish to learn more about us, or wish to become more politically active, a server representative will be with you shortly to answer any questions you may have. In the meantime feel free to check out the FAQ, drop some tasteful memes in the chats, or join us for debate/movie night! Welcome to DGG, where we all do our part to create a brighter, better future."
+    "inactivityDays": 5
   },
   "teams": {
     "Dev Team": { "interestRoleName": "Interest in Dev Team" },

@@ -14,11 +14,9 @@ const Config = require('../../config/config.json')
  */
 export class AutoCloseWelcomeThreadsJob extends Job {
   public name = 'Auto Close Welcome Threads'
-  public schedule: string =
-    Config.jobs.autoCloseWelcomeThreads?.schedule ?? '0 0 * * * *'
+  public schedule: string = Config.jobs.autoCloseWelcomeThreads?.schedule ?? '0 0 * * * *'
   public log: boolean = Config.jobs.autoCloseWelcomeThreads?.log ?? true
-  public override runOnce: boolean =
-    Config.jobs.autoCloseWelcomeThreads?.runOnce ?? false
+  public override runOnce: boolean = Config.jobs.autoCloseWelcomeThreads?.runOnce ?? false
   public override initialDelaySecs: number =
     Config.jobs.autoCloseWelcomeThreads?.initialDelaySecs ?? 120
 
@@ -62,23 +60,15 @@ export class AutoCloseWelcomeThreadsJob extends Job {
                 content: `This welcome thread has been inactive for ${inactivityDays} days and will now be closed. If you still need assistance, you can select your interest role again to create a new welcome thread.`,
               })
 
-              await thread.delete(
-                `Auto-closed after ${inactivityDays} days of inactivity`,
-              )
+              await thread.delete(`Auto-closed after ${inactivityDays} days of inactivity`)
               closedCount++
             }
           } catch (error) {
-            Logger.error(
-              `Failed to process welcome thread ${thread.name} in ${guild.name}:`,
-              error,
-            )
+            Logger.error(`Failed to process welcome thread ${thread.name} in ${guild.name}:`, error)
           }
         }
       } catch (error) {
-        Logger.error(
-          `Failed to process guild ${guild.name} for welcome thread auto-close:`,
-          error,
-        )
+        Logger.error(`Failed to process guild ${guild.name} for welcome thread auto-close:`, error)
       }
     }
 
