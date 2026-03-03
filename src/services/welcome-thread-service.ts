@@ -174,6 +174,29 @@ export class WelcomeThreadService {
     }
   }
 
+  private static createThreadName(username: string, userId: string): string {
+    const MAX_LENGTH = 100;
+    const PREFIX = 'welcome-';
+    const SEPARATOR = '-';
+
+    const sanitizedUsername = username
+      .replace(/[^a-zA-Z0-9-_]/g, '-');
+
+    const reservedLength =
+      PREFIX.length +
+      SEPARATOR.length +
+      userId.length;
+
+    const maxUsernameLength = MAX_LENGTH - reservedLength;
+
+    const truncatedUsername = sanitizedUsername.slice(
+      0,
+      Math.max(0, maxUsernameLength)
+    );
+
+    return `${PREFIX}${truncatedUsername}${SEPARATOR}${userId}`;
+  }
+
   /**
    * Create a private welcome thread for the member, add allowed roles' members,
    * send the standard welcome message. Returns the thread or null if cap reached,
@@ -213,7 +236,7 @@ export class WelcomeThreadService {
     // Enforce total thread cap – delete the oldest thread(s) if at or over the limit
     await this.enforceMaxTotalThreads(channel, config.maxTotalThreads)
 
-    const threadName = `welcome-${member.user.username}`.replace(/[^a-zA-Z0-9-_]/g, '-').slice(0, 100)
+    const threadName = this.createThreadName(member.user.username, member.user.id)
     let thread: ThreadChannel
     try {
       thread = await channel.threads.create({
@@ -232,7 +255,7 @@ export class WelcomeThreadService {
       await thread.members.add(member.id)
     } catch (error) {
       Logger.error(`Failed to add member ${member.user.tag} to welcome thread:`, error)
-      await thread.delete('Failed to add member').catch(() => {})
+      await thread.delete('Failed to add member').catch(() => { })
       return null
     }
 
