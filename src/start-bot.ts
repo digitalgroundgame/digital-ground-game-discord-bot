@@ -25,8 +25,8 @@ import {
   CommandHandler,
   GuildJoinHandler,
   GuildLeaveHandler,
+  GuildMemberAddHandler,
   GuildMemberUpdateHandler,
-  InterestRolesMemberUpdateUseCase,
   MessageHandler,
   ReactionHandler,
   TriggerHandler,
@@ -40,7 +40,6 @@ import {
   EventDataService,
   JobService,
   Logger,
-  OnboardingStateService,
 } from './services/index.js'
 import { type Trigger } from './triggers/index.js'
 import { CTAPostTrigger } from './triggers/cta-post.js'
@@ -102,11 +101,10 @@ async function start(): Promise<void> {
   ]
 
   // Event handlers
-  const onboardingStateService = new OnboardingStateService()
   const guildJoinHandler = new GuildJoinHandler(eventDataService)
   const guildLeaveHandler = new GuildLeaveHandler()
-  const guildMemberUpdateUseCases = [new InterestRolesMemberUpdateUseCase(onboardingStateService)]
-  const guildMemberUpdateHandler = new GuildMemberUpdateHandler(guildMemberUpdateUseCases)
+  const guildMemberAddHandler = new GuildMemberAddHandler()
+  const guildMemberUpdateHandler = new GuildMemberUpdateHandler([])
   const commandHandler = new CommandHandler(commands, eventDataService)
   const buttonHandler = new ButtonHandler(buttons, eventDataService)
   const triggerHandler = new TriggerHandler(triggers, eventDataService)
@@ -122,6 +120,7 @@ async function start(): Promise<void> {
     client,
     guildJoinHandler,
     guildLeaveHandler,
+    guildMemberAddHandler,
     guildMemberUpdateHandler,
     messageHandler,
     commandHandler,

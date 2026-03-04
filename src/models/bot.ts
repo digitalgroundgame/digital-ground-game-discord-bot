@@ -24,6 +24,7 @@ import {
   type CommandHandler,
   type GuildJoinHandler,
   type GuildLeaveHandler,
+  type GuildMemberAddHandler,
   type GuildMemberUpdateHandler,
   type MessageHandler,
   type ReactionHandler,
@@ -47,6 +48,7 @@ export class Bot {
     private client: Client,
     private guildJoinHandler: GuildJoinHandler,
     private guildLeaveHandler: GuildLeaveHandler,
+    private guildMemberAddHandler: GuildMemberAddHandler,
     private guildMemberUpdateHandler: GuildMemberUpdateHandler,
     private messageHandler: MessageHandler,
     private commandHandler: CommandHandler,
@@ -67,6 +69,7 @@ export class Bot {
     )
     this.client.on(Events.GuildCreate, (guild: Guild) => this.onGuildJoin(guild))
     this.client.on(Events.GuildDelete, (guild: Guild) => this.onGuildLeave(guild))
+    this.client.on(Events.GuildMemberAdd, (member: GuildMember) => this.onGuildMemberAdd(member))
     this.client.on(
       Events.GuildMemberUpdate,
       (oldMember: GuildMember | PartialGuildMember, newMember: GuildMember) =>
@@ -152,6 +155,21 @@ export class Bot {
       await this.guildLeaveHandler.process(guild)
     } catch (error) {
       Logger.error(Logs.error.guildLeave, error)
+    }
+  }
+
+  private async onGuildMemberAdd(member: GuildMember): Promise<void> {
+    if (
+      !this.ready ||
+      (Debug.dummyMode.enabled && !Debug.dummyMode.whitelist.includes(member.id))
+    ) {
+      return
+    }
+
+    try {
+      await this.guildMemberAddHandler.process(member)
+    } catch (error) {
+      Logger.error(Logs.error.guildMemberAdd, error)
     }
   }
 
