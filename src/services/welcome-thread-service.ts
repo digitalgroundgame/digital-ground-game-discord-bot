@@ -20,7 +20,6 @@ interface WelcomeThreadConfig {
   maxActiveThreads: number
   maxTotalThreads: number
   inactivityDays: number
-  welcomeMessage: string
 }
 
 /**
@@ -39,10 +38,7 @@ export class WelcomeThreadService {
       directorRoleName: wt.directorRoleName ?? 'Director',
       maxActiveThreads: Math.max(1, Number(wt.maxActiveThreads) || 50),
       maxTotalThreads: Math.max(1, Number(wt.maxTotalThreads) || 500),
-      inactivityDays: Math.max(1, Number(wt.inactivityDays) || 5),
-      welcomeMessage:
-        wt.welcomeMessage ??
-        'Welcome! Someone from the Welcome Team will introduce themselves and help you get started.',
+      inactivityDays: Math.max(1, Number(wt.inactivityDays) || 5)
     }
   }
 
