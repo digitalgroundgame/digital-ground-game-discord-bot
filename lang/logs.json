@@ -44,6 +44,8 @@
     "updatedServerCountSite": "An error occurred while updating the server count on '{BOT_SITE}'.",
     "guildJoin": "An error occurred while processing a guild join.",
     "guildLeave": "An error occurred while processing a guild leave.",
+    "guildMemberAdd": "An error occurred while processing a guild member add.",
+    "guildMemberUpdate": "An error occurred while processing a guild member update.",
     "message": "An error occurred while processing a message.",
     "reaction": "An error occurred while processing a reaction.",
     "command": "An error occurred while processing a command interaction.",

@@ -84,15 +84,16 @@
       "minTimeout": 30
     }
   },
-  "onboarding": {
-    "delaySeconds": 7
-  },
   "welcomeThread": {
     "channelName": "entrance",
     "welcomeTeamRoleName": "Welcome Team",
     "modRoleName": "Moderator",
     "directorRoleName": "Director",
     "maxActiveThreads": 50,
+<<<<<<< onboarding
+    "maxTotalThreads": 500,
+    "inactivityDays": 5
+=======
     "inactivityDays": 5,
     "welcomeMessage": "Welcome! This is a brief summary of our server. Someone from the Welcome Team will introduce themselves and help you get started. Feel free to say hello here."
   },
@@ -125,5 +126,6 @@
       "id": "1347656064900005970",
       "name": "Admin"
     }
+>>>>>>> dev
   }
 }

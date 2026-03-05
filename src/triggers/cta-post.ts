@@ -41,10 +41,11 @@ export class CTAPostTrigger implements Trigger {
   chanThreadsByMsg = new Map()
 
   public triggered(msg: Message): boolean {
-    // eslint-disable-next-line @typescript-eslint/no-shadow
+    /* eslint-disable @typescript-eslint/no-shadow */
     const ctaChannel = msg.guild?.channels.cache.find(
       (ctaChannel) => ctaChannel?.name === channelName,
     )
+    /* eslint-enable @typescript-eslint/no-shadow */
     // check cta channel exists
     if (ctaChannel !== undefined) {
       // check message came from cta channel

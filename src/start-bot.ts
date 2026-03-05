@@ -25,12 +25,14 @@ import {
   CommandHandler,
   GuildJoinHandler,
   GuildLeaveHandler,
+  GuildMemberAddHandler,
+  GuildMemberUpdateHandler,
   MessageHandler,
   ReactionHandler,
   TriggerHandler,
 } from './events/index.js'
 import { CustomClient } from './extensions/index.js'
-import { type Job } from './jobs/index.js'
+import { AutoCloseWelcomeThreadsJob, type Job } from './jobs/index.js'
 import { Bot } from './models/bot.js'
 import { type Reaction } from './reactions/index.js'
 import {
@@ -101,6 +103,8 @@ async function start(): Promise<void> {
   // Event handlers
   const guildJoinHandler = new GuildJoinHandler(eventDataService)
   const guildLeaveHandler = new GuildLeaveHandler()
+  const guildMemberAddHandler = new GuildMemberAddHandler()
+  const guildMemberUpdateHandler = new GuildMemberUpdateHandler([])
   const commandHandler = new CommandHandler(commands, eventDataService)
   const buttonHandler = new ButtonHandler(buttons, eventDataService)
   const triggerHandler = new TriggerHandler(triggers, eventDataService)
@@ -108,9 +112,7 @@ async function start(): Promise<void> {
   const reactionHandler = new ReactionHandler(reactions, eventDataService)
 
   // Jobs
-  const jobs: Job[] = [
-    // TODO: Add new jobs here
-  ]
+  const jobs: Job[] = [new AutoCloseWelcomeThreadsJob(client)]
 
   // Bot
   const bot = new Bot(
@@ -118,6 +120,8 @@ async function start(): Promise<void> {
     client,
     guildJoinHandler,
     guildLeaveHandler,
+    guildMemberAddHandler,
+    guildMemberUpdateHandler,
     messageHandler,
     commandHandler,
     buttonHandler,
