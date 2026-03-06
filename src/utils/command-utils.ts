@@ -4,13 +4,15 @@ import {
   type MessageComponentInteraction,
   type ModalSubmitInteraction,
   ThreadChannel,
+  GuildMember,
 } from 'discord.js'
 
 import { FormatUtils, InteractionUtils } from './index.js'
 import { type Command } from '../commands/index.js'
+import { getRoleNameById } from '../constants/index.js'
 import { Permission } from '../models/enum-helpers/index.js'
 import { type EventData } from '../models/internal-models.js'
-import { Lang } from '../services/index.js'
+import { Lang, Logger } from '../services/index.js'
 
 export class CommandUtils {
   public static findCommand(commands: Command[], commandParts: string[]): Command | null {
@@ -39,6 +41,11 @@ export class CommandUtils {
     intr: CommandInteraction | MessageComponentInteraction | ModalSubmitInteraction,
     data: EventData,
   ): Promise<boolean> {
+
+    ////////////////////
+    // Cooldown check //
+    ////////////////////
+
     if (command.cooldown) {
       const limited = command.cooldown.take(intr.user.id)
       if (limited) {
@@ -53,6 +60,10 @@ export class CommandUtils {
       }
     }
 
+    ///////////////////////
+    // Client perm check //
+    ///////////////////////
+
     if (
       (intr.channel instanceof GuildChannel || intr.channel instanceof ThreadChannel) &&
       !intr.channel.permissionsFor(intr.client.user)?.has(command.requireClientPerms)
@@ -66,6 +77,52 @@ export class CommandUtils {
         }),
       )
       return false
+    }
+
+    /////////////////
+    // Role checks //
+    /////////////////
+
+    if (command.requireRoles?.length) {
+      // Running in server
+      if (!intr.inGuild() || !(intr?.member instanceof GuildMember)) {
+        await InteractionUtils.send(
+          intr,
+          Lang.getEmbed('validationEmbeds.guildOnly', data.lang),
+        )
+        return false
+      }
+
+      // Ensure member isn't null before grabbing roles
+      const guildMem = intr.member
+      if (guildMem == null) {
+        await InteractionUtils.send(
+          intr,
+          Lang.getEmbed('validationEmbeds.nullMember', data.lang),
+        )
+        return false
+      }
+
+      // Compare user roles to allowed roles
+      const hasRole = command.requireRoles.some((role) =>
+        guildMem.roles.cache.has(role),
+      )
+
+      // Handle incorrect role case
+      if (!hasRole) {
+        await InteractionUtils.send(
+          intr,
+          Lang.getEmbed('validationEmbeds.missingRole', data.lang, {
+            ROLES: command.requireRoles
+                    .map(getRoleNameById)
+                    .join(', '),
+          }),
+        )
+
+        Logger.warn(`${intr.user.displayName} failed role check for send dev onboarding command`)
+
+        return false
+      }
     }
 
     return true

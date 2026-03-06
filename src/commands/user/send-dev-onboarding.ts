@@ -7,12 +7,15 @@ import { Lang, Logger } from '../../services/index.js'
 import { InteractionUtils, MessageUtils } from '../../utils/index.js'
 import { type Command, CommandDeferType } from '../index.js'
 import { DevOnboarding } from '../../constants/dev-onboarding.js'
+import { ServerRoles } from '../../constants/index.js'
 
 export class SendDevOnboarding implements Command {
   public names = [Lang.getRef('userCommands.sendDevOnboarding', Language.Default)]
-  public cooldown = new RateLimiter(2, 4000)
+  public cooldown = new RateLimiter(5, 5000)
   public deferType = CommandDeferType.HIDDEN
   public requireClientPerms: PermissionsString[] = []
+  public requireRoles = [ServerRoles.COORDINATOR.id, ServerRoles.ADMIN.id, ServerRoles.DIRECTOR.id,
+                         ServerRoles.ORGANIZER.id, ServerRoles.TEAM_LEAD.id]
 
   public constructor() {
     Logger.info(`Created SendDevOnboarding command add: ${this.names}`)
@@ -33,6 +36,8 @@ export class SendDevOnboarding implements Command {
         content: `${Lang.getCom('emojis.yes')} Sent onboarding info to ${intr.targetUser.tag}!`,
         ephemeral: true,
       })
+
+      Logger.info(`Send dev onboarding to ${intr.targetUser.displayName}`)
     } catch {
       // Inform the sender it didn't work
       await InteractionUtils.send(intr, {

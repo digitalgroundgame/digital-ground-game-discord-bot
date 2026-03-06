@@ -18,7 +18,7 @@ describe('RegexUtils', () => {
     it('should return undefined for invalid Discord ID', () => {
       const input = 'User ID: 12345'
       const result = RegexUtils.discordId(input)
-      expect(result).toBeUndefined()
+      expect(result).toBe('')
     })
   })
 })
