@@ -41,7 +41,6 @@ export class CommandUtils {
     intr: CommandInteraction | MessageComponentInteraction | ModalSubmitInteraction,
     data: EventData,
   ): Promise<boolean> {
-
     ////////////////////
     // Cooldown check //
     ////////////////////
@@ -86,36 +85,26 @@ export class CommandUtils {
     if (command.requireRoles?.length) {
       // Running in server
       if (!intr.inGuild() || !(intr?.member instanceof GuildMember)) {
-        await InteractionUtils.send(
-          intr,
-          Lang.getEmbed('validationEmbeds.guildOnly', data.lang),
-        )
+        await InteractionUtils.send(intr, Lang.getEmbed('validationEmbeds.guildOnly', data.lang))
         return false
       }
 
       // Ensure member isn't null before grabbing roles
       const guildMem = intr.member
       if (guildMem == null) {
-        await InteractionUtils.send(
-          intr,
-          Lang.getEmbed('validationEmbeds.nullMember', data.lang),
-        )
+        await InteractionUtils.send(intr, Lang.getEmbed('validationEmbeds.nullMember', data.lang))
         return false
       }
 
       // Compare user roles to allowed roles
-      const hasRole = command.requireRoles.some((role) =>
-        guildMem.roles.cache.has(role),
-      )
+      const hasRole = command.requireRoles.some((role) => guildMem.roles.cache.has(role))
 
       // Handle incorrect role case
       if (!hasRole) {
         await InteractionUtils.send(
           intr,
           Lang.getEmbed('validationEmbeds.missingRole', data.lang, {
-            ROLES: command.requireRoles
-                    .map(getRoleNameById)
-                    .join(', '),
+            ROLES: command.requireRoles.map(getRoleNameById).join(', '),
           }),
         )
 
