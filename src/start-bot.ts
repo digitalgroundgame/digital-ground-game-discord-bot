@@ -18,8 +18,7 @@ import {
   MessageCommandMetadata,
   UserCommandMetadata,
 } from './commands/index.js'
-import { ViewDateSent } from './commands/message/index.js'
-import { ViewDateJoined, SendDevOnboarding } from './commands/user/index.js'
+import { SendDevOnboarding } from './commands/user/index.js'
 import {
   ButtonHandler,
   CommandHandler,
@@ -76,11 +75,7 @@ async function start(): Promise<void> {
     new PragPapersCommand(),
     new CensusCommand(),
 
-    // Message Context Commands
-    new ViewDateSent(),
-
     // User Context Commands
-    new ViewDateJoined(),
     new SendDevOnboarding(),
   ]
 

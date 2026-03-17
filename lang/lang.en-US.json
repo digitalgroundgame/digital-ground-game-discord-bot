@@ -52,12 +52,6 @@
       "test": {
         "description": "Test command works!"
       },
-      "viewDateJoined": {
-        "description": "{{TARGET}} joined on {{DATE}}!"
-      },
-      "viewDateSent": {
-        "description": "This message was sent on {{DATE}}!"
-      },
       "devOnboarding": {
         "title": "About Digital Ground Game Dev Team",
         "description": "{{CONTENT}}"
@@ -228,12 +222,9 @@
       "census": "census"
     },
     "userCommands": {
-      "viewDateJoined": "View Date Joined",
       "sendDevOnboarding": "Send Dev Onboarding"
     },
-    "messageCommands": {
-      "viewDateSent": "View Date Sent"
-    },
+    "messageCommands": {},
     "arguments": {
       "command": "command",
       "option": "option",
