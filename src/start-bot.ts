@@ -18,7 +18,13 @@ import {
   MessageCommandMetadata,
   UserCommandMetadata,
 } from './commands/index.js'
-import { SendDevOnboarding } from './commands/user/index.js'
+import { 
+  SendDevOnboarding,
+  SendWelcomeOnboarding,
+  SendMediaOnboarding,
+  SendResearchOnboarding,
+  SendEventsOnboarding,
+} from './commands/user/index.js'
 import {
   ButtonHandler,
   CommandHandler,
@@ -77,6 +83,10 @@ async function start(): Promise<void> {
 
     // User Context Commands
     new SendDevOnboarding(),
+    new SendWelcomeOnboarding(),
+    new SendMediaOnboarding(),
+    new SendEventsOnboarding(),
+    new SendResearchOnboarding(),
   ]
 
   // Buttons

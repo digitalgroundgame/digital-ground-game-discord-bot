@@ -115,4 +115,32 @@ export const UserCommandMetadata: {
     default_member_permissions: undefined,
     dm_permission: true,
   },
+  SEND_WELCOME_ONBOARDING: {
+    type: ApplicationCommandType.User,
+    name: Lang.getRef('userCommands.sendWelcomeOnboarding', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('userCommands.sendWelcomeOnboarding'),
+    default_member_permissions: undefined,
+    dm_permission: true,
+  },
+  SEND_EVENTS_ONBOARDING: {
+    type: ApplicationCommandType.User,
+    name: Lang.getRef('userCommands.sendEventsOnboarding', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('userCommands.sendEventsOnboarding'),
+    default_member_permissions: undefined,
+    dm_permission: true,
+  },
+  SEND_MEDIA_ONBOARDING: {
+    type: ApplicationCommandType.User,
+    name: Lang.getRef('userCommands.sendMediaOnboarding', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('userCommands.sendMediaOnboarding'),
+    default_member_permissions: undefined,
+    dm_permission: true,
+  },
+  SEND_RESEARCH_ONBOARDING: {
+    type: ApplicationCommandType.User,
+    name: Lang.getRef('userCommands.sendResearchOnboarding', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('userCommands.sendResearchOnboarding'),
+    default_member_permissions: undefined,
+    dm_permission: true,
+  },
 }

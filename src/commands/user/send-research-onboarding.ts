@@ -6,11 +6,11 @@ import { type EventData } from '../../models/internal-models.js'
 import { Lang, Logger } from '../../services/index.js'
 import { InteractionUtils, MessageUtils } from '../../utils/index.js'
 import { type Command, CommandDeferType } from '../index.js'
-import { DevOnboarding } from '../../constants/onboarding.js'
+import { ResearchOnboarding } from '../../constants/onboarding.js'
 import { ServerRoles } from '../../constants/index.js'
 
-export class SendDevOnboarding implements Command {
-  public names = [Lang.getRef('userCommands.sendDevOnboarding', Language.Default)]
+export class SendResearchOnboarding implements Command {
+  public names = [Lang.getRef('userCommands.sendResearchOnboarding', Language.Default)]
   public cooldown = new RateLimiter(5, 5000)
   public deferType = CommandDeferType.HIDDEN
   public requireClientPerms: PermissionsString[] = []
@@ -19,27 +19,27 @@ export class SendDevOnboarding implements Command {
   //                       ServerRoles.ORGANIZER.id, ServerRoles.TEAM_LEAD.id]
 
   public constructor() {
-    Logger.info(`Created SendDevOnboarding command add: ${this.names}`)
+    Logger.info(`Created SendResearchOnboarding command add: ${this.names}`)
   }
 
   public async execute(intr: UserContextMenuCommandInteraction, data: EventData): Promise<void> {
     try {
-      // Send the onboarding info
+      // Send the research info
       await MessageUtils.send(
         intr.targetUser,
         Lang.getEmbed('displayEmbeds.onboarding', data.lang, {
-          TITLE: DevOnboarding.Title,
-          CONTENT: DevOnboarding.Message,
+          TITLE: ResearchOnboarding.Title,
+          CONTENT: ResearchOnboarding.Message,
         }),
       )
 
       // Inform the sender it worked
       await InteractionUtils.send(intr, {
-        content: `${Lang.getCom('emojis.yes')} Sent dev onboarding info to ${intr.targetUser.tag}!`,
+        content: `${Lang.getCom('emojis.yes')} Sent research onboarding info to ${intr.targetUser.tag}!`,
         ephemeral: true,
       })
 
-      Logger.info(`Send dev onboarding to ${intr.targetUser.displayName}`)
+      Logger.info(`Send research onboarding to ${intr.targetUser.displayName}`)
     } catch {
       // Inform the sender it didn't work
       await InteractionUtils.send(intr, {
@@ -48,7 +48,7 @@ export class SendDevOnboarding implements Command {
       })
 
       // Log the issue
-      Logger.warn(`Failed to send dev onboarding; ${intr.targetUser.tag} has DMs off`)
+      Logger.warn(`Failed to send research onboarding; ${intr.targetUser.tag} has DMs off`)
     }
   }
 }

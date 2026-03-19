@@ -52,8 +52,8 @@
       "test": {
         "description": "Test command works!"
       },
-      "devOnboarding": {
-        "title": "About Digital Ground Game Dev Team",
+      "onboarding": {
+        "title": "{{TITLE}}",
         "description": "{{CONTENT}}"
       },
       "about": {
@@ -222,7 +222,11 @@
       "census": "census"
     },
     "userCommands": {
-      "sendDevOnboarding": "Send Dev Onboarding"
+      "sendDevOnboarding": "Send Dev Onboarding",
+      "sendEventsOnboarding": "Send Events Onboarding",
+      "sendMediaOnboarding": "Send Media Onboarding",
+      "sendResearchOnboarding": "Send Research Onboarding",
+      "sendWelcomeOnboarding": "Send Welcome Onboarding"
     },
     "messageCommands": {},
     "arguments": {

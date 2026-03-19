@@ -1,1 +1,5 @@
 export { SendDevOnboarding } from './send-dev-onboarding.js'
+export { SendWelcomeOnboarding } from './send-welcome-onboarding.js'
+export { SendEventsOnboarding } from './send-events-onboarding.js'
+export { SendResearchOnboarding } from './send-research-onboarding.js'
+export { SendMediaOnboarding } from './send-media-onboarding.js'
