@@ -5,6 +5,7 @@
     "intents": [
       "Guilds",
       "GuildMembers",
+      "GuildPresences",
       "GuildMessages",
       "GuildMessageReactions",
       "DirectMessages",
@@ -87,9 +88,9 @@
   "welcomeThread": {
     "channelName": "entrance",
     "welcomeTeamRoleName": "Welcome Team",
-    "modRoleName": "Moderator",
-    "directorRoleName": "Director",
+    "welcomeSupervisorsRoleName": "Welcome Supervisors",
     "maxActiveThreads": 50,
+    "maxWelcomeTeamMembers": 4,
     "inactivityDays": 5
   },
   "roles": {
