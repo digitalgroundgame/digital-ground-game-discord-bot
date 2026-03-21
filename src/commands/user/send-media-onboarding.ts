@@ -14,9 +14,8 @@ export class SendMediaOnboarding implements Command {
   public cooldown = new RateLimiter(5, 5000)
   public deferType = CommandDeferType.HIDDEN
   public requireClientPerms: PermissionsString[] = []
-  public requireRoles = []
-  //public requireRoles = [ServerRoles.COORDINATOR.id, ServerRoles.ADMIN.id, ServerRoles.DIRECTOR.id,
-  //                       ServerRoles.ORGANIZER.id, ServerRoles.TEAM_LEAD.id]
+  public requireRoles = [ServerRoles.COORDINATOR.id, ServerRoles.ADMIN.id, ServerRoles.DIRECTOR.id,
+                         ServerRoles.ORGANIZER.id, ServerRoles.TEAM_LEAD.id]
 
   public constructor() {
     Logger.info(`Created SendMediaOnboarding command add: ${this.names}`)
