@@ -63,7 +63,6 @@ export class EventsOnboarding {
     ▫️ Planning and coordinating events
     ▫️ Supporting logistics and volunteer coordination
     ▫️ Helping promote and manage event participation
-    ▫️ Here is the Event Team Brief
 
     To begin, follow these steps:
 
