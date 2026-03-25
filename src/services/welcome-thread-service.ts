@@ -290,10 +290,10 @@ export class WelcomeThreadService {
     const welcomeMessage = `
     We are a grassroots Liberal political activism community committed to protecting individual liberties, the rule of law, and equal justice.
 
-    🎯  What We Do
+    ### 🎯  What We Do
     Through our weekly Call To Action (CTA), phonebanking, canvassing, and team-led projects, we organize real political action for real change. Partnering with like-minded organizations, we advance liberal values through a pragmatic, evidence-based approach to improve the material conditions of all Americans.
 
-    🫡  Get Involved
+    ### 🫡  Get Involved
     Activism work isn’t always easy, but we can make it easier by working together to build a brighter future.
 
     A Server Representative will be with you shortly. 
