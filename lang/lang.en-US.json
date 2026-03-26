@@ -161,7 +161,7 @@
         ],
         "color": "{{COM:colors.warning}}"
       },
-      "nullMember" : {
+      "nullMember": {
         "title": "Null Member",
         "description": "Null member on interaction"
       },

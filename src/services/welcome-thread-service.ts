@@ -15,16 +15,16 @@ const Config = require('../../config/config.json')
 interface WelcomeThreadConfig {
   channelName: string
   welcomeTeamRoleName: string
-  modRoleName: string
-  directorRoleName: string
+  welcomeSupervisorsRoleName: string
   maxActiveThreads: number
   maxTotalThreads: number
+  maxWelcomeTeamMembers: number
   inactivityDays: number
 }
 
 /**
  * Service to create and manage welcome threads in a designated welcome channel.
- * Threads have restricted visibility (user, welcome team, mods, directors),
+ * Threads have restricted visibility (user, welcome team, welcome supervisors),
  * a hard cap on total count, and auto-close after inactivity.
  */
 export class WelcomeThreadService {
@@ -34,11 +34,28 @@ export class WelcomeThreadService {
     return {
       channelName: wt.channelName,
       welcomeTeamRoleName: wt.welcomeTeamRoleName ?? 'Welcome Team',
-      modRoleName: wt.modRoleName ?? 'Moderator',
-      directorRoleName: wt.directorRoleName ?? 'Director',
+      welcomeSupervisorsRoleName: wt.welcomeSupervisorsRoleName ?? 'Welcome Supervisors',
       maxActiveThreads: Math.max(1, Number(wt.maxActiveThreads) || 50),
       maxTotalThreads: Math.max(1, Number(wt.maxTotalThreads) || 500),
-      inactivityDays: Math.max(1, Number(wt.inactivityDays) || 5)
+      maxWelcomeTeamMembers: Math.max(1, Number(wt.maxWelcomeTeamMembers) || 4),
+      inactivityDays: Math.max(1, Number(wt.inactivityDays) || 5),
+    }
+  }
+
+  /**
+   * Get presence priority for sorting: online=3, idle=2, dnd=1, offline/null=0
+   */
+  private static getPresencePriority(m: GuildMember): number {
+    const status = m.presence?.status
+    switch (status) {
+      case 'online':
+        return 3
+      case 'idle':
+        return 2
+      case 'dnd':
+        return 1
+      default:
+        return 0
     }
   }
 
@@ -233,24 +250,36 @@ export class WelcomeThreadService {
       return null
     }
 
-    const roleIds = new Set<string>()
     const welcomeRole = member.guild.roles.cache.find((r) => r.name === config.welcomeTeamRoleName)
-    const modRole = member.guild.roles.cache.find((r) => r.name === config.modRoleName)
-    const directorRole = member.guild.roles.cache.find((r) => r.name === config.directorRoleName)
-    if (welcomeRole) roleIds.add(welcomeRole.id)
-    if (modRole) roleIds.add(modRole.id)
-    if (directorRole) roleIds.add(directorRole.id)
+    const welcomeSupervisorsRole = member.guild.roles.cache.find(
+      (r) => r.name === config.welcomeSupervisorsRoleName,
+    )
 
     const membersToAdd = new Set<string>()
-    const allMembers = await member.guild.members.fetch()
+    const allMembers = await member.guild.members.fetch({ withPresences: true })
+
+    const welcomeTeamMembers: GuildMember[] = []
     for (const [, m] of allMembers) {
-      if (m.user.bot) continue
-      const hasRole = [...roleIds].some((rid) => m.roles.cache.has(rid))
-      if (hasRole) membersToAdd.add(m.id)
+      if (m.user.bot || m.id === member.id) continue
+
+      const isWelcomeTeam = welcomeRole && m.roles.cache.has(welcomeRole.id)
+      const isWelcomeSupervisor =
+        welcomeSupervisorsRole && m.roles.cache.has(welcomeSupervisorsRole.id)
+
+      if (isWelcomeSupervisor) {
+        membersToAdd.add(m.id)
+      } else if (isWelcomeTeam) {
+        welcomeTeamMembers.push(m)
+      }
+    }
+
+    welcomeTeamMembers.sort((a, b) => this.getPresencePriority(b) - this.getPresencePriority(a))
+    const selectedWelcomeTeam = welcomeTeamMembers.slice(0, config.maxWelcomeTeamMembers)
+    for (const m of selectedWelcomeTeam) {
+      membersToAdd.add(m.id)
     }
 
     for (const userId of membersToAdd) {
-      if (userId === member.id) continue
       try {
         await thread.members.add(userId)
       } catch (error) {
