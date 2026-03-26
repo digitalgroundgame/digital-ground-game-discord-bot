@@ -1,5 +1,10 @@
+import { OAuth2Client } from 'google-auth-library'
 import { google, type calendar_v3 } from 'googleapis'
 import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
+
+import { GOOGLE_CALENDAR_OAUTH_REDIRECT_URI, GOOGLE_CALENDAR_SCOPES } from '../constants/google-calendar-oauth.js'
+import { parseGoogleCredentialsJson } from '../utils/parse-google-calendar-credentials.js'
 
 export interface CalendarEventInput {
   summary: string
@@ -13,19 +18,31 @@ function toRFC3339(d: Date): string {
   return d.toISOString()
 }
 
+function defaultOAuthTokenPath(): string {
+  return join(process.cwd(), 'config/google-calendar-oauth-tokens.json')
+}
+
 export class GoogleCalendarService {
   private calendar: calendar_v3.Calendar | null = null
   private calendarId: string | null = null
   private credentialsPath: string | undefined
+  private oauthTokenPath: string | undefined
   private initPromise: Promise<void> | null = null
 
+  /**
+   * @param credentialsPath Path to either a service account JSON **or** an OAuth 2.0 client
+   *   secrets JSON (from Google Cloud → APIs & Services → Credentials → Download JSON).
+   * @param oauthTokenPath For OAuth clients only: JSON file with tokens (see `npm run calendar:oauth`).
+   */
   constructor(
     calendarId: string | undefined,
     credentialsPath: string | undefined,
+    oauthTokenPath?: string | undefined,
   ) {
     this.credentialsPath = calendarId && credentialsPath ? credentialsPath : undefined
     if (this.credentialsPath) {
       this.calendarId = calendarId ?? null
+      this.oauthTokenPath = oauthTokenPath ?? defaultOAuthTokenPath()
     }
   }
 
@@ -43,15 +60,39 @@ export class GoogleCalendarService {
   private async initClient(credentialsPath: string): Promise<void> {
     try {
       const raw = await readFile(credentialsPath, 'utf-8')
-      const keys = JSON.parse(raw) as { client_email?: string; private_key?: string }
-      if (!keys.client_email || !keys.private_key) {
+      const json: unknown = JSON.parse(raw)
+      const parsed = parseGoogleCredentialsJson(json)
+      if (!parsed) {
         return
       }
-      const auth = new google.auth.GoogleAuth({
-        credentials: keys,
-        scopes: ['https://www.googleapis.com/auth/calendar.events'],
-      })
-      this.calendar = google.calendar({ version: 'v3', auth })
+      if (parsed.kind === 'service_account') {
+        const auth = new google.auth.GoogleAuth({
+          credentials: parsed.credentials,
+          scopes: [...GOOGLE_CALENDAR_SCOPES],
+        })
+        this.calendar = google.calendar({ version: 'v3', auth })
+        return
+      }
+      if (!this.oauthTokenPath) {
+        return
+      }
+      let tokenRaw: string
+      try {
+        tokenRaw = await readFile(this.oauthTokenPath, 'utf-8')
+      } catch {
+        return
+      }
+      const tokens = JSON.parse(tokenRaw) as { refresh_token?: string }
+      if (!tokens.refresh_token) {
+        return
+      }
+      const oauth2Client = new OAuth2Client(
+        parsed.clientId,
+        parsed.clientSecret,
+        GOOGLE_CALENDAR_OAUTH_REDIRECT_URI,
+      )
+      oauth2Client.setCredentials(tokens)
+      this.calendar = google.calendar({ version: 'v3', auth: oauth2Client })
     } catch {
       this.calendar = null
     }

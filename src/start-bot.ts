@@ -97,10 +97,11 @@ async function start(): Promise<void> {
     new CTAPostTrigger(),
   ]
 
-  // Google Calendar sync (optional: set GOOGLE_CALENDAR_ID and GOOGLE_APPLICATION_CREDENTIALS)
+  // Google Calendar sync — credentials: service account JSON OR OAuth client "Download JSON"
   const googleCalendarService = new GoogleCalendarService(
     process.env.GOOGLE_CALENDAR_ID,
-    process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    process.env.GOOGLE_CALENDAR_CREDENTIALS ?? process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    process.env.GOOGLE_CALENDAR_OAUTH_TOKEN_PATH,
   )
   const guildScheduledEventHandler = new GuildScheduledEventHandler(googleCalendarService)
 
