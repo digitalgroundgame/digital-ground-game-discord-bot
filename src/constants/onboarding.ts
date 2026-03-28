@@ -19,14 +19,14 @@ export class DevOnboarding {
     ▫️ Be sure to subscribe to the Discord server events!
 
     **GitHub access**
-    ▫️ Send your GitHub username to **@tadjh**
+    ▫️ Send your GitHub username to **@Evan6seven**
     ▫️ Our GitHub page: [DigitalGroundGame](https://github.com/digitalgroundgame)
 
     **Google Drive access**
-    ▫️ Send your email address to **@tadjh**
+    ▫️ Send your email address to **@Evan6seven**
     ▫️ Review the [Onboarding Doc](https://docs.google.com/document/d/1ftfaatfO1umsE-ZOLmjfohn4JW-3TnSMkZF3ib9AyO0/edit)
 
-    If you have questions, reach out to **@tadjh** or **#dev-team** anytime!`
+    If you have questions, reach out to **@Evan6seven** or **#dev-team** anytime!`
 }
 
 export class WelcomeOnboarding {
