@@ -108,7 +108,7 @@ export class CommandUtils {
           }),
         )
 
-        Logger.warn(`${intr.user.displayName} failed role check for send dev onboarding command`)
+        Logger.warn(`${intr.user.displayName} failed role check for a send onboarding command`)
 
         return false
       }

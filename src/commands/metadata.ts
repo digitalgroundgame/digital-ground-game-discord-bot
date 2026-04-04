@@ -9,6 +9,7 @@ import {
 import { Args } from './index.js'
 import { Language } from '../models/enum-helpers/index.js'
 import { Lang } from '../services/index.js'
+import { ONBOARDING_CONFIGS } from '../commands/user/index.js'
 
 export const ChatCommandMetadata: {
   [command: string]: RESTPostAPIChatInputApplicationCommandsJSONBody
@@ -107,12 +108,15 @@ export const MessageCommandMetadata: {
 
 export const UserCommandMetadata: {
   [command: string]: RESTPostAPIContextMenuApplicationCommandsJSONBody
-} = {
-  SEND_DEV_ONBOARDING: {
-    type: ApplicationCommandType.User,
-    name: Lang.getRef('userCommands.sendDevOnboarding', Language.Default),
-    name_localizations: Lang.getRefLocalizationMap('userCommands.sendDevOnboarding'),
-    default_member_permissions: undefined,
-    dm_permission: true,
-  },
-}
+} = Object.fromEntries(
+  ONBOARDING_CONFIGS.map(config => [
+    config.metadataKey,
+    {
+      type: ApplicationCommandType.User,
+      name: Lang.getRef(config.langKey, Language.Default),
+      name_localizations: Lang.getRefLocalizationMap(config.langKey),
+      default_member_permissions: undefined,
+      dm_permission: true,
+    },
+  ])
+)
