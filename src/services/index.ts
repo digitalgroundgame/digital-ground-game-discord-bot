@@ -1,3 +1,4 @@
+export { AttendanceService } from './attendance-service.js'
 export { CommandRegistrationService } from './command-registration-service.js'
 export { EventDataService } from './event-data-service.js'
 export { HttpService } from './http-service.js'

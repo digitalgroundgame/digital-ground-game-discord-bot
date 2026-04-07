@@ -28,6 +28,7 @@ import {
   type GuildMemberUpdateHandler,
   type MessageHandler,
   type ReactionHandler,
+  type VoiceStateUpdateHandler,
 } from '../events/index.js'
 import { type JobService, Logger } from '../services/index.js'
 import { PartialUtils } from '../utils/index.js'
@@ -55,6 +56,7 @@ export class Bot {
     private buttonHandler: ButtonHandler,
     private reactionHandler: ReactionHandler,
     private jobService: JobService,
+    private voiceStateUpdateHandler?: VoiceStateUpdateHandler,
   ) {}
 
   public async start(): Promise<void> {
@@ -82,6 +84,13 @@ export class Bot {
       (messageReaction: MessageReaction | PartialMessageReaction, user: User | PartialUser) =>
         this.onReaction(messageReaction, user),
     )
+    if (this.voiceStateUpdateHandler) {
+      this.client.on(
+        Events.VoiceStateUpdate,
+        (oldState: import('discord.js').VoiceState, newState: import('discord.js').VoiceState) =>
+          this.onVoiceStateUpdate(oldState, newState),
+      )
+    }
     this.client.rest.on(RESTEvents.RateLimited, (rateLimitData: RateLimitData) =>
       this.onRateLimit(rateLimitData),
     )
@@ -261,6 +270,20 @@ export class Bot {
       await this.reactionHandler.process(msgReaction, msgReaction.message as Message, reactor)
     } catch (error) {
       Logger.error(Logs.error.reaction, error)
+    }
+  }
+
+  private async onVoiceStateUpdate(
+    oldState: import('discord.js').VoiceState,
+    newState: import('discord.js').VoiceState,
+  ): Promise<void> {
+    if (!this.ready || !this.voiceStateUpdateHandler) {
+      return
+    }
+    try {
+      await this.voiceStateUpdateHandler.process(oldState, newState)
+    } catch (error) {
+      Logger.error(Logs.error.voiceStateUpdate, error)
     }
   }
 
