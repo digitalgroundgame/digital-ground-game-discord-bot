@@ -259,7 +259,7 @@
       "rules": "List the rules, or a specific one.",
       "pragPapers": "Gives a link to the Pragmatic Papers website.",
       "census": "Gives a link to the Census form.",
-      "attendance": "DMs you a snapshot list of everyone currently in your voice channel (copyable code block; meeting name when there is an active scheduled event or stage topic).",
+      "attendance": "DMs you a snapshot list of everyone currently in your voice channel.",
       "attendanceTrack": "Tracks who is in your voice channel and DMs you the same formatted list when you leave."
     },
     "argDescs": {
