@@ -1,1 +1,1 @@
-export { SendDevOnboarding } from './send-dev-onboarding.js'
+export { SendOnboarding, ONBOARDING_CONFIGS } from './send-onboarding.js'
