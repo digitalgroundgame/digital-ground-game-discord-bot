@@ -9,6 +9,7 @@ import {
 import { Args } from './index.js'
 import { Language } from '../models/enum-helpers/index.js'
 import { Lang } from '../services/index.js'
+import { ONBOARDING_CONFIGS } from '../commands/user/index.js'
 
 export const ChatCommandMetadata: {
   [command: string]: RESTPostAPIChatInputApplicationCommandsJSONBody
@@ -99,6 +100,22 @@ export const ChatCommandMetadata: {
     description_localizations: Lang.getRefLocalizationMap('commandDescs.census'),
     default_member_permissions: undefined,
   },
+  ATTENDANCE: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.attendance', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.attendance'),
+    description: Lang.getRef('commandDescs.attendance', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.attendance'),
+    default_member_permissions: undefined,
+  },
+  ATTENDANCE_TRACK: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.attendanceTrack', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.attendanceTrack'),
+    description: Lang.getRef('commandDescs.attendanceTrack', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.attendanceTrack'),
+    default_member_permissions: undefined,
+  },
 }
 
 export const MessageCommandMetadata: {
@@ -107,12 +124,15 @@ export const MessageCommandMetadata: {
 
 export const UserCommandMetadata: {
   [command: string]: RESTPostAPIContextMenuApplicationCommandsJSONBody
-} = {
-  SEND_DEV_ONBOARDING: {
-    type: ApplicationCommandType.User,
-    name: Lang.getRef('userCommands.sendDevOnboarding', Language.Default),
-    name_localizations: Lang.getRefLocalizationMap('userCommands.sendDevOnboarding'),
-    default_member_permissions: undefined,
-    dm_permission: true,
-  },
-}
+} = Object.fromEntries(
+  ONBOARDING_CONFIGS.map(config => [
+    config.metadataKey,
+    {
+      type: ApplicationCommandType.User,
+      name: Lang.getRef(config.langKey, Language.Default),
+      name_localizations: Lang.getRefLocalizationMap(config.langKey),
+      default_member_permissions: undefined,
+      dm_permission: true,
+    },
+  ]),
+)
