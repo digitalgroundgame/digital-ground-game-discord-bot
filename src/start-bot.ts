@@ -22,7 +22,7 @@ import {
 } from './commands/index.js'
 import { 
   SendOnboarding,
-  ONBOARDING_CONFIGS
+  ONBOARDING_CONFIGS,
 } from './commands/user/index.js'
 import {
   ButtonHandler,

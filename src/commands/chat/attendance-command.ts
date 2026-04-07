@@ -9,7 +9,8 @@ import { RateLimiter } from 'discord.js-rate-limiter'
 import { Language } from '../../models/enum-helpers/index.js'
 import { type EventData } from '../../models/internal-models.js'
 import {
-  formatAttendanceDmBody,
+  formatAttendanceDmContent,
+  resolveVoiceChannelMeetingSubject,
   type AttendanceEntry,
 } from '../../services/attendance-service.js'
 import { Lang } from '../../services/index.js'
@@ -47,8 +48,21 @@ export class AttendanceCommand implements Command {
       displayName: m.displayName ?? m.user.username ?? 'Unknown',
     }))
 
-    const body = formatAttendanceDmBody(voiceChannel.name, entries)
-    const dm = await MessageUtils.send(intr.user, body)
+    const at = new Date()
+    const meetingSubject = await resolveVoiceChannelMeetingSubject(
+      intr.guild,
+      voiceChannel.id,
+      voiceChannel,
+    )
+    const dm = await MessageUtils.send(
+      intr.user,
+      formatAttendanceDmContent({
+        channelName: voiceChannel.name,
+        meetingSubject,
+        entries,
+        at,
+      }),
+    )
 
     if (!dm) {
       await InteractionUtils.send(

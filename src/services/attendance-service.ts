@@ -1,16 +1,88 @@
-import type { VoiceState } from 'discord.js'
+import {
+  GuildScheduledEventStatus,
+  StageChannel,
+  type Guild,
+  type GuildBasedChannel,
+  type VoiceState,
+} from 'discord.js'
+import { DateTime } from 'luxon'
 
 export interface AttendanceEntry {
   id: string
   displayName: string
 }
 
-/** Plain-text body for a DM listing VC attendance (snapshot or tracked session). */
-export function formatAttendanceDmBody(channelName: string, entries: AttendanceEntry[]): string {
-  const lines = entries.map((e) => `${e.displayName} (${e.id})`)
-  return lines.length > 0
-    ? `**Attendance for ${channelName}**\n\n${lines.join('\n')}`
-    : `**Attendance for ${channelName}**\n\nNo one else was in the channel.`
+export interface AttendanceDmPayload {
+  channelName: string
+  meetingSubject?: string
+  entries: AttendanceEntry[]
+  at: Date
+}
+
+function escapeMarkdownCodeFence(text: string): string {
+  return text.replaceAll('```', "'''")
+}
+
+/** Plain report text (inside the DM code fence for copy-paste). */
+export function formatAttendanceReportText(payload: AttendanceDmPayload): string {
+  const channelName = escapeMarkdownCodeFence(payload.channelName)
+  const dt = DateTime.fromJSDate(payload.at, { zone: 'utc' })
+  const dateStr = dt.toFormat("cccc, LLLL d, yyyy 'at' h:mm a 'UTC'")
+  let text = `# Attendance of ${channelName}\nDate: ${dateStr}\n`
+  if (payload.meetingSubject) {
+    text += `Subject: ${escapeMarkdownCodeFence(payload.meetingSubject)}\n`
+  }
+  text += '\n'
+  if (payload.entries.length === 0) {
+    text += '_No attendees._'
+  } else {
+    text += payload.entries
+      .map((e) => `- ${escapeMarkdownCodeFence(e.displayName)}`)
+      .join('\n')
+  }
+  return text
+}
+
+/** Discord DM / message content max length. */
+const MESSAGE_CONTENT_MAX = 2000
+const CODE_FENCE_OPEN = '```\n'
+const CODE_FENCE_CLOSE = '\n```'
+
+/**
+ * DM body: report wrapped in a ``` code block so Discord shows the one-click copy control.
+ */
+export function formatAttendanceDmContent(payload: AttendanceDmPayload): string {
+  let report = formatAttendanceReportText(payload)
+  const maxInner = MESSAGE_CONTENT_MAX - CODE_FENCE_OPEN.length - CODE_FENCE_CLOSE.length
+  if (report.length > maxInner) {
+    report = `${report.slice(0, maxInner - 24)}\n\n(truncated)`
+  }
+  return `${CODE_FENCE_OPEN}${report}${CODE_FENCE_CLOSE}`
+}
+
+/**
+ * Active scheduled event linked to this voice/stage channel, else stage topic when `channel` is a
+ * stage with a topic. Uses `voiceChannelId` so scheduled events still resolve if the channel was
+ * deleted before the DM is sent (e.g. end of `/attendance-track`).
+ */
+export async function resolveVoiceChannelMeetingSubject(
+  guild: Guild,
+  voiceChannelId: string,
+  channel?: GuildBasedChannel | null,
+): Promise<string | undefined> {
+  try {
+    const events = await guild.scheduledEvents.fetch()
+    const active = [...events.values()].find(
+      (e) => e.channelId === voiceChannelId && e.status === GuildScheduledEventStatus.Active,
+    )
+    if (active) return active.name
+  } catch {
+    // Missing permissions or API error — fall through to stage topic
+  }
+  if (channel instanceof StageChannel && channel.topic) {
+    return channel.topic
+  }
+  return undefined
 }
 
 interface AttendanceSession {
@@ -65,7 +137,13 @@ export class AttendanceService {
   handleVoiceStateUpdate(
     oldState: VoiceState,
     newState: VoiceState,
-  ): { userId: string; channelName: string; entries: AttendanceEntry[] } | null {
+  ): {
+    userId: string
+    guildId: string
+    channelId: string
+    channelName: string
+    entries: AttendanceEntry[]
+  } | null {
     const memberId = newState.member?.id ?? oldState.member?.id
     if (!memberId) return null
 
@@ -94,6 +172,8 @@ export class AttendanceService {
       )
       return {
         userId: memberId,
+        guildId: session.guildId,
+        channelId: session.channelId,
         channelName: session.channelName,
         entries,
       }

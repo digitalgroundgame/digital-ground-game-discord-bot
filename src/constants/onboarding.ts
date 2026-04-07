@@ -30,7 +30,7 @@ export class DevOnboarding {
 }
 
 export class WelcomeOnboarding {
-  public static Title = "Welcome to the Welcome Team!"
+  public static Title = 'Welcome to the Welcome Team!'
 
   public static Message = `
     Thanks for joining this team and helping support Digital Ground Game.
@@ -53,7 +53,7 @@ export class WelcomeOnboarding {
 }
 
 export class EventsOnboarding {
-  public static Title = "Welcome to the Events Team!"
+  public static Title = 'Welcome to the Events Team!'
 
   public static Message = `
     Thanks for joining this team and helping support Digital Ground Game.
@@ -76,7 +76,7 @@ export class EventsOnboarding {
 }
 
 export class MediaOnboarding {
-  public static Title = "Welcome to the Media Team!"
+  public static Title = 'Welcome to the Media Team!'
 
   public static Message = `
     Thanks for joining this team and helping support Digital Ground Game.
@@ -100,7 +100,7 @@ export class MediaOnboarding {
 }
 
 export class ResearchOnboarding {
-  public static Title = "Welcome to the Research Team!"
+  public static Title = 'Welcome to the Research Team!'
 
   public static Message = `
     Thanks for joining this team and helping support Digital Ground Game.

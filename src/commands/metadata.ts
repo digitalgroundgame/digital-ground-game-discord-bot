@@ -134,5 +134,5 @@ export const UserCommandMetadata: {
       default_member_permissions: undefined,
       dm_permission: true,
     },
-  ])
+  ]),
 )
