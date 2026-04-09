@@ -94,7 +94,9 @@ export class Logger {
   public static setShardId(shardId: number): void {
     if (this.shardId !== shardId) {
       this.shardId = shardId
-      logger = logger.child({ shardId })
+      // Commenting this because we don't care about sharding rn
+      // AND its quite spammy as an additional line per log message
+      //logger = logger.child({ shardId })
     }
   }
 }
