@@ -298,6 +298,28 @@ describe('syncDggpScheduledEventsToGoogle', () => {
     expect(calendar.deleteEvent).not.toHaveBeenCalledWith('g_ok')
   })
 
+  it('deletes Google event when Discord event is canceled', async () => {
+    const ev = mockScheduledEvent({ status: GuildScheduledEventStatus.Canceled })
+    const client = mockClientWithGuild([ev])
+    const calendar = createCalendarServiceMock({
+      listEventsBetween: vi.fn().mockResolvedValue([
+        {
+          id: 'g_canceled',
+          summary: 'Was scheduled',
+          start: ev.scheduledStartAt!,
+          end: ev.scheduledEndAt!,
+          discordScheduledEventId: 'evt_discord_1',
+        },
+      ]),
+    })
+
+    await syncDggpScheduledEventsToGoogle(client, calendar)
+
+    expect(calendar.deleteEvent).toHaveBeenCalledWith('g_canceled')
+    expect(calendar.createEvent).not.toHaveBeenCalled()
+    expect(calendar.updateEvent).not.toHaveBeenCalled()
+  })
+
   it('skips work when calendar service is not configured', async () => {
     const client = mockClientWithGuild([mockScheduledEvent()])
     const calendar = createCalendarServiceMock({

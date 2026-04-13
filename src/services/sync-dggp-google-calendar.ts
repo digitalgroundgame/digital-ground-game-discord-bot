@@ -1,4 +1,5 @@
 import type { Client, GuildScheduledEvent } from 'discord.js'
+import { GuildScheduledEventStatus } from 'discord.js'
 import { createRequire } from 'node:module'
 
 import { DGGP_GUILD_NAME } from '../constants/dggp-guild.js'
@@ -158,10 +159,34 @@ export async function syncDggpScheduledEventsToGoogle(
   let created = 0
   let updated = 0
   let unchanged = 0
+  let deleted = 0
   const seenDiscordIds = new Set<string>()
 
   for (const event of events.values()) {
     seenDiscordIds.add(event.id)
+
+    if (event.status === GuildScheduledEventStatus.Canceled) {
+      const linked = discordIdToGoogle.get(event.id)
+      if (linked) {
+        try {
+          const ok = await calendarService.deleteEvent(linked.id)
+          if (ok) {
+            deleted++
+            Logger.info(
+              `Calendar sync (Google): DELETED googleEventId=${linked.id} (discordId=${event.id} canceled on Discord) summary=${JSON.stringify(linked.summary)}`,
+            )
+          } else {
+            Logger.warn(
+              `Calendar sync (Google): DELETE failed for canceled discordId=${event.id} googleEventId=${linked.id}`,
+            )
+          }
+        } catch (error) {
+          Logger.error(Logs.error.calendarSync.replace('{EVENT_NAME}', event.name), error)
+        }
+      }
+      continue
+    }
+
     const input = buildCalendarInputFromDiscordEvent(event)
     Logger.info(
       `Calendar sync (Discord): id=${event.id} name=${JSON.stringify(event.name)} start=${input.start.toISOString()} end=${input.end.toISOString()} status=${event.status} url=${event.url}`,
@@ -208,7 +233,6 @@ export async function syncDggpScheduledEventsToGoogle(
     }
   }
 
-  let deleted = 0
   for (const [discordId, ge] of discordIdToGoogle) {
     if (seenDiscordIds.has(discordId)) continue
     try {
@@ -225,6 +249,6 @@ export async function syncDggpScheduledEventsToGoogle(
   }
 
   Logger.info(
-    `Calendar sync job finished: ${events.size} Discord event(s); ${created} created, ${updated} updated, ${unchanged} unchanged, ${deleted} orphans removed.`,
+    `Calendar sync job finished: ${events.size} Discord event(s); ${created} created, ${updated} updated, ${unchanged} unchanged, ${deleted} removed from Google (canceled Discord events and orphans).`,
   )
 }

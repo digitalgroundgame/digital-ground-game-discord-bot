@@ -1,4 +1,5 @@
 import type { GuildScheduledEvent, PartialGuildScheduledEvent } from 'discord.js'
+import { GuildScheduledEventStatus } from 'discord.js'
 import { createRequire } from 'node:module'
 
 import type { GoogleCalendarService } from '../services/google-calendar-service.js'
@@ -14,6 +15,7 @@ export class GuildScheduledEventHandler {
   public async onCreate(event: GuildScheduledEvent): Promise<void> {
     if (!this.calendarService.isConfigured()) return
     if (!(await this.calendarService.ensureInitialized())) return
+    if (event.status === GuildScheduledEventStatus.Canceled) return
 
     const input = buildCalendarInputFromDiscordEvent(event)
     try {
@@ -40,32 +42,50 @@ export class GuildScheduledEventHandler {
     if (!this.calendarService.isConfigured()) return
     if (!(await this.calendarService.ensureInitialized())) return
 
-    const input = buildCalendarInputFromDiscordEvent(newEvent)
+    let event = newEvent
+    if (event.partial || event.status == null) {
+      try {
+        event = await event.fetch()
+      } catch (error) {
+        Logger.warn(
+          `Calendar sync: could not fetch scheduled event ${newEvent.id} after update; skipping.`,
+          error,
+        )
+        return
+      }
+    }
+
+    if (event.isCanceled()) {
+      await this.onDelete(event)
+      return
+    }
+
+    const input = buildCalendarInputFromDiscordEvent(event)
     try {
-      const googleEventId = await this.calendarService.findEventByDiscordId(newEvent.id)
+      const googleEventId = await this.calendarService.findEventByDiscordId(event.id)
       if (googleEventId) {
         const ok = await this.calendarService.updateEvent(googleEventId, input)
         if (ok) {
           Logger.info(
-            Logs.info.calendarSyncUpdated.replace('{EVENT_NAME}', newEvent.name) +
-              ` (discordId=${newEvent.id} googleEventId=${googleEventId})`,
+            Logs.info.calendarSyncUpdated.replace('{EVENT_NAME}', event.name) +
+              ` (discordId=${event.id} googleEventId=${googleEventId})`,
           )
         } else {
           Logger.warn(
-            `Calendar sync: UPDATE failed for discordId=${newEvent.id} googleEventId=${googleEventId}`,
+            `Calendar sync: UPDATE failed for discordId=${event.id} googleEventId=${googleEventId}`,
           )
         }
       } else {
         const createdId = await this.calendarService.createEvent(input)
         if (createdId) {
           Logger.info(
-            Logs.info.calendarSyncCreated.replace('{EVENT_NAME}', newEvent.name) +
-              ` (discordId=${newEvent.id} googleEventId=${createdId}, created on update — was missing)`,
+            Logs.info.calendarSyncCreated.replace('{EVENT_NAME}', event.name) +
+              ` (discordId=${event.id} googleEventId=${createdId}, created on update — was missing)`,
           )
         }
       }
     } catch (error) {
-      Logger.error(Logs.error.calendarSync.replace('{EVENT_NAME}', newEvent.name), error)
+      Logger.error(Logs.error.calendarSync.replace('{EVENT_NAME}', event.name), error)
     }
   }
 
