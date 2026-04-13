@@ -26,6 +26,7 @@ import {
   GuildLeaveHandler,
   GuildMemberAddHandler,
   GuildMemberUpdateHandler,
+  GuildScheduledEventHandler,
   MessageHandler,
   ReactionHandler,
   TriggerHandler,
@@ -48,12 +49,24 @@ import {
 } from './services/index.js'
 import { type Trigger } from './triggers/index.js'
 import { CTAPostTrigger } from './triggers/cta-post.js'
+import { runCalendarSyncCli } from './calendar-sync-cli.js'
 
 const require = createRequire(import.meta.url)
 const Config = require('../config/config.json')
 const Logs = require('../lang/logs.json')
 
 async function start(): Promise<void> {
+  if (process.argv[2] === 'calendar' && process.argv[3] === 'sync') {
+    try {
+      await runCalendarSyncCli()
+    } catch (error) {
+      Logger.error(Logs.error.unspecified, error)
+      process.exit(1)
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    process.exit(0)
+  }
+
   // Services
   const eventDataService = new EventDataService()
 
@@ -117,6 +130,7 @@ async function start(): Promise<void> {
   const triggerHandler = new TriggerHandler(triggers, eventDataService)
   const messageHandler = new MessageHandler(triggerHandler)
   const reactionHandler = new ReactionHandler(reactions, eventDataService)
+  const guildScheduledEventHandler = new GuildScheduledEventHandler(googleCalendarService)
 
   // Jobs
   const jobs: Job[] = [
@@ -137,6 +151,7 @@ async function start(): Promise<void> {
     commandHandler,
     buttonHandler,
     reactionHandler,
+    guildScheduledEventHandler,
     new JobService(jobs),
   )
 

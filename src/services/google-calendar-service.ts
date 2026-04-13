@@ -37,14 +37,22 @@ export interface CalendarEventInput {
   location?: string | null
   /** Google Calendar recurrence lines, e.g. `['RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO']` */
   recurrence?: string[] | null
+  /** Discord Guild Scheduled Event ID stored in Google Calendar extended properties. */
+  discordScheduledEventId?: string | null
 }
 
-/** Minimal fields from `events.list` used to correlate with Discord. */
+/** Fields from `events.list` used to correlate and diff with Discord. */
 export interface ListedCalendarEvent {
   id: string
   summary?: string | null
   description?: string | null
+  start?: Date | null
+  end?: Date | null
+  location?: string | null
+  discordScheduledEventId?: string | null
 }
+
+const DISCORD_EVENT_ID_KEY = 'discordScheduledEventId'
 
 function toRFC3339(d: Date): string {
   return d.toISOString()
@@ -163,6 +171,11 @@ export class GoogleCalendarService {
               id: item.id,
               summary: item.summary,
               description: item.description,
+              start: item.start?.dateTime ? new Date(item.start.dateTime) : null,
+              end: item.end?.dateTime ? new Date(item.end.dateTime) : null,
+              location: item.location ?? null,
+              discordScheduledEventId:
+                item.extendedProperties?.private?.[DISCORD_EVENT_ID_KEY] ?? null,
             })
           }
         }
@@ -192,6 +205,11 @@ export class GoogleCalendarService {
       if (input.recurrence?.length) {
         body.recurrence = input.recurrence
       }
+      if (input.discordScheduledEventId) {
+        body.extendedProperties = {
+          private: { [DISCORD_EVENT_ID_KEY]: input.discordScheduledEventId },
+        }
+      }
       const res = await this.calendar.events.insert({
         calendarId: this.calendarId,
         requestBody: body,
@@ -217,13 +235,19 @@ export class GoogleCalendarService {
       if (input.recurrence?.length) {
         body.recurrence = input.recurrence
       }
+      if (input.discordScheduledEventId) {
+        body.extendedProperties = {
+          private: { [DISCORD_EVENT_ID_KEY]: input.discordScheduledEventId },
+        }
+      }
       await this.calendar.events.patch({
         calendarId: this.calendarId,
         eventId,
         requestBody: body,
       })
       return true
-    } catch {
+    } catch (err: unknown) {
+      Logger.error(`Google Calendar: events.patch failed: ${formatGoogleApiError(err)}`, err)
       return false
     }
   }
@@ -237,8 +261,33 @@ export class GoogleCalendarService {
         eventId,
       })
       return true
-    } catch {
+    } catch (err: unknown) {
+      Logger.error(`Google Calendar: events.delete failed: ${formatGoogleApiError(err)}`, err)
       return false
+    }
+  }
+
+  /**
+   * Find the Google Calendar event ID for a given Discord scheduled event ID
+   * using the private extended property filter.
+   */
+  public async findEventByDiscordId(discordEventId: string): Promise<string | null> {
+    await this.ensureClient()
+    if (!this.calendar || !this.calendarId) return null
+    try {
+      const res = await this.calendar.events.list({
+        calendarId: this.calendarId,
+        privateExtendedProperty: [`${DISCORD_EVENT_ID_KEY}=${discordEventId}`],
+        maxResults: 1,
+      })
+      const item = res.data.items?.[0]
+      return item?.id && item.status !== 'cancelled' ? item.id : null
+    } catch (err: unknown) {
+      Logger.error(
+        `Google Calendar: findEventByDiscordId failed for ${discordEventId}: ${formatGoogleApiError(err)}`,
+        err,
+      )
+      return null
     }
   }
 }

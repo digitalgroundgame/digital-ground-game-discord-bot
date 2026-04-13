@@ -3,27 +3,15 @@ import { createRequire } from 'node:module'
 
 import { DGGP_GUILD_NAME } from '../constants/dggp-guild.js'
 import { discordRecurrenceRuleToGoogleRRule } from '../utils/discord-recurrence-to-google-rrule.js'
-import type { CalendarEventInput, GoogleCalendarService } from './google-calendar-service.js'
+import type {
+  CalendarEventInput,
+  GoogleCalendarService,
+  ListedCalendarEvent,
+} from './google-calendar-service.js'
 import { Logger } from './logger.js'
 
 const require = createRequire(import.meta.url)
 const Logs = require('../../lang/logs.json')
-
-/** Preferred marker on Google event descriptions so listings map back to Discord (no local state). */
-const DISCORD_ID_LINE = /Discord scheduled event ID \(sync\):\s*(\d+)/i
-/** Legacy sync: description contained only the Discord UI URL. */
-const DISCORD_EVENTS_URL = /discord(?:app)?\.com\/events\/\d+\/(\d+)/i
-
-function extractDiscordScheduledEventIdFromGoogleDescription(
-  description: string | null | undefined,
-): string | null {
-  if (!description) return null
-  const fromLine = description.match(DISCORD_ID_LINE)?.[1]
-  if (fromLine) return fromLine
-  const fromUrl = description.match(DISCORD_EVENTS_URL)?.[1]
-  if (fromUrl) return fromUrl
-  return null
-}
 
 const DEFAULT_PAST_MS = 365 * 24 * 60 * 60 * 1000
 const DEFAULT_FUTURE_MS = 3 * 365 * 24 * 60 * 60 * 1000
@@ -48,7 +36,8 @@ function discordScheduledEventTimeRange(event: GuildScheduledEvent): { start: Da
  * Time bounds for `events.list`: default range extended by actual Discord event times (and
  * recurrence end), so empty calendars and long-running series still list correctly.
  */
-function listWindowForDiscordEvents(discordEvents: Iterable<GuildScheduledEvent>): {
+/** Exported for tests: time bounds passed to Google `events.list`. */
+export function listWindowForDiscordEvents(discordEvents: Iterable<GuildScheduledEvent>): {
   timeMin: Date
   timeMax: Date
 } {
@@ -74,10 +63,9 @@ function listWindowForDiscordEvents(discordEvents: Iterable<GuildScheduledEvent>
 
 export function buildCalendarInputFromDiscordEvent(event: GuildScheduledEvent): CalendarEventInput {
   const { start, end } = discordScheduledEventTimeRange(event)
-  const baseDescription = event.description
+  const description = event.description
     ? `${event.description}\n\nSynced from DGGP Discord: ${event.url}`
     : `Synced from DGGP Discord: ${event.url}`
-  const description = `${baseDescription}\n\nDiscord scheduled event ID (sync): ${event.id}`
   const location =
     event.entityMetadata && 'location' in event.entityMetadata
       ? (event.entityMetadata.location ?? null)
@@ -102,12 +90,22 @@ export function buildCalendarInputFromDiscordEvent(event: GuildScheduledEvent): 
     end,
     location,
     recurrence,
+    discordScheduledEventId: event.id,
   }
 }
 
+function needsUpdate(google: ListedCalendarEvent, input: CalendarEventInput): boolean {
+  if (google.summary !== input.summary) return true
+  if (google.location !== (input.location ?? null)) return true
+  if (google.start && Math.abs(google.start.getTime() - input.start.getTime()) > 1000) return true
+  if (google.end && Math.abs(google.end.getTime() - input.end.getTime()) > 1000) return true
+  return false
+}
+
 /**
- * Reconcile: list Google Calendar events, compare to DGGP Discord scheduled events, create only
- * those Discord events that are not already represented on Google (matched by id in description).
+ * Full reconciliation: list Google Calendar events, compare to DGGP Discord scheduled events,
+ * create missing events, update drifted fields, and remove orphaned Google events whose Discord
+ * counterpart no longer exists.
  */
 export async function syncDggpScheduledEventsToGoogle(
   client: Client,
@@ -142,42 +140,54 @@ export async function syncDggpScheduledEventsToGoogle(
 
   const { timeMin, timeMax } = listWindowForDiscordEvents(events.values())
   const googleEvents = await calendarService.listEventsBetween(timeMin, timeMax)
-  if (googleEvents.length === 0) {
-    Logger.info(
-      'Calendar sync: Google Calendar returned no events in this sync window (empty or brand-new calendar is expected); will create Google events for any Discord events not already synced.',
-    )
-  }
   Logger.info(
     `Calendar sync: loaded ${googleEvents.length} Google Calendar event(s) in window ${timeMin.toISOString()} → ${timeMax.toISOString()}.`,
   )
 
-  const discordIdToGoogleId = new Map<string, string>()
-  googleEvents.forEach((ge) => {
-    const discordEventId = extractDiscordScheduledEventIdFromGoogleDescription(ge.description)
-    if (!discordEventId) {
-      return
+  const discordIdToGoogle = new Map<string, ListedCalendarEvent>()
+  for (const ge of googleEvents) {
+    if (!ge.discordScheduledEventId) continue
+    if (!discordIdToGoogle.has(ge.discordScheduledEventId)) {
+      discordIdToGoogle.set(ge.discordScheduledEventId, ge)
     }
-    // Recurring Google series expanded with singleEvents=true yields many instances sharing one
-    // Discord id in the description; keep the first id only.
-    if (!discordIdToGoogleId.has(discordEventId)) {
-      discordIdToGoogleId.set(discordEventId, ge.id)
-    }
-  })
+  }
   Logger.info(
-    `Calendar sync: ${discordIdToGoogleId.size} Google event(s) tied to a Discord scheduled event id (matched in description).`,
+    `Calendar sync: ${discordIdToGoogle.size} Google event(s) linked to a Discord scheduled event via extended properties.`,
   )
 
   let created = 0
-  let skipped = 0
+  let updated = 0
+  let unchanged = 0
+  const seenDiscordIds = new Set<string>()
 
   for (const event of events.values()) {
+    seenDiscordIds.add(event.id)
     const input = buildCalendarInputFromDiscordEvent(event)
     Logger.info(
       `Calendar sync (Discord): id=${event.id} name=${JSON.stringify(event.name)} start=${input.start.toISOString()} end=${input.end.toISOString()} status=${event.status} url=${event.url}`,
     )
 
-    if (discordIdToGoogleId.has(event.id)) {
-      skipped++
+    const existing = discordIdToGoogle.get(event.id)
+    if (existing) {
+      if (needsUpdate(existing, input)) {
+        try {
+          const ok = await calendarService.updateEvent(existing.id, input)
+          if (ok) {
+            updated++
+            Logger.info(
+              `Calendar sync (Google): UPDATED discordId=${event.id} googleEventId=${existing.id} summary=${JSON.stringify(input.summary)}`,
+            )
+          } else {
+            Logger.warn(
+              `Calendar sync (Google): UPDATE failed for discordId=${event.id} googleEventId=${existing.id}`,
+            )
+          }
+        } catch (error) {
+          Logger.error(Logs.error.calendarSync.replace('{EVENT_NAME}', event.name), error)
+        }
+      } else {
+        unchanged++
+      }
       continue
     }
 
@@ -198,7 +208,23 @@ export async function syncDggpScheduledEventsToGoogle(
     }
   }
 
+  let deleted = 0
+  for (const [discordId, ge] of discordIdToGoogle) {
+    if (seenDiscordIds.has(discordId)) continue
+    try {
+      const ok = await calendarService.deleteEvent(ge.id)
+      if (ok) {
+        deleted++
+        Logger.info(
+          `Calendar sync (Google): DELETED orphan googleEventId=${ge.id} (discordId=${discordId} no longer exists) summary=${JSON.stringify(ge.summary)}`,
+        )
+      }
+    } catch (error) {
+      Logger.error(Logs.error.calendarSync.replace('{EVENT_NAME}', ge.summary ?? discordId), error)
+    }
+  }
+
   Logger.info(
-    `Calendar sync job finished: ${events.size} Discord event(s); ${skipped} already on Google; ${created} created.`,
+    `Calendar sync job finished: ${events.size} Discord event(s); ${created} created, ${updated} updated, ${unchanged} unchanged, ${deleted} orphans removed.`,
   )
 }
