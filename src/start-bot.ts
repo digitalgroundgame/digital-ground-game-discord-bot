@@ -11,6 +11,8 @@ import {
   RulesCommand,
   TestCommand,
   CensusCommand,
+  AttendanceCommand,
+  AttendanceTrackCommand,
 } from './commands/chat/index.js'
 import {
   ChatCommandMetadata,
@@ -30,6 +32,7 @@ import {
   MessageHandler,
   ReactionHandler,
   TriggerHandler,
+  VoiceStateUpdateHandler,
 } from './events/index.js'
 import { CustomClient } from './extensions/index.js'
 import {
@@ -41,6 +44,7 @@ import {
 import { Bot } from './models/bot.js'
 import { type Reaction } from './reactions/index.js'
 import {
+  AttendanceService,
   CommandRegistrationService,
   EventDataService,
   GoogleCalendarService,
@@ -69,6 +73,7 @@ async function start(): Promise<void> {
 
   // Services
   const eventDataService = new EventDataService()
+  const attendanceService = new AttendanceService()
 
   // Client
   const client = new CustomClient({
@@ -93,6 +98,8 @@ async function start(): Promise<void> {
     new RulesCommand(),
     new PragPapersCommand(),
     new CensusCommand(),
+    new AttendanceCommand(),
+    new AttendanceTrackCommand(attendanceService),
 
     // User Context Commands
     ...ONBOARDING_CONFIGS.map((config) => new SendOnboarding(config)),
@@ -131,6 +138,7 @@ async function start(): Promise<void> {
   const messageHandler = new MessageHandler(triggerHandler)
   const reactionHandler = new ReactionHandler(reactions, eventDataService)
   const guildScheduledEventHandler = new GuildScheduledEventHandler(googleCalendarService)
+  const voiceStateUpdateHandler = new VoiceStateUpdateHandler(attendanceService, client)
 
   // Jobs
   const jobs: Job[] = [
@@ -153,6 +161,7 @@ async function start(): Promise<void> {
     reactionHandler,
     guildScheduledEventHandler,
     new JobService(jobs),
+    voiceStateUpdateHandler,
   )
 
   // Register

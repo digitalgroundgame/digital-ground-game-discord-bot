@@ -100,6 +100,22 @@ export const ChatCommandMetadata: {
     description_localizations: Lang.getRefLocalizationMap('commandDescs.census'),
     default_member_permissions: undefined,
   },
+  ATTENDANCE: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.attendance', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.attendance'),
+    description: Lang.getRef('commandDescs.attendance', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.attendance'),
+    default_member_permissions: undefined,
+  },
+  ATTENDANCE_TRACK: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.attendanceTrack', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.attendanceTrack'),
+    description: Lang.getRef('commandDescs.attendanceTrack', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.attendanceTrack'),
+    default_member_permissions: undefined,
+  },
 }
 
 export const MessageCommandMetadata: {

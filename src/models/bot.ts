@@ -31,6 +31,7 @@ import {
   type GuildScheduledEventHandler,
   type MessageHandler,
   type ReactionHandler,
+  type VoiceStateUpdateHandler,
 } from '../events/index.js'
 import { type JobService, Logger } from '../services/index.js'
 import { DGGP_GUILD_NAME } from '../constants/dggp-guild.js'
@@ -58,6 +59,7 @@ export class Bot {
     private reactionHandler: ReactionHandler,
     private guildScheduledEventHandler: GuildScheduledEventHandler,
     private jobService: JobService,
+    private voiceStateUpdateHandler?: VoiceStateUpdateHandler,
   ) {}
 
   public async start(): Promise<void> {
@@ -100,6 +102,13 @@ export class Bot {
       (event: GuildScheduledEvent | PartialGuildScheduledEvent) =>
         this.onGuildScheduledEventDelete(event),
     )
+    if (this.voiceStateUpdateHandler) {
+      this.client.on(
+        Events.VoiceStateUpdate,
+        (oldState: import('discord.js').VoiceState, newState: import('discord.js').VoiceState) =>
+          this.onVoiceStateUpdate(oldState, newState),
+      )
+    }
     this.client.rest.on(RESTEvents.RateLimited, (rateLimitData: RateLimitData) =>
       this.onRateLimit(rateLimitData),
     )
@@ -311,6 +320,20 @@ export class Bot {
       await this.guildScheduledEventHandler.onDelete(event)
     } catch (error) {
       Logger.error(Logs.error.calendarSync.replace('{EVENT_NAME}', event.name ?? event.id), error)
+    }
+  }
+
+  private async onVoiceStateUpdate(
+    oldState: import('discord.js').VoiceState,
+    newState: import('discord.js').VoiceState,
+  ): Promise<void> {
+    if (!this.ready || !this.voiceStateUpdateHandler) {
+      return
+    }
+    try {
+      await this.voiceStateUpdateHandler.process(oldState, newState)
+    } catch (error) {
+      Logger.error(Logs.error.voiceStateUpdate, error)
     }
   }
 

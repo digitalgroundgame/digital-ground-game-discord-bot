@@ -287,20 +287,18 @@ export class WelcomeThreadService {
       }
     }
 
-    const welcomeMessage = `
-    We are a grassroots Liberal political activism community committed to protecting individual liberties, the rule of law, and equal justice.
+    const content = `
+### 🗽 Welcome to Digital Ground Game (DGG)
+We are a grassroots Liberal political activism community committed to protecting individual liberties, the rule of law, and equal justice.
 
-    ### 🎯  What We Do
-    Through our weekly Call To Action (CTA), phonebanking, canvassing, and team-led projects, we organize real political action for real change. Partnering with like-minded organizations, we advance liberal values through a pragmatic, evidence-based approach to improve the material conditions of all Americans.
+### 🎯 What We Do
+Through our weekly [Call To Action (CTA)](https://digitalgroundgame.org/call-to-action), phonebanking, canvassing, and team-led projects, we organize real political action for real change. Partnering with like-minded organizations, we advance liberal values through a pragmatic, evidence-based approach to improve the material conditions of all Americans.
 
-    ### 🫡  Get Involved
-    Activism work isn’t always easy, but we can make it easier by working together to build a brighter future.
+### 🫡 Get Involved
+Activism work isn’t always easy, but we can make it easier by working together to build a brighter future.
 
-    A Server Representative will be with you shortly. 
-    In the meantime, feel free to check out the FAQ, join the conversation, or hop into debate or movie night.`
-
-    const content = `### 🗽 Welcome to Digital Ground Game (DGG)
-    ${welcomeMessage}`
+A Server Representative will be with you shortly. 
+In the meantime, feel free to check out the FAQ, join the conversation, or hop into debate or movie night.`
 
     try {
       await thread.send({ content })
