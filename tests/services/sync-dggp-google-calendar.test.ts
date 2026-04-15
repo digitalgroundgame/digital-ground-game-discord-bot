@@ -97,6 +97,8 @@ function createCalendarServiceMock(
     isConfigured: vi.fn().mockReturnValue(true),
     ensureInitialized: vi.fn().mockResolvedValue(true),
     listEventsBetween: vi.fn().mockResolvedValue([]),
+    findEventByDiscordId: vi.fn().mockResolvedValue(null),
+    getListedEvent: vi.fn().mockResolvedValue(null),
     createEvent: vi.fn().mockResolvedValue('google_new_id'),
     updateEvent: vi.fn().mockResolvedValue(true),
     deleteEvent: vi.fn().mockResolvedValue(true),
@@ -203,6 +205,35 @@ describe('listWindowForDiscordEvents', () => {
 })
 
 describe('syncDggpScheduledEventsToGoogle', () => {
+  it('updates when list misses the link but findEventByDiscordId resolves the Google event', async () => {
+    const ev = mockScheduledEvent({ name: 'From find' })
+    const client = mockClientWithGuild([ev])
+    const start = ev.scheduledStartAt!
+    const end = ev.scheduledEndAt!
+    const calendar = createCalendarServiceMock({
+      listEventsBetween: vi.fn().mockResolvedValue([]),
+      findEventByDiscordId: vi.fn().mockResolvedValue('google_via_find'),
+      getListedEvent: vi.fn().mockResolvedValue({
+        id: 'google_via_find',
+        summary: 'Old title',
+        start,
+        end,
+        location: null,
+        discordScheduledEventId: 'evt_discord_1',
+      }),
+    })
+
+    await syncDggpScheduledEventsToGoogle(client, calendar)
+
+    expect(calendar.findEventByDiscordId).toHaveBeenCalledWith('evt_discord_1')
+    expect(calendar.getListedEvent).toHaveBeenCalledWith('google_via_find')
+    expect(calendar.updateEvent).toHaveBeenCalledWith(
+      'google_via_find',
+      expect.objectContaining({ summary: 'From find' }),
+    )
+    expect(calendar.createEvent).not.toHaveBeenCalled()
+  })
+
   it('creates a Google event when Discord has one and Google has none', async () => {
     const ev = mockScheduledEvent()
     const client = mockClientWithGuild([ev])

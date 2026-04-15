@@ -160,8 +160,10 @@ export class GoogleCalendarService {
           calendarId: this.calendarId,
           timeMin: toRFC3339(timeMin),
           timeMax: toRFC3339(timeMax),
-          singleEvents: true,
-          orderBy: 'startTime',
+          /** Masters only: expanded instances do not reliably carry private extendedProperties, so
+           *  Discord id correlation would miss recurring series and the hourly job would create
+           *  duplicate masters every run. */
+          singleEvents: false,
           maxResults: 2500,
           pageToken,
         })
@@ -189,6 +191,35 @@ export class GoogleCalendarService {
       return out
     }
     return out
+  }
+
+  /** Fetch one event by id (for sync when list misses a recurring master but privateProperty find succeeds). */
+  public async getListedEvent(eventId: string): Promise<ListedCalendarEvent | null> {
+    await this.ensureClient()
+    if (!this.calendar || !this.calendarId) return null
+    try {
+      const res = await this.calendar.events.get({
+        calendarId: this.calendarId,
+        eventId,
+      })
+      const item = res.data
+      if (!item.id || item.status === 'cancelled') return null
+      return {
+        id: item.id,
+        summary: item.summary,
+        description: item.description,
+        start: item.start?.dateTime ? new Date(item.start.dateTime) : null,
+        end: item.end?.dateTime ? new Date(item.end.dateTime) : null,
+        location: item.location ?? null,
+        discordScheduledEventId: item.extendedProperties?.private?.[DISCORD_EVENT_ID_KEY] ?? null,
+      }
+    } catch (err: unknown) {
+      Logger.error(
+        `Google Calendar: events.get failed for ${eventId}: ${formatGoogleApiError(err)}`,
+        err,
+      )
+      return null
+    }
   }
 
   public async createEvent(input: CalendarEventInput): Promise<string | null> {

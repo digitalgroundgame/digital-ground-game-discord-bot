@@ -192,7 +192,22 @@ export async function syncDggpScheduledEventsToGoogle(
       `Calendar sync (Discord): id=${event.id} name=${JSON.stringify(event.name)} start=${input.start.toISOString()} end=${input.end.toISOString()} status=${event.status} url=${event.url}`,
     )
 
-    const existing = discordIdToGoogle.get(event.id)
+    let existing = discordIdToGoogle.get(event.id)
+    if (!existing) {
+      const foundId = await calendarService.findEventByDiscordId(event.id)
+      if (foundId) {
+        const fetched = await calendarService.getListedEvent(foundId)
+        if (fetched) {
+          existing = fetched
+          discordIdToGoogle.set(event.id, fetched)
+        } else {
+          Logger.warn(
+            `Calendar sync: findEventByDiscordId returned googleEventId=${foundId} but events.get failed; skipping create for discordId=${event.id} to avoid duplicates.`,
+          )
+          continue
+        }
+      }
+    }
     if (existing) {
       if (needsUpdate(existing, input)) {
         try {
