@@ -108,6 +108,21 @@ export const ChatCommandMetadata: {
     description_localizations: Lang.getRefLocalizationMap('commandDescs.attendance'),
     default_member_permissions: undefined,
   },
+  TIMESTAMP: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.timestamp', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.timestamp'),
+    description: Lang.getRef('commandDescs.timestamp', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.timestamp'),
+    dm_permission: true,
+    default_member_permissions: undefined,
+    options: [
+      {
+        ...Args.TIMESTAMP_TIME,
+        required: true,
+      },
+    ],
+  },
   ATTENDANCE_TRACK: {
     type: ApplicationCommandType.ChatInput,
     name: Lang.getRef('chatCommands.attendanceTrack', Language.Default),

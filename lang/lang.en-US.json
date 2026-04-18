@@ -236,7 +236,8 @@
       "pragPapers": "prag-papers",
       "census": "census",
       "attendance": "attendance",
-      "attendanceTrack": "attendance-track"
+      "attendanceTrack": "attendance-track",
+      "timestamp": "timestamp"
     },
     "userCommands": {
       "sendDevOnboarding": "Send Dev Onboarding",
@@ -249,7 +250,8 @@
     "arguments": {
       "command": "command",
       "option": "option",
-      "ruleNumber": "rulenumber"
+      "ruleNumber": "rulenumber",
+      "time": "time"
     },
     "commandDescs": {
       "dev": "Developer use only.",
@@ -260,13 +262,15 @@
       "pragPapers": "Gives a link to the Pragmatic Papers website.",
       "census": "Gives a link to the Census form.",
       "attendance": "DMs you a snapshot list of everyone currently in your voice channel.",
-      "attendanceTrack": "Tracks who is in your voice channel and DMs you the same formatted list when you leave."
+      "attendanceTrack": "Tracks who is in your voice channel and DMs you the same formatted list when you leave.",
+      "timestamp": "Convert a plain-english date/time into Discord timestamp embeds."
     },
     "argDescs": {
       "devCommand": "Command.",
       "helpOption": "Option.",
       "infoOption": "Option.",
-      "ruleNumber": "Rule number."
+      "ruleNumber": "Rule number.",
+      "time": "A date/time in plain English (e.g. 'tomorrow at 3pm EST')."
     },
     "fields": {
       "commands": "Commands",

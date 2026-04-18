@@ -58,6 +58,13 @@ export class Args {
       },
     ],
   }
+  public static readonly TIMESTAMP_TIME: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.time', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.time'),
+    description: Lang.getRef('argDescs.time', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.time'),
+    type: ApplicationCommandOptionType.String,
+  }
   public static readonly RULES_OPTIION: APIApplicationCommandBasicOption = {
     name: Lang.getRef('arguments.ruleNumber', Language.Default),
     name_localizations: Lang.getRefLocalizationMap('arguments.ruleNumber'),

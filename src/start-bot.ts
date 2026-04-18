@@ -13,6 +13,7 @@ import {
   CensusCommand,
   AttendanceCommand,
   AttendanceTrackCommand,
+  TimestampCommand,
 } from './commands/chat/index.js'
 import {
   ChatCommandMetadata,
@@ -84,6 +85,7 @@ async function start(): Promise<void> {
     new CensusCommand(),
     new AttendanceCommand(),
     new AttendanceTrackCommand(attendanceService),
+    new TimestampCommand(),
 
     // User Context Commands
     ...ONBOARDING_CONFIGS.map(config => new SendOnboarding(config)),
