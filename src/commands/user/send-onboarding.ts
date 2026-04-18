@@ -7,7 +7,13 @@ import { Lang, Logger } from '../../services/index.js'
 import { InteractionUtils, MessageUtils } from '../../utils/index.js'
 import { type Command, CommandDeferType } from '../index.js'
 import { ServerRoles } from '../../constants/index.js'
-import { DevOnboarding, MediaOnboarding, ResearchOnboarding, EventsOnboarding, WelcomeOnboarding } from '../../constants/onboarding.js'
+import {
+  DevOnboarding,
+  MediaOnboarding,
+  ResearchOnboarding,
+  EventsOnboarding,
+  WelcomeOnboarding,
+} from '../../constants/onboarding.js'
 
 export interface OnboardingConfig {
   key: string
@@ -99,7 +105,9 @@ export class SendOnboarding implements Command {
         ephemeral: true,
       })
 
-      Logger.warn(`Failed to send ${this.config.key} onboarding; ${intr.targetUser.tag} has DMs off`)
+      Logger.warn(
+        `Failed to send ${this.config.key} onboarding; ${intr.targetUser.tag} has DMs off`,
+      )
     }
   }
 }
