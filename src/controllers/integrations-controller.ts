@@ -25,10 +25,8 @@ export class IntegrationsController implements Controller {
         )
         continue
       }
-      this.router.post(
-        integration.endpoint,
-        checkAuth(apiKey),
-        (req: Request, res: Response) => integration.run(req, res, this.shardManager),
+      this.router.post(integration.endpoint, checkAuth(apiKey), (req: Request, res: Response) =>
+        integration.run(req, res, this.shardManager),
       )
     }
   }

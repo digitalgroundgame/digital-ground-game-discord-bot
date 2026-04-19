@@ -79,12 +79,7 @@ async function start(): Promise<void> {
   const rootController = new RootController()
   const integrations: Integration[] = [new PragmaticPapersIntegration()]
   const integrationsController = new IntegrationsController(integrations, shardManager)
-  const api = new Api([
-    guildsController,
-    shardsController,
-    integrationsController,
-    rootController,
-  ])
+  const api = new Api([guildsController, shardsController, integrationsController, rootController])
 
   // Start
   await manager.start()
