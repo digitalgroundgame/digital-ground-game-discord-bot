@@ -32,7 +32,10 @@ export class AttendanceTrackCommand implements Command {
     }
     const member = await intr.guild.members.fetch(intr.user.id).catch(() => null)
     const voiceChannel = member?.voice?.channel ?? null
-    if (!voiceChannel || !(voiceChannel instanceof VoiceChannel || voiceChannel instanceof StageChannel)) {
+    if (
+      !voiceChannel ||
+      !(voiceChannel instanceof VoiceChannel || voiceChannel instanceof StageChannel)
+    ) {
       await InteractionUtils.send(
         intr,
         Lang.getEmbed('displayEmbeds.attendanceNotInVC', data.lang),

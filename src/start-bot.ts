@@ -20,10 +20,7 @@ import {
   MessageCommandMetadata,
   UserCommandMetadata,
 } from './commands/index.js'
-import { 
-  SendOnboarding,
-  ONBOARDING_CONFIGS,
-} from './commands/user/index.js'
+import { SendOnboarding, ONBOARDING_CONFIGS } from './commands/user/index.js'
 import {
   ButtonHandler,
   CommandHandler,
@@ -86,7 +83,7 @@ async function start(): Promise<void> {
     new AttendanceTrackCommand(attendanceService),
 
     // User Context Commands
-    ...ONBOARDING_CONFIGS.map(config => new SendOnboarding(config)),
+    ...ONBOARDING_CONFIGS.map((config) => new SendOnboarding(config)),
   ]
 
   // Buttons

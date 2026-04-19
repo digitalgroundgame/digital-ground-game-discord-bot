@@ -34,7 +34,7 @@ const regionRoles = [
 const finishedEmoji = '✅'
 const oneHour = 3_600_000
 const activeCollectors = new Map()
-let chanThreadsByMsg = new Map()
+const chanThreadsByMsg = new Map()
 
 export class CTAPostTrigger implements Trigger {
   requireGuild: boolean
