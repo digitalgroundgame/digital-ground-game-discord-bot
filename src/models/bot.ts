@@ -116,27 +116,6 @@ export class Bot {
 
     this.ready = true
     Logger.info(Logs.info.clientReady)
-
-    const ctaChannel = this.client.guilds.cache
-      .find((dggPol) => dggPol.name === guildName)
-      ?.channels.cache.find((ctaChan) => ctaChan?.name === ctaChannelName)
-    const d = new Date()
-
-    if (ctaChannel?.type === ChannelType.GuildAnnouncement) {
-      const ctaPostTrigger = new CTAPostTrigger()
-      await ctaPostTrigger.getChannelThreads(ctaChannel)
-
-      // fetch all CTA Channel messages
-      // for each that is less than a month old
-      // execute the ctaPostTrigger
-      ctaChannel.messages.fetch().then((msgs) => {
-        msgs.forEach((msg) => {
-          if (new Date(msg.createdTimestamp).getMonth() >= d.getMonth() - 1) {
-            ctaPostTrigger.execute(msg)
-          }
-        })
-      })
-    }
   }
 
   private onShardReady(shardId: number, _unavailableGuilds: Set<string>): void {

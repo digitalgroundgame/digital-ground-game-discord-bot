@@ -92,7 +92,7 @@
     "welcomeSupervisorsRoleName": "Welcome Supervisors",
     "maxActiveThreads": 50,
     "maxWelcomeTeamMembers": 4,
-    "inactivityDays": 5
+    "inactivityDays": 2
   },
   "roles": {
     "COORDINATOR": {
