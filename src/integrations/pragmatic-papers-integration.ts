@@ -59,6 +59,7 @@ export class PragmaticPapersIntegration implements Integration {
     } catch (err) {
       Logger.error((err as Error).message)
       res.status(500).json({ error: true, message: 'Server error occurred' })
+      return
     }
 
     res
