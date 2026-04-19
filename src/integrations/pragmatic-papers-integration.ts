@@ -64,19 +64,19 @@ export class PragmaticPapersIntegration implements Integration {
 
     res
       .status(400)
-      .json({ error: true, message: `Pragmatic Papers: unhandled event '${event.event}'.` })
+      .json({ error: true, message: `unhandled event '${event.event}'.` })
   }
 
   private validatePublishEvent(event: BasePPEvent): asserts event is PPPublishEvent {
     const publishEvent = event as PPPublishEvent
 
     if (!publishEvent.payload) {
-      throw new TypeError('Pragmatic Papers: publish event does not contain a payload')
+      throw new TypeError('publish event does not contain a payload')
     }
 
     if (typeof publishEvent.payload.volumeNumber !== 'number') {
       throw new TypeError(
-        `Pragmatic Papers: volumeNumber must be a valid number, got: ${publishEvent.payload.volumeNumber}`,
+        `volumeNumber must be a valid number, got: ${publishEvent.payload.volumeNumber}`,
       )
     }
 
@@ -85,13 +85,13 @@ export class PragmaticPapersIntegration implements Integration {
       typeof publishEvent.payload.title !== 'string'
     ) {
       throw new TypeError(
-        `Pragmatic Papers: title must be a valid string if provided, got: ${publishEvent.payload.title}`,
+        `title must be a valid string if provided, got: ${publishEvent.payload.title}`,
       )
     }
 
     if (!Array.isArray(publishEvent.payload.articles)) {
       throw new TypeError(
-        `Pragmatic Papers: articles must be an array, got: ${publishEvent.payload.articles}`,
+        `articles must be an array, got: ${publishEvent.payload.articles}`,
       )
     }
 
@@ -100,17 +100,17 @@ export class PragmaticPapersIntegration implements Integration {
       const article = articles[i]
       if (!isObject(article)) {
         throw new TypeError(
-          `Pragmatic Papers: articles[${i}] must be an object, with name and slug fields`,
+          `articles[${i}] must be an object, with name and slug fields`,
         )
       }
       if (typeof article.name !== 'string') {
         throw new TypeError(
-          `Pragmatic Papers: articles[${i}].name must be a valid string, got: ${article?.name}`,
+          `articles[${i}].name must be a valid string, got: ${article?.name}`,
         )
       }
       if (typeof article.slug !== 'string') {
         throw new TypeError(
-          `Pragmatic Papers: articles[${i}].slug must be a valid string, got: ${article.slug}`,
+          `articles[${i}].slug must be a valid string, got: ${article.slug}`,
         )
       }
     }
