@@ -31,7 +31,7 @@
     }
   },
   "api": {
-    "port": 9010,
+    "port": 3001,
     "// NOTE: secret is now managed via environment variables": ""
   },
   "sharding": {
