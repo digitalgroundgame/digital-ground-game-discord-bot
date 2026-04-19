@@ -125,7 +125,7 @@ export const MessageCommandMetadata: {
 export const UserCommandMetadata: {
   [command: string]: RESTPostAPIContextMenuApplicationCommandsJSONBody
 } = Object.fromEntries(
-  ONBOARDING_CONFIGS.map(config => [
+  ONBOARDING_CONFIGS.map((config) => [
     config.metadataKey,
     {
       type: ApplicationCommandType.User,

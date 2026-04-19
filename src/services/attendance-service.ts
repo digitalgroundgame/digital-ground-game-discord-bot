@@ -36,9 +36,7 @@ export function formatAttendanceReportText(payload: AttendanceDmPayload): string
   if (payload.entries.length === 0) {
     text += '_No attendees._'
   } else {
-    text += payload.entries
-      .map((e) => `- ${escapeMarkdownCodeFence(e.displayName)}`)
-      .join('\n')
+    text += payload.entries.map((e) => `- ${escapeMarkdownCodeFence(e.displayName)}`).join('\n')
   }
   return text
 }

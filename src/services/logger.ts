@@ -6,7 +6,7 @@ import { pino } from 'pino'
 const require = createRequire(import.meta.url)
 const Config = require('../../config/config.json')
 
-let logger = pino(
+const logger = pino(
   {
     formatters: {
       level: (label) => {
