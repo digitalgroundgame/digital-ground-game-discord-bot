@@ -31,7 +31,7 @@
     }
   },
   "api": {
-    "port": 3001,
+    "port": 9010,
     "// NOTE: secret is now managed via environment variables": ""
   },
   "sharding": {
@@ -84,6 +84,12 @@
     "pretty": true,
     "rateLimit": {
       "minTimeout": 30
+    }
+  },
+  "integrations": {
+    "pragmaticPapers": {
+      "name": "Pragmatic Papers",
+      "publishChannelId": "1495548137857744946"
     }
   },
   "welcomeThread": {
