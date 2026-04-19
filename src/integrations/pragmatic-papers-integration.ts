@@ -62,9 +62,7 @@ export class PragmaticPapersIntegration implements Integration {
       return
     }
 
-    res
-      .status(400)
-      .json({ error: true, message: `unhandled event '${event.event}'.` })
+    res.status(400).json({ error: true, message: `unhandled event '${event.event}'.` })
   }
 
   private validatePublishEvent(event: BasePPEvent): asserts event is PPPublishEvent {
@@ -90,28 +88,20 @@ export class PragmaticPapersIntegration implements Integration {
     }
 
     if (!Array.isArray(publishEvent.payload.articles)) {
-      throw new TypeError(
-        `articles must be an array, got: ${publishEvent.payload.articles}`,
-      )
+      throw new TypeError(`articles must be an array, got: ${publishEvent.payload.articles}`)
     }
 
     const articles = publishEvent.payload.articles
     for (let i = 0; i < articles.length; i++) {
       const article = articles[i]
       if (!isObject(article)) {
-        throw new TypeError(
-          `articles[${i}] must be an object, with name and slug fields`,
-        )
+        throw new TypeError(`articles[${i}] must be an object, with name and slug fields`)
       }
       if (typeof article.name !== 'string') {
-        throw new TypeError(
-          `articles[${i}].name must be a valid string, got: ${article?.name}`,
-        )
+        throw new TypeError(`articles[${i}].name must be a valid string, got: ${article?.name}`)
       }
       if (typeof article.slug !== 'string') {
-        throw new TypeError(
-          `articles[${i}].slug must be a valid string, got: ${article.slug}`,
-        )
+        throw new TypeError(`articles[${i}].slug must be a valid string, got: ${article.slug}`)
       }
     }
   }
