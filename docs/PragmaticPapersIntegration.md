@@ -65,7 +65,7 @@ curl -X POST http://localhost:9010/integrations/pp-event \
 
 Responses:
 
-- `200` — event handled.
+- `200` — event handled; the response body echoes the received `event` envelope.
 - `400` — missing/invalid `event` field, invalid payload, or unhandled event name.
 - `401` — missing/incorrect `Authorization` header.
 - `500` — unexpected error while handling the event.

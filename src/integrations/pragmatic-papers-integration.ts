@@ -53,6 +53,7 @@ export class PragmaticPapersIntegration implements Integration {
           return
         }
         await this.handlePublish(event.payload, shardManager)
+        res.status(200).json({ error: false, event })
         return
       }
     } catch (err) {
