@@ -34,17 +34,22 @@ Unknown events return `400` with an `unhandled event` message. Invalid payloads 
 
 ### `publish`
 
-Posts an embed announcing a new Volume to `publishChannelId`.
+Posts an embed to `publishChannelId`. Two modes:
+
+- **Volume release** — `volumeNumber` is set. Embed lists every article as bulleted links.
+- **Standalone article** — `volumeNumber` is omitted. `articles` must contain exactly one entry. Embed links directly to the article.
 
 Payload:
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `volumeNumber` | number | yes | |
-| `title` | string | no | Appended to the embed title. |
-| `articles` | `{ name: string, slug: string }[]` | yes | Rendered as a bulleted list of links. |
+| `volumeNumber` | number | no | Omit for a standalone article. When omitted, `articles.length` must be `1`. |
+| `title` | string | no | Volume-mode only; appended to the embed title. |
+| `articles` | `{ name: string, slug: string, authors: { name: string }[] }[]` | yes | Each article's `authors` are joined with `, ` in the "by" line. |
 
-## Example
+## Examples
+
+### Volume release (multiple articles)
 
 ```bash
 curl -X POST http://localhost:9010/integrations/pp-event \
@@ -54,10 +59,38 @@ curl -X POST http://localhost:9010/integrations/pp-event \
     "event": "publish",
     "payload": {
       "volumeNumber": 42,
-      "title": "The Answer Issue",
+      "title": "The Discourse Issue",
       "articles": [
-        { "name": "On Towels", "slug": "on-towels" },
-        { "name": "Deep Thought", "slug": "deep-thought" }
+        {
+          "name": "We Need to Talk",
+          "slug": "we-need-to-talk",
+          "authors": [{ "name": "Jane Doe" }]
+        },
+        {
+          "name": "Yes, Let's Talk Some More",
+          "slug": "lets-talk-some-more",
+          "authors": [{ "name": "John Doe" }, { "name": "Jane Doe" }]
+        }
+      ]
+    }
+  }'
+```
+
+### Standalone article (no volume)
+
+```bash
+curl -X POST http://localhost:9010/integrations/pp-event \
+  -H "Content-Type: application/json" \
+  -H "Authorization: abc123" \
+  -d '{
+    "event": "publish",
+    "payload": {
+      "articles": [
+        {
+          "name": "How to Vibecode a Campaign",
+          "slug": "vibecoding-a-campaign",
+          "authors": [{ "name": "John Doe" }]
+        }
       ]
     }
   }'

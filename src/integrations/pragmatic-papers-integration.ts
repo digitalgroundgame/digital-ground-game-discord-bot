@@ -9,13 +9,18 @@ import { type Integration } from './integration.js'
 const require = createRequire(import.meta.url)
 const Config = require('../../config/config.json')
 
+interface PPArticleAuthor {
+  name: string
+}
+
 interface PPArticle {
   name: string
   slug: string
+  authors: PPArticleAuthor[]
 }
 
 interface PPPublishPayload {
-  volumeNumber: number
+  volumeNumber?: number
   title?: string
   articles: PPArticle[]
 }
@@ -72,9 +77,12 @@ export class PragmaticPapersIntegration implements Integration {
       throw new TypeError('publish event does not contain a payload')
     }
 
-    if (typeof publishEvent.payload.volumeNumber !== 'number') {
+    if (
+      publishEvent.payload.volumeNumber !== undefined &&
+      typeof publishEvent.payload.volumeNumber !== 'number'
+    ) {
       throw new TypeError(
-        `volumeNumber must be a valid number, got: ${publishEvent.payload.volumeNumber}`,
+        `volumeNumber must be a valid number if provided, got: ${publishEvent.payload.volumeNumber}`,
       )
     }
 
@@ -89,6 +97,15 @@ export class PragmaticPapersIntegration implements Integration {
 
     if (!Array.isArray(publishEvent.payload.articles)) {
       throw new TypeError(`articles must be an array, got: ${publishEvent.payload.articles}`)
+    }
+
+    if (
+      publishEvent.payload.volumeNumber === undefined &&
+      publishEvent.payload.articles.length !== 1
+    ) {
+      throw new TypeError(
+        `articles must contain exactly one article when volumeNumber is not provided, got: ${publishEvent.payload.articles.length}`,
+      )
     }
 
     const articles = publishEvent.payload.articles
@@ -110,24 +127,41 @@ export class PragmaticPapersIntegration implements Integration {
     payload: PPPublishPayload,
     shardManager: ShardingManager,
   ): Promise<void> {
-    const volumeUrl = `https://pragmaticpapers.com/volumes/${payload.volumeNumber}`
-    const articleList = payload.articles
-      .map((art) => `• [${art.name}](https://pragmaticpapers.com/articles/${art.slug})`)
-      .join('\n')
+    const ppAuthor = {
+      name: 'Pragmatic Papers',
+      icon_url: 'https://pragmaticpapers.com/favicon-32x32.png',
+      url: 'https://pragmaticpapers.com',
+    }
 
-    const embed = {
-      color: 0x1a1a1a,
-      title: payload.title
-        ? `Pragmatic Papers: Volume ${payload.volumeNumber} — ${payload.title}`
-        : `Pragmatic Papers: Volume ${payload.volumeNumber}`,
-      url: volumeUrl,
-      author: {
-        name: 'Pragmatic Papers',
-        icon_url: 'https://pragmaticpapers.com/favicon-32x32.png',
-        url: 'https://pragmaticpapers.com',
-      },
-      fields: [{ name: 'Articles in this Volume', value: articleList }],
-      timestamp: new Date().toISOString(),
+    let embed
+    if (payload.volumeNumber === undefined) {
+      const article = payload.articles[0]!
+      const byStr = article.authors.map(({ name }) => name).join(', ')
+      embed = {
+        color: 0x1a1a1a,
+        title: article.name,
+        url: `https://pragmaticpapers.com/articles/${article.slug}`,
+        description: `by ${byStr}`,
+        author: ppAuthor,
+        timestamp: new Date().toISOString(),
+      }
+    } else {
+      const articleList = payload.articles
+        .map((art) => {
+          const byStr = art.authors.map(({ name }) => name).join(', ')
+          return `• [${art.name} by ${byStr}](https://pragmaticpapers.com/articles/${art.slug})`
+        })
+        .join('\n')
+      embed = {
+        color: 0x1a1a1a,
+        title: payload.title
+          ? `Volume ${payload.volumeNumber} — ${payload.title}`
+          : `Volume ${payload.volumeNumber}`,
+        url: `https://pragmaticpapers.com/volumes/${payload.volumeNumber}`,
+        author: ppAuthor,
+        fields: [{ name: 'Articles in this Volume', value: articleList }],
+        timestamp: new Date().toISOString(),
+      }
     }
 
     await shardManager.broadcastEval(
