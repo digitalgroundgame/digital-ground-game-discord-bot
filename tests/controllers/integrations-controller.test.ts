@@ -34,7 +34,8 @@ function makeIntegration(overrides: Partial<FakeIntegration> = {}): FakeIntegrat
 }
 
 async function buildApp(integrations: FakeIntegration[]): Promise<Express> {
-  const { IntegrationsController } = await import('../../src/controllers/integrations-controller.js')
+  const { IntegrationsController } =
+    await import('../../src/controllers/integrations-controller.js')
   const shardManager = {} as unknown as import('discord.js').ShardingManager
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const controller = new IntegrationsController(integrations as any, shardManager)
@@ -66,9 +67,7 @@ describe('IntegrationsController', () => {
 
     expect(res.status).toBe(404)
     expect(integration.run).not.toHaveBeenCalled()
-    expect(loggerWarn).toHaveBeenCalledWith(
-      expect.stringContaining('INTEGRATION_FAKE_INTEGRATION'),
-    )
+    expect(loggerWarn).toHaveBeenCalledWith(expect.stringContaining('INTEGRATION_FAKE_INTEGRATION'))
   })
 
   it('returns 401 when Authorization header is missing or wrong', async () => {
