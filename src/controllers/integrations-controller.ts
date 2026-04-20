@@ -29,12 +29,7 @@ export class IntegrationsController implements Controller {
         integration.endpoint,
         checkAuth(apiKey),
         async (req: Request, res: Response) => {
-          try {
-            await integration.run(req, res, this.shardManager)
-          } catch (err) {
-            Logger.error((err as Error).message)
-            res.status(500).json({ error: true, message: 'Server error occurred' })
-          }
+          await integration.run(req, res, this.shardManager)
         },
       )
     }
