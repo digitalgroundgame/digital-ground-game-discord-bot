@@ -51,12 +51,12 @@ export class PragmaticPapersIntegration implements Integration {
 
     try {
       if (event.event === 'publish') {
-        try {
-          this.validatePublishEvent(event)
-        } catch (err) {
+        const err = this.validatePublishEvent(event)
+        if (err) {
           res.status(400).json({ error: true, message: (err as Error).message })
           return
         }
+
         await this.handlePublish(event.payload, shardManager)
         res.status(200).json({ error: false, event })
         return
@@ -70,18 +70,18 @@ export class PragmaticPapersIntegration implements Integration {
     res.status(400).json({ error: true, message: `unhandled event '${event.event}'.` })
   }
 
-  private validatePublishEvent(event: BasePPEvent): asserts event is PPPublishEvent {
+  private validatePublishEvent(event: BasePPEvent): TypeError | null {
     const publishEvent = event as PPPublishEvent
 
     if (!publishEvent.payload) {
-      throw new TypeError('publish event does not contain a payload')
+      return new TypeError('publish event does not contain a payload')
     }
 
     if (
       publishEvent.payload.volumeNumber !== undefined &&
       typeof publishEvent.payload.volumeNumber !== 'number'
     ) {
-      throw new TypeError(
+      return new TypeError(
         `volumeNumber must be a valid number if provided, got: ${publishEvent.payload.volumeNumber}`,
       )
     }
@@ -90,20 +90,20 @@ export class PragmaticPapersIntegration implements Integration {
       publishEvent.payload.title !== undefined &&
       typeof publishEvent.payload.title !== 'string'
     ) {
-      throw new TypeError(
+      return new TypeError(
         `title must be a valid string if provided, got: ${publishEvent.payload.title}`,
       )
     }
 
     if (!Array.isArray(publishEvent.payload.articles)) {
-      throw new TypeError(`articles must be an array, got: ${publishEvent.payload.articles}`)
+      return new TypeError(`articles must be an array, got: ${publishEvent.payload.articles}`)
     }
 
     if (
       publishEvent.payload.volumeNumber === undefined &&
       publishEvent.payload.articles.length !== 1
     ) {
-      throw new TypeError(
+      return new TypeError(
         `articles must contain exactly one article when volumeNumber is not provided, got: ${publishEvent.payload.articles.length}`,
       )
     }
@@ -112,15 +112,17 @@ export class PragmaticPapersIntegration implements Integration {
     for (let i = 0; i < articles.length; i++) {
       const article = articles[i]
       if (!isObject(article)) {
-        throw new TypeError(`articles[${i}] must be an object, with name and slug fields`)
+        return new TypeError(`articles[${i}] must be an object, with name and slug fields`)
       }
       if (typeof article.name !== 'string') {
-        throw new TypeError(`articles[${i}].name must be a valid string, got: ${article?.name}`)
+        return new TypeError(`articles[${i}].name must be a valid string, got: ${article?.name}`)
       }
       if (typeof article.slug !== 'string') {
-        throw new TypeError(`articles[${i}].slug must be a valid string, got: ${article.slug}`)
+        return new TypeError(`articles[${i}].slug must be a valid string, got: ${article.slug}`)
       }
     }
+
+    return null
   }
 
   private async handlePublish(
