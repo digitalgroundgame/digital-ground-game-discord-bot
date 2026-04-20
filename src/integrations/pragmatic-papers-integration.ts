@@ -3,7 +3,6 @@ import { type Request, type Response } from 'express'
 import { createRequire } from 'node:module'
 
 import { isObject } from 'class-validator'
-import { Logger } from '../services/logger.js'
 import { type Integration } from './integration.js'
 
 const require = createRequire(import.meta.url)
@@ -49,21 +48,15 @@ export class PragmaticPapersIntegration implements Integration {
       return
     }
 
-    try {
-      if (event.event === 'publish') {
-        const err = this.validatePublishEvent(event)
-        if (err) {
-          res.status(400).json({ error: true, message: (err as Error).message })
-          return
-        }
-
-        await this.handlePublish(event.payload, shardManager)
-        res.status(200).json({ error: false, event })
+    if (event.event === 'publish') {
+      const err = this.validatePublishEvent(event)
+      if (err) {
+        res.status(400).json({ error: true, message: (err as Error).message })
         return
       }
-    } catch (err) {
-      Logger.error((err as Error).message)
-      res.status(500).json({ error: true, message: 'Server error occurred' })
+
+      await this.handlePublish(event.payload, shardManager)
+      res.status(200).json({ error: false, event })
       return
     }
 
@@ -150,7 +143,7 @@ export class PragmaticPapersIntegration implements Integration {
     } else {
       const articleList = payload.articles
         .map((art) => {
-          const byStr = art.authors.map(({ name }) => name).join(', ')
+          const byStr = art.authors.map(({ name }) => name).join(' & ')
           return `• [${art.name}](https://pragmaticpapers.com/articles/${art.slug}) by ${byStr}`
         })
         .join('\n')

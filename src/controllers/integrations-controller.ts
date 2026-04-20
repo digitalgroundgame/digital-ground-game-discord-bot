@@ -1,10 +1,10 @@
 import { type ShardingManager } from 'discord.js'
 import { type Request, type Response, Router } from 'express'
 
-import { type Controller } from './index.js'
 import { type Integration } from '../integrations/index.js'
 import { checkAuth } from '../middleware/index.js'
 import { Logger } from '../services/index.js'
+import { type Controller } from './index.js'
 
 export class IntegrationsController implements Controller {
   public path = '/integrations'
@@ -25,8 +25,17 @@ export class IntegrationsController implements Controller {
         )
         continue
       }
-      this.router.post(integration.endpoint, checkAuth(apiKey), (req: Request, res: Response) =>
-        integration.run(req, res, this.shardManager),
+      this.router.post(
+        integration.endpoint,
+        checkAuth(apiKey),
+        async (req: Request, res: Response) => {
+          try {
+            await integration.run(req, res, this.shardManager)
+          } catch (err) {
+            Logger.error((err as Error).message)
+            res.status(500).json({ error: true, message: 'Server error occurred' })
+          }
+        },
       )
     }
   }
