@@ -1,20 +1,8 @@
-import express, { type Express } from 'express'
+import { type Express } from 'express'
 import request from 'supertest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../config/config.json', () => ({
-  integrations: {
-    pragmaticPapers: {
-      name: 'Pragmatic Papers',
-      publishChannelId: '1495548137857744946',
-    },
-  },
-  logging: { pretty: false },
-}))
-vi.mock('../../config/debug.json', () => ({}))
-vi.mock('../../lang/logs.json', () => ({}))
-
-vi.mock('../services/index.js', () => ({
+vi.mock('../../src/services/index.js', () => ({
   Logger: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -27,18 +15,19 @@ const API_KEY = 'test-api-key'
 async function buildApp(
   broadcastEval: (...args: unknown[]) => unknown = vi.fn().mockResolvedValue([true]),
 ): Promise<{ app: Express; broadcastEval: ReturnType<typeof vi.fn> }> {
-  const { IntegrationsController } = await import('../controllers/integrations-controller.js')
-  const { PragmaticPapersIntegration } = await import('./pragmatic-papers-integration.js')
+  const { IntegrationsController } = await import(
+    '../../src/controllers/integrations-controller.js'
+  )
+  const { PragmaticPapersIntegration } = await import(
+    '../../src/integrations/pragmatic-papers-integration.js'
+  )
+  const { Api } = await import('../../src/models/api.js')
 
   const shardManager = { broadcastEval } as unknown as import('discord.js').ShardingManager
   const integration = new PragmaticPapersIntegration()
   const controller = new IntegrationsController([integration], shardManager)
-  controller.register()
-
-  const app = express()
-  app.use(express.json())
-  app.use(controller.path, controller.router)
-  return { app, broadcastEval: broadcastEval as ReturnType<typeof vi.fn> }
+  const api = new Api([controller])
+  return { app: api.app, broadcastEval: broadcastEval as ReturnType<typeof vi.fn> }
 }
 
 function post(app: Express, body: object, auth: string | null = API_KEY) {
@@ -209,7 +198,7 @@ describe('PragmaticPapersIntegration', () => {
     const res = await post(app, body)
 
     expect(res.status).toBe(500)
-    expect(res.body).toEqual({ error: true, message: 'Server error occurred' })
+    expect(res.body).toEqual({ error: true, message: 'discord exploded' })
   })
 
   it('rejects missing event field', async () => {

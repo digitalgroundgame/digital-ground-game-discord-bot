@@ -1,10 +1,6 @@
-import express, { type Express, type Request, type Response } from 'express'
+import { type Express, type Request, type Response } from 'express'
 import request from 'supertest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-
-vi.mock('../../config/config.json', () => ({}))
-vi.mock('../../config/debug.json', () => ({}))
-vi.mock('../../lang/logs.json', () => ({}))
 
 const loggerWarn = vi.fn()
 const loggerError = vi.fn()
@@ -36,14 +32,12 @@ function makeIntegration(overrides: Partial<FakeIntegration> = {}): FakeIntegrat
 async function buildApp(integrations: FakeIntegration[]): Promise<Express> {
   const { IntegrationsController } =
     await import('../../src/controllers/integrations-controller.js')
+  const { Api } = await import('../../src/models/api.js')
   const shardManager = {} as unknown as import('discord.js').ShardingManager
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const controller = new IntegrationsController(integrations as any, shardManager)
-  controller.register()
-  const app = express()
-  app.use(express.json())
-  app.use(controller.path, controller.router)
-  return app
+  const api = new Api([controller])
+  return api.app
 }
 
 describe('IntegrationsController', () => {
@@ -116,8 +110,11 @@ describe('IntegrationsController', () => {
       .send({})
 
     expect(res.status).toBe(500)
-    expect(res.body).toEqual({ error: true, message: 'Server error occurred' })
-    expect(loggerError).toHaveBeenCalledWith('boom')
+    expect(res.body).toEqual({ error: true, message: 'boom' })
+    expect(loggerError).toHaveBeenCalledWith(
+      expect.stringContaining('error occurred'),
+      expect.any(Error),
+    )
   })
 
   it('derives env var names from integration names with special characters', async () => {
