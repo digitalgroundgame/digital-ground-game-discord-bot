@@ -67,7 +67,7 @@ curl -X POST http://localhost:9010/integrations/pp-event \
           "authors": [{ "name": "Jane Doe" }]
         },
         {
-          "name": "Yes, Let's Talk Some More",
+          "name": "Yes, Let Us Talk Some More",
           "slug": "lets-talk-some-more",
           "authors": [{ "name": "John Doe" }, { "name": "Jane Doe" }]
         }
