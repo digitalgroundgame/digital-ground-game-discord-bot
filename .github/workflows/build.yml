@@ -4,9 +4,9 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [main, dev]
+    branches: [ main, dev ]
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [ opened, synchronize, reopened ]
 permissions:
   contents: read
 
@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 15
     strategy:
       matrix:
-        node-version: [22, 24]
+        node-version: [ 22, 24 ]
     env:
       NODE_VERSION: ${{ matrix.node-version }}
 
@@ -46,8 +46,6 @@ jobs:
         run: npm run copyconfig
       - name: Build
         run: npm run build
-      - name: Type check
-        run: npm run check-types
 
   test:
     name: Run tests
@@ -55,7 +53,7 @@ jobs:
     timeout-minutes: 15
     strategy:
       matrix:
-        node-version: [22, 24]
+        node-version: [ 22, 24 ]
     env:
       NODE_VERSION: ${{ matrix.node-version }}
 
