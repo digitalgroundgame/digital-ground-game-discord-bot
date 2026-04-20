@@ -151,7 +151,7 @@ export class PragmaticPapersIntegration implements Integration {
       const articleList = payload.articles
         .map((art) => {
           const byStr = art.authors.map(({ name }) => name).join(', ')
-          return `• [${art.name} by ${byStr}](https://pragmaticpapers.com/articles/${art.slug})`
+          return `• [${art.name}](https://pragmaticpapers.com/articles/${art.slug}) by ${byStr}`
         })
         .join('\n')
       embed = {
