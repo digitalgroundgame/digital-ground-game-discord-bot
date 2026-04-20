@@ -130,7 +130,7 @@ export class PragmaticPapersIntegration implements Integration {
     shardManager: ShardingManager,
   ): Promise<void> {
     const ppAuthor = {
-      name: 'Pragmatic Papers',
+      name: 'The Pragmatic Papers',
       icon_url: 'https://pragmaticpapers.com/favicon-32x32.png',
       url: 'https://pragmaticpapers.com',
     }
