@@ -4,9 +4,9 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [main, dev]
+    branches: [ main, dev ]
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [ opened, synchronize, reopened ]
 permissions:
   contents: read
 
@@ -21,7 +21,6 @@ jobs:
         with:
           node-version: 24
           registry-url: 'https://registry.npmjs.org'
-          package-manager-cache: false
       - name: Install
         run: npm ci
       - name: Copy example config
