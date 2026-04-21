@@ -11,7 +11,7 @@ const Config = require('../../config/config.json')
 const Logs = require('../../lang/logs.json')
 
 export class Api {
-  private app: Express
+  public app: Express
 
   constructor(public controllers: Controller[]) {
     this.app = express()

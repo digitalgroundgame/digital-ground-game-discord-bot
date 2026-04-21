@@ -86,6 +86,12 @@
       "minTimeout": 30
     }
   },
+  "integrations": {
+    "pragmaticPapers": {
+      "name": "Pragmatic Papers",
+      "publishChannelId": "1495548137857744946"
+    }
+  },
   "welcomeThread": {
     "channelName": "entrance",
     "welcomeTeamRoleName": "Welcome Team",
