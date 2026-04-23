@@ -34,7 +34,7 @@ const regionRoles = [
 const finishedEmoji = '✅'
 const oneHour = 3_600_000
 const activeCollectors = new Map()
-let chanThreadsByMsg = new Map()
+const chanThreadsByMsg = new Map()
 
 export class CTAPostTrigger implements Trigger {
   requireGuild: boolean
@@ -122,33 +122,6 @@ export class CTAPostTrigger implements Trigger {
       }
     }
     return roleReactions
-  }
-
-  public async getChannelThreads(chan: GuildBasedChannel | undefined): Promise<void> {
-    Logger.info(`chanThreadsByMsg BEFORE: ${chanThreadsByMsg.size}`)
-    if (chan === undefined) {
-      return
-    }
-
-    if (chan.type != ChannelType.GuildAnnouncement) {
-      return
-    }
-
-    const activeThreads = await chan.threads.fetch()
-    const archivedThreads = await chan.threads.fetchArchived({ fetchAll: true })
-
-    chanThreadsByMsg = new Map([
-      ...activeThreads.threads.entries(),
-      ...archivedThreads.threads.entries(),
-    ])
-    Logger.info(`chanThreadsByMsg AFTER: ${chanThreadsByMsg.size}`)
-  }
-
-  private async activeCTAThread(msg: Message): Promise<PublicThreadChannel | undefined> {
-    Logger.info(`activeCTAThread() [START]: ${msg.id}`)
-    if (msg.hasThread && msg.thread?.type === ChannelType.PublicThread && !msg.thread?.archived) {
-      return msg.thread
-    }
   }
 
   private async createCTAThread(msg: Message): Promise<PublicThreadChannel | undefined> {

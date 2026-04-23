@@ -98,13 +98,19 @@
       "minTimeout": 30
     }
   },
+  "integrations": {
+    "pragmaticPapers": {
+      "name": "Pragmatic Papers",
+      "publishChannelId": "1495548137857744946"
+    }
+  },
   "welcomeThread": {
     "channelName": "entrance",
     "welcomeTeamRoleName": "Welcome Team",
     "welcomeSupervisorsRoleName": "Welcome Supervisors",
     "maxActiveThreads": 50,
     "maxWelcomeTeamMembers": 4,
-    "inactivityDays": 5
+    "inactivityDays": 2
   },
   "roles": {
     "COORDINATOR": {

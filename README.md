@@ -13,7 +13,7 @@ This template for a Discord bot was based upon this public template. https://git
    Run this command to create your local config and .env files:
 
    ```
-   npm copyconfig
+   npm run copyconfig
    ```
 
 2. Fill your .env - see below.
