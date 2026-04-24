@@ -46,6 +46,7 @@ import { type Reaction } from './reactions/index.js'
 import {
   AttendanceService,
   CommandRegistrationService,
+  CrmService,
   EventDataService,
   GoogleCalendarService,
   JobService,
@@ -74,6 +75,7 @@ async function start(): Promise<void> {
   // Services
   const eventDataService = new EventDataService()
   const attendanceService = new AttendanceService()
+  const crmService = new CrmService()
 
   // Client
   const client = new CustomClient({
@@ -138,7 +140,7 @@ async function start(): Promise<void> {
   const messageHandler = new MessageHandler(triggerHandler)
   const reactionHandler = new ReactionHandler(reactions, eventDataService)
   const guildScheduledEventHandler = new GuildScheduledEventHandler(googleCalendarService)
-  const voiceStateUpdateHandler = new VoiceStateUpdateHandler(attendanceService, client)
+  const voiceStateUpdateHandler = new VoiceStateUpdateHandler(attendanceService, crmService, client)
 
   // Jobs
   // Google Calendar sync jobs temporarily disabled (see ImmediateSyncDggpGoogleCalendarJob, SyncDggpGoogleCalendarJob).

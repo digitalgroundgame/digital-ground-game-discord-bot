@@ -59,6 +59,30 @@ export function formatAttendanceDmContent(payload: AttendanceDmPayload): string 
 }
 
 /**
+ * Active scheduled event linked to this voice/stage channel. Returns both id and name so the
+ * bot can identify the event when pushing attendance to the CRM.
+ */
+export async function resolveScheduledEvent(
+  guild: Guild,
+  voiceChannelId: string,
+): Promise<{ id: string; name: string } | null> {
+  const cached = [...guild.scheduledEvents.cache.values()].find(
+    (e) => e.channelId === voiceChannelId && e.status === GuildScheduledEventStatus.Active,
+  )
+  if (cached) return { id: cached.id, name: cached.name }
+  try {
+    const events = await guild.scheduledEvents.fetch()
+    const active = [...events.values()].find(
+      (e) => e.channelId === voiceChannelId && e.status === GuildScheduledEventStatus.Active,
+    )
+    if (active) return { id: active.id, name: active.name }
+  } catch {
+    // swallow: perms/API error — null is the "no linked event" signal
+  }
+  return null
+}
+
+/**
  * Active scheduled event linked to this voice/stage channel, else stage topic when `channel` is a
  * stage with a topic. Uses `voiceChannelId` so scheduled events still resolve if the channel was
  * deleted before the DM is sent (e.g. end of `/attendance-track`).
@@ -68,15 +92,8 @@ export async function resolveVoiceChannelMeetingSubject(
   voiceChannelId: string,
   channel?: GuildBasedChannel | null,
 ): Promise<string | undefined> {
-  try {
-    const events = await guild.scheduledEvents.fetch()
-    const active = [...events.values()].find(
-      (e) => e.channelId === voiceChannelId && e.status === GuildScheduledEventStatus.Active,
-    )
-    if (active) return active.name
-  } catch {
-    // Missing permissions or API error — fall through to stage topic
-  }
+  const active = await resolveScheduledEvent(guild, voiceChannelId)
+  if (active) return active.name
   if (channel instanceof StageChannel && channel.topic) {
     return channel.topic
   }
