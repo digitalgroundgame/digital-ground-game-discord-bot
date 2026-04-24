@@ -6,8 +6,8 @@
 
 /config/bot-sites.json
 /config/debug.json
+serviceKey*.json
 
-serviceKey.json
 # =====================================================
 # Node.js
 # =====================================================
