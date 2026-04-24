@@ -7,10 +7,12 @@ import {
   Events,
   type Guild,
   type GuildMember,
+  type GuildScheduledEvent,
   type Interaction,
   type Message,
   type MessageReaction,
   type PartialGuildMember,
+  type PartialGuildScheduledEvent,
   type PartialMessageReaction,
   type PartialUser,
   type RateLimitData,
@@ -26,20 +28,18 @@ import {
   type GuildLeaveHandler,
   type GuildMemberAddHandler,
   type GuildMemberUpdateHandler,
+  type GuildScheduledEventHandler,
   type MessageHandler,
   type ReactionHandler,
   type VoiceStateUpdateHandler,
 } from '../events/index.js'
 import { type JobService, Logger } from '../services/index.js'
 import { PartialUtils } from '../utils/index.js'
-import { CTAPostTrigger } from '../triggers/cta-post.js'
 
 const require = createRequire(import.meta.url)
 const Config = require('../../config/config.json')
 const Debug = require('../../config/debug.json')
 const Logs = require('../../lang/logs.json')
-const ctaChannelName = 'call-to-action'
-const guildName = 'DGG Political Action'
 
 export class Bot {
   private ready = false
@@ -55,6 +55,7 @@ export class Bot {
     private commandHandler: CommandHandler,
     private buttonHandler: ButtonHandler,
     private reactionHandler: ReactionHandler,
+    private guildScheduledEventHandler: GuildScheduledEventHandler,
     private jobService: JobService,
     private voiceStateUpdateHandler?: VoiceStateUpdateHandler,
   ) {}
@@ -83,6 +84,21 @@ export class Bot {
       Events.MessageReactionAdd,
       (messageReaction: MessageReaction | PartialMessageReaction, user: User | PartialUser) =>
         this.onReaction(messageReaction, user),
+    )
+    this.client.on(Events.GuildScheduledEventCreate, (event: GuildScheduledEvent) =>
+      this.onGuildScheduledEventCreate(event),
+    )
+    this.client.on(
+      Events.GuildScheduledEventUpdate,
+      (
+        oldEvent: GuildScheduledEvent | PartialGuildScheduledEvent | null,
+        newEvent: GuildScheduledEvent,
+      ) => this.onGuildScheduledEventUpdate(oldEvent, newEvent),
+    )
+    this.client.on(
+      Events.GuildScheduledEventDelete,
+      (event: GuildScheduledEvent | PartialGuildScheduledEvent) =>
+        this.onGuildScheduledEventDelete(event),
     )
     if (this.voiceStateUpdateHandler) {
       this.client.on(
@@ -249,6 +265,38 @@ export class Bot {
       await this.reactionHandler.process(msgReaction, msgReaction.message as Message, reactor)
     } catch (error) {
       Logger.error(Logs.error.reaction, error)
+    }
+  }
+
+  private async onGuildScheduledEventCreate(event: GuildScheduledEvent): Promise<void> {
+    if (!this.ready || Debug.dummyMode.enabled) return
+    try {
+      await this.guildScheduledEventHandler.onCreate(event)
+    } catch (error) {
+      Logger.error(Logs.error.calendarSync.replace('{EVENT_NAME}', event.name), error)
+    }
+  }
+
+  private async onGuildScheduledEventUpdate(
+    oldEvent: GuildScheduledEvent | PartialGuildScheduledEvent | null,
+    newEvent: GuildScheduledEvent,
+  ): Promise<void> {
+    if (!this.ready || Debug.dummyMode.enabled) return
+    try {
+      await this.guildScheduledEventHandler.onUpdate(oldEvent, newEvent)
+    } catch (error) {
+      Logger.error(Logs.error.calendarSync.replace('{EVENT_NAME}', newEvent.name), error)
+    }
+  }
+
+  private async onGuildScheduledEventDelete(
+    event: GuildScheduledEvent | PartialGuildScheduledEvent,
+  ): Promise<void> {
+    if (!this.ready || Debug.dummyMode.enabled) return
+    try {
+      await this.guildScheduledEventHandler.onDelete(event)
+    } catch (error) {
+      Logger.error(Logs.error.calendarSync.replace('{EVENT_NAME}', event.name ?? event.id), error)
     }
   }
 

@@ -28,30 +28,49 @@ import {
   GuildLeaveHandler,
   GuildMemberAddHandler,
   GuildMemberUpdateHandler,
+  GuildScheduledEventHandler,
   MessageHandler,
   ReactionHandler,
   TriggerHandler,
   VoiceStateUpdateHandler,
 } from './events/index.js'
 import { CustomClient } from './extensions/index.js'
-import { AutoCloseWelcomeThreadsJob, type Job } from './jobs/index.js'
+import {
+  AutoCloseWelcomeThreadsJob,
+  ImmediateSyncDggpGoogleCalendarJob,
+  SyncDggpGoogleCalendarJob,
+  type Job,
+} from './jobs/index.js'
 import { Bot } from './models/bot.js'
 import { type Reaction } from './reactions/index.js'
 import {
   AttendanceService,
   CommandRegistrationService,
   EventDataService,
+  GoogleCalendarService,
   JobService,
   Logger,
 } from './services/index.js'
 import { type Trigger } from './triggers/index.js'
 import { CTAPostTrigger } from './triggers/cta-post.js'
+import { runCalendarSyncCli } from './calendar-sync-cli.js'
 
 const require = createRequire(import.meta.url)
 const Config = require('../config/config.json')
 const Logs = require('../lang/logs.json')
 
 async function start(): Promise<void> {
+  if (process.argv[2] === 'calendar' && process.argv[3] === 'sync') {
+    try {
+      await runCalendarSyncCli()
+    } catch (error) {
+      Logger.error(Logs.error.unspecified, error)
+      process.exit(1)
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    process.exit(0)
+  }
+
   // Services
   const eventDataService = new EventDataService()
   const attendanceService = new AttendanceService()
@@ -102,6 +121,12 @@ async function start(): Promise<void> {
     new CTAPostTrigger(),
   ]
 
+  // Google Calendar sync — service account JSON key path
+  const googleCalendarService = new GoogleCalendarService(
+    process.env.GOOGLE_CALENDAR_ID,
+    process.env.GOOGLE_CALENDAR_CREDENTIALS ?? process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    process.env.GOOGLE_CALENDAR_IMPERSONATION_SUBJECT,
+  )
   // Event handlers
   const guildJoinHandler = new GuildJoinHandler(eventDataService)
   const guildLeaveHandler = new GuildLeaveHandler()
@@ -112,10 +137,15 @@ async function start(): Promise<void> {
   const triggerHandler = new TriggerHandler(triggers, eventDataService)
   const messageHandler = new MessageHandler(triggerHandler)
   const reactionHandler = new ReactionHandler(reactions, eventDataService)
+  const guildScheduledEventHandler = new GuildScheduledEventHandler(googleCalendarService)
   const voiceStateUpdateHandler = new VoiceStateUpdateHandler(attendanceService, client)
 
   // Jobs
-  const jobs: Job[] = [new AutoCloseWelcomeThreadsJob(client)]
+  const jobs: Job[] = [
+    new AutoCloseWelcomeThreadsJob(client),
+    new ImmediateSyncDggpGoogleCalendarJob(client, googleCalendarService),
+    new SyncDggpGoogleCalendarJob(client, googleCalendarService),
+  ]
 
   // Bot
   const bot = new Bot(
@@ -129,6 +159,7 @@ async function start(): Promise<void> {
     commandHandler,
     buttonHandler,
     reactionHandler,
+    guildScheduledEventHandler,
     new JobService(jobs),
     voiceStateUpdateHandler,
   )

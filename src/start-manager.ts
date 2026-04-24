@@ -2,7 +2,13 @@ import { ShardingManager } from 'discord.js'
 import { createRequire } from 'node:module'
 import 'reflect-metadata'
 
-import { GuildsController, RootController, ShardsController } from './controllers/index.js'
+import {
+  GuildsController,
+  IntegrationsController,
+  RootController,
+  ShardsController,
+} from './controllers/index.js'
+import { type Integration, PragmaticPapersIntegration } from './integrations/index.js'
 import { type Job } from './jobs/index.js'
 import { Api } from './models/api.js'
 import { Manager } from './models/manager.js'
@@ -71,7 +77,9 @@ async function start(): Promise<void> {
   const guildsController = new GuildsController(shardManager)
   const shardsController = new ShardsController(shardManager)
   const rootController = new RootController()
-  const api = new Api([guildsController, shardsController, rootController])
+  const integrations: Integration[] = [new PragmaticPapersIntegration()]
+  const integrationsController = new IntegrationsController(integrations, shardManager)
+  const api = new Api([guildsController, shardsController, integrationsController, rootController])
 
   // Start
   await manager.start()

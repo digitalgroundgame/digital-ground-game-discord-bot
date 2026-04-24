@@ -12,16 +12,16 @@
       "GuildMessageReactions",
       "DirectMessages",
       "DirectMessageReactions",
-      "MessageContent"
+      "MessageContent",
+      "GuildScheduledEvents"
     ],
-    "partials": ["Message", "Channel", "Reaction"],
+    "partials": ["Message", "Channel", "Reaction", "GuildScheduledEvent"],
     "caches": {
       "AutoModerationRuleManager": 0,
       "BaseGuildEmojiManager": 0,
       "GuildEmojiManager": 0,
       "GuildBanManager": 0,
       "GuildInviteManager": 0,
-      "GuildScheduledEventManager": 0,
       "GuildStickerManager": 0,
       "MessageManager": 0,
       "PresenceManager": 0,
@@ -60,6 +60,18 @@
       "log": true,
       "runOnce": false,
       "initialDelaySecs": 120
+    },
+    "syncDggpGoogleCalendar": {
+      "schedule": "0 0 * * * *",
+      "log": true,
+      "runOnce": false,
+      "initialDelaySecs": 60
+    },
+    "syncDggpGoogleCalendarImmediate": {
+      "schedule": "* * * * * *",
+      "log": true,
+      "runOnce": true,
+      "initialDelaySecs": 0
     }
   },
   "rateLimiting": {
@@ -84,6 +96,12 @@
     "pretty": true,
     "rateLimit": {
       "minTimeout": 30
+    }
+  },
+  "integrations": {
+    "pragmaticPapers": {
+      "name": "Pragmatic Papers",
+      "publishChannelId": "1495548137857744946"
     }
   },
   "welcomeThread": {

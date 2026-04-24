@@ -54,6 +54,18 @@ Get this from inside of the Discord app. Enable developer mode -> right click us
 DISCORD_BOT_DEVELOPER_IDS="123456789012345678,987654321098765432" # comma-separated list of Discord user IDs
 ```
 
+### Optional: Google Calendar sync
+
+To mirror Discord scheduled events from **DGG Political Action** into the DGGP group calendar, the bot runs an **hourly** job that reconciles with Google Calendar.
+
+1. Create a [Google Cloud project](https://console.cloud.google.com/) and enable the **Google Calendar API**.
+
+2. Create a **service account**, download its JSON key, and share the target Google Calendar with the service account email (**Make changes to events**).
+
+3. In `.env`: `GOOGLE_CALENDAR_ID` and `GOOGLE_APPLICATION_CREDENTIALS` (path to that JSON), or `GOOGLE_CALENDAR_CREDENTIALS` instead of `GOOGLE_APPLICATION_CREDENTIALS` if you prefer. Share the target calendar with the **service account email** from that JSON (`client_email`), unless you use Workspace delegation (then set `GOOGLE_CALENDAR_IMPERSONATION_SUBJECT` and share the calendar with that user instead).
+
+The bot lists Google Calendar events in a fixed time window and compares them to Discord scheduled events. Discord is the source of truth: each new Google event’s description includes the Discord scheduled event id so the next run can tell what is already synced—no separate state file on disk.
+
 ### Not used
 
 Clustering Configuration (only needed if clustering.enabled is true), we will likely never cluster because it's for bots that serve 2,500+ guilds.
