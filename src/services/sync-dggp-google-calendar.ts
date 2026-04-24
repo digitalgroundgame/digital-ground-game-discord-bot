@@ -2,7 +2,6 @@ import type { Client, GuildScheduledEvent } from 'discord.js'
 import { GuildScheduledEventStatus } from 'discord.js'
 import { createRequire } from 'node:module'
 
-import { DGGP_GUILD_NAME } from '../constants/dggp-guild.js'
 import { discordRecurrenceRuleToGoogleRRule } from '../utils/discord-recurrence-to-google-rrule.js'
 import type {
   CalendarEventInput,
@@ -123,11 +122,10 @@ export async function syncDggpScheduledEventsToGoogle(
     return
   }
 
-  const guild = client.guilds.cache.find(
-    (g) => g.name === DGGP_GUILD_NAME || g.name === 'DGGPATestServer',
-  )
+  const guildId = process.env.DISCORD_GUILD_ID
+  const guild = client.guilds.cache.find((g) => g.id === guildId)
   if (!guild) {
-    Logger.info(`Calendar sync: guild "${DGGP_GUILD_NAME}" not in cache; skip.`)
+    Logger.info(`Calendar sync: guild "${guildId}" not in cache; skip.`)
     return
   }
 

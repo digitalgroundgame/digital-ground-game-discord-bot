@@ -34,15 +34,13 @@ import {
   type VoiceStateUpdateHandler,
 } from '../events/index.js'
 import { type JobService, Logger } from '../services/index.js'
-import { DGGP_GUILD_NAME } from '../constants/dggp-guild.js'
 import { PartialUtils } from '../utils/index.js'
-import { CTAPostTrigger } from '../triggers/cta-post.js'
 
 const require = createRequire(import.meta.url)
 const Config = require('../../config/config.json')
 const Debug = require('../../config/debug.json')
 const Logs = require('../../lang/logs.json')
-const ctaChannelName = 'call-to-action'
+
 export class Bot {
   private ready = false
 
