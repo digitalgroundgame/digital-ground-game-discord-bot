@@ -55,7 +55,7 @@ export class VoiceStateUpdateHandler implements EventHandler {
       const payload: CrmAttendancePayload = {
         event_id: scheduledEvent.id,
         event_name: scheduledEvent.name,
-        event_tracker: userId,
+        event_tracker_discord_id: userId,
         participants: entries.map((e) => ({
           discord_id: e.id,
           discord_name: e.displayName,

@@ -8,7 +8,7 @@ const CAN_RECORD_ATTENDANCE_PATH = '/api/discord/can-record-attendance/'
 export interface CrmAttendancePayload {
   event_id: string
   event_name: string
-  event_tracker: string
+  event_tracker_discord_id: string
   participants: Array<{
     discord_id: string
     discord_name: string
