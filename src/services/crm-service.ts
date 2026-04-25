@@ -1,8 +1,9 @@
-import fetch from 'node-fetch'
+import fetch, { type RequestInit } from 'node-fetch'
 import { URL } from 'node:url'
 
 const REQUEST_TIMEOUT_MS = 10_000
 const RECORD_ATTENDANCE_PATH = '/api/discord/record-attendance/'
+const CAN_RECORD_ATTENDANCE_PATH = '/api/discord/can-record-attendance/'
 
 export interface CrmAttendancePayload {
   event_id: string
@@ -24,6 +25,18 @@ export interface CrmAttendanceResponse {
   }>
 }
 
+// Mirrored from Server/dggcrm/discord/permissions.py — keep in sync.
+export type AttendancePermissionReason =
+  | 'ok'
+  | 'missing_tracker'
+  | 'unlinked_discord_id'
+  | 'not_authorized'
+
+export interface CrmAttendancePermissionResponse {
+  authorized: boolean
+  reason: AttendancePermissionReason
+}
+
 export class CrmService {
   private readonly baseUrl: URL
   private readonly token: string
@@ -43,28 +56,47 @@ export class CrmService {
   }
 
   public async recordAttendance(payload: CrmAttendancePayload): Promise<CrmAttendanceResponse> {
-    const url = new URL(RECORD_ATTENDANCE_PATH, this.baseUrl)
+    return this.request<CrmAttendanceResponse>('record-attendance', RECORD_ATTENDANCE_PATH, {
+      method: 'post',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  }
+
+  public async checkAttendancePermission(
+    discordId: string,
+  ): Promise<CrmAttendancePermissionResponse> {
+    const url = new URL(CAN_RECORD_ATTENDANCE_PATH, this.baseUrl)
+    url.searchParams.set('discord_id', discordId)
+    return this.request<CrmAttendancePermissionResponse>(
+      'can-record-attendance',
+      url.pathname + url.search,
+      { method: 'get' },
+    )
+  }
+
+  private async request<T>(label: string, pathAndQuery: string, init: RequestInit): Promise<T> {
+    const url = new URL(pathAndQuery, this.baseUrl)
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
     try {
       const res = await fetch(url.toString(), {
-        method: 'post',
+        ...init,
         headers: {
           Authorization: `Token ${this.token}`,
-          'Content-Type': 'application/json',
           Accept: 'application/json',
+          ...init.headers,
         },
-        body: JSON.stringify(payload),
         signal: controller.signal,
       })
 
       if (!res.ok) {
         const text = await res.text().catch(() => '')
-        throw new Error(`CRM record-attendance failed: ${res.status} ${text}`)
+        throw new Error(`CRM ${label} failed: ${res.status} ${text}`)
       }
 
-      return (await res.json()) as CrmAttendanceResponse
+      return (await res.json()) as T
     } finally {
       clearTimeout(timer)
     }

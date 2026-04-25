@@ -101,7 +101,7 @@ async function start(): Promise<void> {
     new PragPapersCommand(),
     new CensusCommand(),
     new AttendanceCommand(),
-    new AttendanceTrackCommand(attendanceService),
+    new AttendanceTrackCommand(attendanceService, crmService),
 
     // User Context Commands
     ...ONBOARDING_CONFIGS.map((config) => new SendOnboarding(config)),
