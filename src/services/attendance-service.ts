@@ -5,7 +5,7 @@ import {
   type GuildBasedChannel,
   type VoiceState,
 } from 'discord.js'
-import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm'
+import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm'
 import { DateTime } from 'luxon'
 import { createRequire } from 'node:module'
 
@@ -330,7 +330,10 @@ export class AttendanceService {
   private async closeOpenUserSessions(sessionId: number, userId: string): Promise<void> {
     await this.db
       .update(userSessionTable)
-      .set({ endTime: new Date() })
+      .set({
+        endTime: sql`now()`,
+        durationSeconds: sql`floor(extract(epoch from (now() - ${userSessionTable.startTime})))::int`,
+      })
       .where(
         and(
           eq(userSessionTable.sessionId, sessionId),
@@ -362,7 +365,10 @@ export class AttendanceService {
     const now = new Date()
     await this.db
       .update(userSessionTable)
-      .set({ endTime: now })
+      .set({
+        endTime: now,
+        durationSeconds: sql`floor(extract(epoch from (${now.toISOString()}::timestamptz - ${userSessionTable.startTime})))::int`,
+      })
       .where(
         and(eq(userSessionTable.sessionId, sessionId), isNull(userSessionTable.endTime)),
       )

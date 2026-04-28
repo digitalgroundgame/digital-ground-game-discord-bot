@@ -20,6 +20,7 @@ export const userSession = pgTable('user_session', {
   displayName: varchar('display_name', { length: 32 }).notNull(),
   startTime: timestamp('start_time', { withTimezone: true }).notNull().defaultNow(),
   endTime: timestamp('end_time', { withTimezone: true }),
+  durationSeconds: integer('duration_seconds'),
 })
 
 export type Session = typeof session.$inferSelect
