@@ -141,13 +141,19 @@
         "description": "I couldn't DM you (DMs may be closed or you may have blocked the bot). Open DMs from server members and try again."
       },
       "attendanceTrackStarted": {
-        "description": "Tracking **{{CHANNEL_NAME}}**. Everyone in the call right now is on the list; anyone who joins later is added too and stays listed if they leave. You'll get a DM when you leave the channel."
+        "description": "Tracking **{{CHANNEL_NAME}}**. Everyone in the call right now is on the list; anyone who joins later is added too and stays listed if they leave. You'll get a DM when you stop tracking — either by running `/attendance-stop`, or by leaving the channel and not returning within 5 minutes."
+      },
+      "attendanceTrackStopped": {
+        "description": "Stopped tracking. Check your DMs for the attendance list."
+      },
+      "attendanceNotTracking": {
+        "description": "You aren't currently tracking attendance."
       },
       "attendanceNotInVC": {
         "description": "You must be in a voice channel to take attendance. Join a voice channel and run this command again."
       },
       "attendanceAlreadyTracking": {
-        "description": "You're already taking attendance in another channel. Leave that channel first to get your list, then run this again in a new channel if needed."
+        "description": "You're already taking attendance in another channel. Run `/attendance-stop` to finish that session, then run this again."
       }
     },
     "validationEmbeds": {
@@ -236,7 +242,8 @@
       "pragPapers": "prag-papers",
       "census": "census",
       "attendance": "attendance",
-      "attendanceTrack": "attendance-track"
+      "attendanceTrack": "attendance-track",
+      "attendanceStop": "attendance-stop"
     },
     "userCommands": {
       "sendDevOnboarding": "Send Dev Onboarding",
@@ -260,7 +267,8 @@
       "pragPapers": "Gives a link to the Pragmatic Papers website.",
       "census": "Gives a link to the Census form.",
       "attendance": "DMs you a snapshot list of everyone currently in your voice channel.",
-      "attendanceTrack": "Tracks who is in your voice channel and DMs you the same formatted list when you leave."
+      "attendanceTrack": "Tracks who is in your voice channel and DMs you the formatted list when tracking stops.",
+      "attendanceStop": "Stops the attendance tracker you started and DMs you the formatted list."
     },
     "argDescs": {
       "devCommand": "Command.",
