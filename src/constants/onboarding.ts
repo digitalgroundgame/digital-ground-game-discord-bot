@@ -2,31 +2,17 @@ export class DevOnboarding {
   public static Title = 'About Digital Ground Game Dev Team'
 
   public static Message = `
-    So you're interested in the **Digital Ground Game dev team** — awesome! 👋
+    So you're interested in the **Digital Ground Game Dev Team** — awesome! 👋
 
-    Here are the basics:
+    Read the [onboarding doc.](https://docs.google.com/document/d/1ftfaatfO1umsE-ZOLmjfohn4JW-3TnSMkZF3ib9AyO0/edit?usp=sharing)
 
-    **We have four main teams**
-    ▫️ [Pragmatic Papers](https://github.com/digitalgroundgame/pragmatic-papers)
-    ▫️ [Volunteer Management System](https://github.com/digitalgroundgame/in-house-mgmt)
-    ▫️ [Discord Bot](https://github.com/digitalgroundgame/digital-ground-game-discord-bot)
-    ▫️ [DGGP Site Modules](https://github.com/digitalgroundgame/odoo-modules)
-    ▫️ DevOps
+    Fill out the [interest form.](https://docs.google.com/forms/d/e/1FAIpQLSe1gt1uoDxbUcFL0ETidzto39VFg_fdqPQ8DXQSSG6ITgfCGQ/viewform?usp=sharing&ouid=103918157312606254571)
 
-    **There are two weekly engagements**
-    ▫️ Team meetings — Wednesdays @ 9pm EST
-    ▫️ Office hours — Tuesdays @ 9pm EST
-    ▫️ Be sure to subscribe to the Discord server events!
+    Keep up to date by **reading the pinned posts** in **#dev-team.**
 
-    **GitHub access**
-    ▫️ Send your GitHub username to **@Evan6seven**
-    ▫️ Our GitHub page: [DigitalGroundGame](https://github.com/digitalgroundgame)
-
-    **Google Drive access**
-    ▫️ Send your email address to **@Evan6seven**
-    ▫️ Review the [Onboarding Doc](https://docs.google.com/document/d/1ftfaatfO1umsE-ZOLmjfohn4JW-3TnSMkZF3ib9AyO0/edit)
-
-    If you have questions, reach out to **@Evan6seven** or **#dev-team** anytime!`
+    If you have questions, reach out any time in **#dev-team!**
+    
+    For more context or an onboarding chat you can ping the Dev Team Lead, **Evan-6seven**.`
 }
 
 export class WelcomeOnboarding {
