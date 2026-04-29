@@ -10,6 +10,8 @@ This template for a Discord bot was based upon this public template. https://git
 
 0. Use the pinned Node version.
 
+   This repo expects the Node version pinned in `.nvmrc` for consistent npm/lockfile behavior.
+
    ```
    nvm use
    ```
