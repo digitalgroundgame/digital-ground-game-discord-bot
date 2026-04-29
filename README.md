@@ -30,7 +30,10 @@ This template for a Discord bot was based upon this public template. https://git
 
 2. Fill your .env - see below.
 
-3. `npm install`
+3. Install dependencies with a lockfile-stable workflow:
+
+   - Use `npm ci` for normal development and CI (preferred).
+   - Use `npm install` only when you intentionally add/update/remove dependencies.
 
 4. Register commands.
    - In order to use slash commands, they first [have to be registered](https://discordjs.guide/creating-your-bot/command-deployment.html).
