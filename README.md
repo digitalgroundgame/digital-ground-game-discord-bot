@@ -8,6 +8,18 @@ This template for a Discord bot was based upon this public template. https://git
 
 ## Setup
 
+0. Use the pinned Node version.
+
+   ```
+   nvm use
+   ```
+
+   If you do not have that version yet:
+
+   ```
+   nvm install
+   ```
+
 1. Copy example config files.
 
    Run this command to create your local config and .env files:
@@ -27,6 +39,20 @@ This template for a Discord bot was based upon this public template. https://git
      - This is so Discord knows what your commands look like.
      - It may take up to an hour for command changes to appear.
 5. `npm start`
+
+## Contributing With Low Lockfile Noise
+
+When contributors use different Node/npm versions, `package-lock.json` often churns (including platform/libc metadata). To reduce noise:
+
+1. Use the pinned runtime in `.nvmrc`:
+
+   ```
+   nvm use
+   ```
+
+2. Keep dependency installs on consistent tooling (`npm` bundled with that Node version).
+3. In CI, use the same Node version and run `npm ci` (not `npm install`).
+4. If you changed only app code but `package-lock.json` is noisy, re-run install after `nvm use` and re-check the diff.
 
 ## Environment Variables
 
