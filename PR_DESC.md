@@ -15,8 +15,7 @@ Reimplements `AttendanceService` on top of Postgres + Drizzle ORM. State now liv
   - `user_session(id, session_id → session.id ON DELETE CASCADE, user_id, display_name, start_time, end_time?)`
   - Snowflake columns are `varchar(20)` (max uint64 is 20 digits). `channel_name` is `varchar(100)` (Discord channel-name max). `display_name` is `varchar(32)` (Discord username/nickname/global-display-name max). `meeting_subject` is `varchar(120)` (covers stage topics, max 120, and scheduled-event names, max 100).
 - `npm run db:push` / `npm run db:studio` scripts. Migrations are intentionally not used — schema changes are applied via `drizzle-kit push`.
-- `DATABASE_URL` added to `.env.example` and `environment.d.ts`.
-- `guildId` added to `config/config.json` and read by the service via `createRequire` (matches the pattern in `welcome-thread-service.ts`); guild id is no longer stored per session.
+- `DATABASE_URL` and `DISCORD_GUILD_ID` added to `.env.example` and `environment.d.ts`.
 
 ### `AttendanceService` (`src/services/attendance-service.ts`)
 
@@ -52,7 +51,7 @@ Reimplements `AttendanceService` on top of Postgres + Drizzle ORM. State now liv
 - `docker compose up -d` to start local Postgres.
 - `npm run db:push` to create the tables.
 - `npm run commands:register` to publish `/attendance-stop` to Discord.
-- Set `guildId` in `config/config.json` and `DATABASE_URL` in `.env`.
+- Set `DISCORD_GUILD_ID` and `DATABASE_URL` in `.env`.
 
 ## Test plan
 

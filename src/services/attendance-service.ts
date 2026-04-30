@@ -7,13 +7,9 @@ import {
 } from 'discord.js'
 import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm'
 import { DateTime } from 'luxon'
-import { createRequire } from 'node:module'
 
 import type { Database } from '../database/index.js'
 import { session as sessionTable, userSession as userSessionTable } from '../database/schema.js'
-
-const require = createRequire(import.meta.url)
-const Config = require('../../config/config.json') as { guildId: string }
 
 export interface AttendanceEntry {
   id: string
@@ -120,10 +116,17 @@ export async function resolveVoiceChannelMeetingSubject(
  */
 export class AttendanceService {
   /** Pending grace-period timers, keyed by session id. */
-  private graceTimers = new Map<number, NodeJS.Timeout>()
-  private finalizedListeners: AttendanceFinalizedListener[] = []
+  private readonly graceTimers = new Map<number, NodeJS.Timeout>()
+  private readonly finalizedListeners: AttendanceFinalizedListener[] = []
+  private readonly guildId: string
 
-  constructor(private readonly db: Database) {}
+  constructor(private readonly db: Database) {
+    const guildId = process.env.DISCORD_GUILD_ID
+    if (!guildId) {
+      throw new Error('DISCORD_GUILD_ID is not set')
+    }
+    this.guildId = guildId
+  }
 
   onFinalized(listener: AttendanceFinalizedListener): void {
     this.finalizedListeners.push(listener)
@@ -359,7 +362,7 @@ export class AttendanceService {
       .where(eq(sessionTable.id, sessionId))
       .limit(1)
     // Bail if already finalized (e.g. timer + stop command race).
-    if (!session || session.endTime !== null) return
+    if (!session?.endTime) return
 
     const entries = await this.getCumulativeRoster(sessionId)
     const now = new Date()
@@ -369,9 +372,7 @@ export class AttendanceService {
         endTime: now,
         durationSeconds: sql`floor(extract(epoch from (${now.toISOString()}::timestamptz - ${userSessionTable.startTime})))::int`,
       })
-      .where(
-        and(eq(userSessionTable.sessionId, sessionId), isNull(userSessionTable.endTime)),
-      )
+      .where(and(eq(userSessionTable.sessionId, sessionId), isNull(userSessionTable.endTime)))
     await this.db
       .update(sessionTable)
       .set({ endTime: now, leaderLeftAt: null })
@@ -379,7 +380,7 @@ export class AttendanceService {
 
     const result: AttendanceFinalizedResult = {
       userId: session.sessionLeader,
-      guildId: Config.guildId,
+      guildId: this.guildId,
       channelId: session.channelId,
       channelName: session.channelName,
       meetingSubject: session.meetingSubject ?? undefined,

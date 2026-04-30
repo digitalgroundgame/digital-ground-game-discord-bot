@@ -1,6 +1,5 @@
 {
   "// NOTE: developers are now managed via DISCORD_BOT_DEVELOPER_IDS environment variable": "",
-  "guildId": "",
   "client": {
     "// NOTE: id and token are now managed via environment variables": "",
     "intents": [
