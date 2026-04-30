@@ -1,6 +1,6 @@
 # Description
 
-Please include a summary of the change and which issue is fixed. Please also include relevant motivation and context. List any dependencies that are required for this change.
+This project is volunteer-run, so reviewers often cannot spend long on every line. Please make up for that with a clear description of what changed and how you tested it so we can verify behaviour without guessing.
 
 Fixes # (issue)
 
@@ -13,16 +13,15 @@ Please delete options that are not relevant.
 - [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
 - [ ] This change requires a documentation update
 
-# How Has This Been Tested?
-
-Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce. Please also list any relevant details for your test configuration
+# How Has This Been Tested? IMPORTANT
 
 - [ ] Test A
 - [ ] Test B
 
 **Test Configuration**:
-* Integrations(Dev/Stage Discord Server)
-* Local DB/State
+
+- Integrations(Dev/Stage Discord Server)
+- Local DB/State
 
 # Checklist:
 
@@ -30,4 +29,4 @@ Please describe the tests that you ran to verify your changes. Provide instructi
 - [ ] I used an LLM to generate a portion of the code. > 10 %
 - [ ] I have made corresponding changes to the documentation
 - [ ] My changes pass formatting and linting rules
-- [ ] I have added *unit* tests that prove my fix is effective or that my feature works if needed
+- [ ] I have added _unit_ tests that prove my fix is effective or that my feature works if needed
