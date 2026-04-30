@@ -121,11 +121,7 @@ export class AttendanceService {
   private readonly guildId: string
 
   constructor(private readonly db: Database) {
-    const guildId = process.env.DISCORD_GUILD_ID
-    if (!guildId) {
-      throw new Error('DISCORD_GUILD_ID is not set')
-    }
-    this.guildId = guildId
+    this.guildId = process.env.DISCORD_GUILD_ID
   }
 
   onFinalized(listener: AttendanceFinalizedListener): void {
