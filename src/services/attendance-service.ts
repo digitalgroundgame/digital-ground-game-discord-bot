@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 import {
   GuildScheduledEventStatus,
   StageChannel,
@@ -6,6 +8,8 @@ import {
   type VoiceState,
 } from 'discord.js'
 import { DateTime } from 'luxon'
+
+import { StringUtils } from '../utils/string-utils.js'
 
 export interface AttendanceEntry {
   id: string
@@ -101,6 +105,16 @@ export async function resolveVoiceChannelMeetingSubject(
 }
 
 interface AttendanceSession {
+  /** Synthetic identifier used as event_id when no Discord scheduled event is linked.
+   * Stable for the lifetime of the tracking session so retries / multi-step CRM
+   * writes converge on the same StagedEvent row. */
+  sessionId: string
+  /** Synthetic event name ("<channel name> — <UTC start time>") used when there's
+   * no scheduled event AND the tracker didn't provide a custom name. */
+  defaultEventName: string
+  /** Optional override the tracker passed via the slash-command's name argument.
+   * When set, this wins over both the scheduled-event name and the default. */
+  customEventName?: string
   channelId: string
   guildId: string
   channelName: string
@@ -127,6 +141,7 @@ export class AttendanceService {
     guildId: string,
     channelName: string,
     initialMembers: Array<{ id: string; displayName: string }>,
+    customName?: string,
   ): boolean {
     if (this.sessions.has(userId)) {
       return false
@@ -135,7 +150,16 @@ export class AttendanceService {
     for (const m of initialMembers) {
       members.set(m.id, m.displayName)
     }
+    const trimmedCustomName = customName?.trim()
+    const startedAt = DateTime.utc()
+    const defaultEventName = StringUtils.truncate(
+      `${channelName} — ${startedAt.toFormat("LLL d, yyyy h:mm a 'UTC'")}`,
+      100,
+    )
     this.sessions.set(userId, {
+      sessionId: randomUUID(),
+      defaultEventName,
+      customEventName: trimmedCustomName ? StringUtils.truncate(trimmedCustomName, 100) : undefined,
       channelId,
       guildId,
       channelName,
@@ -157,6 +181,9 @@ export class AttendanceService {
     guildId: string
     channelId: string
     channelName: string
+    sessionId: string
+    defaultEventName: string
+    customEventName?: string
     entries: AttendanceEntry[]
   } | null {
     const memberId = newState.member?.id ?? oldState.member?.id
@@ -190,6 +217,9 @@ export class AttendanceService {
         guildId: session.guildId,
         channelId: session.channelId,
         channelName: session.channelName,
+        sessionId: session.sessionId,
+        defaultEventName: session.defaultEventName,
+        customEventName: session.customEventName,
         entries,
       }
     }

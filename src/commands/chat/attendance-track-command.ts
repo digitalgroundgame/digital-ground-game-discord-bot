@@ -19,9 +19,13 @@ import { Logger } from '../../services/logger.js'
 import { InteractionUtils } from '../../utils/index.js'
 import { type Command, CommandDeferType } from '../index.js'
 
-// 'ok' intentionally absent — the caller branches on authorized first.
-// 'missing_tracker' falls back to the generic message because the bot
-// always supplies a discord_id, so the CRM should never report it.
+// Maps each CRM rejection reason to the lang key for the user-facing message.
+// Two variants of AttendancePermissionReason are intentionally not in this map:
+//   - 'ok'             — authorized=true short-circuits before we reach this lookup.
+//   - 'missing_tracker' — the bot always supplies a discord_id, so the CRM
+//                         should never return this code in practice. If it ever
+//                         does, the missing entry falls through to FALLBACK_LANG_KEY
+//                         and the user sees the generic "couldn't verify" message.
 const REASON_TO_LANG_KEY: Partial<Record<AttendancePermissionReason, string>> = {
   not_authorized: 'displayEmbeds.attendanceNotAuthorized',
   unlinked_discord_id: 'displayEmbeds.attendanceUnlinkedDiscordId',
@@ -87,6 +91,10 @@ export class AttendanceTrackCommand implements Command {
       return
     }
 
+    const customName = intr.options.getString(
+      Lang.getRef('arguments.attendanceEventName', Language.Default),
+    )
+
     const initialMembers = Array.from(voiceChannel.members.values()).map((m) => ({
       id: m.id,
       displayName: m.displayName ?? m.user.username ?? 'Unknown',
@@ -98,6 +106,7 @@ export class AttendanceTrackCommand implements Command {
       voiceChannel.guild.id,
       voiceChannel.name,
       initialMembers,
+      customName ?? undefined,
     )
 
     if (!started) {

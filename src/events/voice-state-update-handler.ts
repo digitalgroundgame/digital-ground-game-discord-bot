@@ -1,6 +1,5 @@
 import {
   AttachmentBuilder,
-  StageChannel,
   escapeMarkdown,
   type Client,
   type User,
@@ -29,32 +28,32 @@ export class VoiceStateUpdateHandler implements EventHandler {
     const result = this.attendanceService.handleVoiceStateUpdate(oldState, newState)
     if (!result) return
 
-    const { userId, guildId, channelId, channelName, entries } = result
+    const {
+      userId,
+      guildId,
+      channelId,
+      channelName,
+      sessionId,
+      defaultEventName,
+      customEventName,
+      entries,
+    } = result
     try {
       const guild = await this.client.guilds.fetch(guildId)
-      const [user, channel, scheduledEvent] = await Promise.all([
+      const [user, scheduledEvent] = await Promise.all([
         this.client.users.fetch(userId),
-        guild.channels.fetch(channelId).catch(() => null),
         resolveScheduledEvent(guild, channelId),
       ])
 
-      if (!scheduledEvent) {
-        const meetingSubject =
-          channel instanceof StageChannel && channel.topic ? channel.topic : undefined
-        await this.sendFallbackDm(
-          user,
-          channelName,
-          meetingSubject,
-          entries,
-          'No scheduled event was linked to this channel, so nothing was synced to the CRM.',
-          null,
-        )
-        return
-      }
+      //name must be provided
+      //either default - event name or channel name + date
+      //provide arg for custom name
+      const eventId = scheduledEvent?.id ?? sessionId
+      const displayEventName = customEventName ?? scheduledEvent?.name ?? defaultEventName
 
       const payload: CrmAttendancePayload = {
-        event_id: scheduledEvent.id,
-        event_name: scheduledEvent.name,
+        event_id: eventId,
+        event_name: displayEventName,
         event_tracker_discord_id: userId,
         participants: entries.map((e) => ({
           discord_id: e.id,
@@ -70,7 +69,7 @@ export class VoiceStateUpdateHandler implements EventHandler {
           const sent = await MessageUtils.send(
             user,
             this.formatCrmReportDm(
-              scheduledEvent.name,
+              displayEventName,
               channelName,
               response.total_received,
               response.unlinked_participants,
@@ -78,12 +77,12 @@ export class VoiceStateUpdateHandler implements EventHandler {
           )
           if (!sent) {
             Logger.warn(
-              `Attendance DM could not be delivered to ${userId} (DMs closed?). CRM row still written for event ${scheduledEvent.id}.`,
+              `Attendance DM could not be delivered to ${userId} (DMs closed?). CRM row still written for event ${eventId}.`,
             )
           }
         } catch (dmError) {
           Logger.warn(
-            `CRM row written for event ${scheduledEvent.id} but delivering the success DM threw: ${String(dmError)}`,
+            `CRM row written for event ${eventId} but delivering the success DM threw: ${String(dmError)}`,
           )
         }
       } catch (error) {
@@ -91,7 +90,7 @@ export class VoiceStateUpdateHandler implements EventHandler {
         await this.sendFallbackDm(
           user,
           channelName,
-          scheduledEvent.name,
+          displayEventName,
           entries,
           'Failed to sync attendance to the CRM. The raw payload is below so it can be replayed manually.',
           payload,

@@ -258,7 +258,8 @@
     "arguments": {
       "command": "command",
       "option": "option",
-      "ruleNumber": "rulenumber"
+      "ruleNumber": "rulenumber",
+      "attendanceEventName": "name"
     },
     "commandDescs": {
       "dev": "Developer use only.",
@@ -275,7 +276,8 @@
       "devCommand": "Command.",
       "helpOption": "Option.",
       "infoOption": "Option.",
-      "ruleNumber": "Rule number."
+      "ruleNumber": "Rule number.",
+      "attendanceEventName": "Override the default event name (scheduled-event name, or channel + start time)."
     },
     "fields": {
       "commands": "Commands",
