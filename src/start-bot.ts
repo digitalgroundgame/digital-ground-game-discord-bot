@@ -72,6 +72,25 @@ async function start(): Promise<void> {
     process.exit(0)
   }
 
+  // Register
+  if (process.argv[2] == 'commands') {
+    try {
+      const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN)
+      const commandRegistrationService = new CommandRegistrationService(rest)
+      const localCmds = [
+        ...Object.values(ChatCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
+        ...Object.values(MessageCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
+        ...Object.values(UserCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
+      ]
+      await commandRegistrationService.process(localCmds, process.argv)
+    } catch (error) {
+      Logger.error(Logs.error.commandAction, error)
+    }
+    // Wait for any final logs to be written.
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    process.exit()
+  }
+
   // Services
   const eventDataService = new EventDataService()
   const attendanceService = new AttendanceService()
@@ -166,25 +185,6 @@ async function start(): Promise<void> {
     new JobService(jobs),
     voiceStateUpdateHandler,
   )
-
-  // Register
-  if (process.argv[2] == 'commands') {
-    try {
-      const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN)
-      const commandRegistrationService = new CommandRegistrationService(rest)
-      const localCmds = [
-        ...Object.values(ChatCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
-        ...Object.values(MessageCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
-        ...Object.values(UserCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
-      ]
-      await commandRegistrationService.process(localCmds, process.argv)
-    } catch (error) {
-      Logger.error(Logs.error.commandAction, error)
-    }
-    // Wait for any final logs to be written.
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    process.exit()
-  }
 
   await bot.start()
 }
