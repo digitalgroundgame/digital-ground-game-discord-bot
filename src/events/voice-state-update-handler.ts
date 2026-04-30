@@ -46,7 +46,7 @@ export class VoiceStateUpdateHandler implements EventHandler {
       ])
 
       //name must be provided
-      //either default - event name or channel name + date
+      //default - event name or channel name + date
       //provide arg for custom name
       const eventId = scheduledEvent?.id ?? sessionId
       const displayEventName = customEventName ?? scheduledEvent?.name ?? defaultEventName
@@ -118,17 +118,17 @@ export class VoiceStateUpdateHandler implements EventHandler {
       at: new Date(),
     })
 
+    await MessageUtils.send(user, reportContent)
+
     if (payload) {
       const buffer = Buffer.from(JSON.stringify(payload, null, 2), 'utf8')
       const attachment = new AttachmentBuilder(buffer, {
         name: `attendance-${payload.event_id}.json`,
       })
       await MessageUtils.send(user, {
-        content: `${reportContent}\n**Raw CRM payload (for manual replay):**`,
+        content: '**Raw CRM payload (for manual replay):**',
         files: [attachment],
       })
-    } else {
-      await MessageUtils.send(user, reportContent)
     }
   }
 
