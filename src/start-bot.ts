@@ -37,8 +37,8 @@ import {
 import { CustomClient } from './extensions/index.js'
 import {
   AutoCloseWelcomeThreadsJob,
-  // ImmediateSyncDggpGoogleCalendarJob,
-  // SyncDggpGoogleCalendarJob,
+  ImmediateSyncDggpGoogleCalendarJob,
+  SyncDggpGoogleCalendarJob,
   type Job,
 } from './jobs/index.js'
 import { Bot } from './models/bot.js'
@@ -144,8 +144,8 @@ async function start(): Promise<void> {
   // Google Calendar sync jobs temporarily disabled (see ImmediateSyncDggpGoogleCalendarJob, SyncDggpGoogleCalendarJob).
   const jobs: Job[] = [
     new AutoCloseWelcomeThreadsJob(client),
-    // new ImmediateSyncDggpGoogleCalendarJob(client, googleCalendarService),
-    // new SyncDggpGoogleCalendarJob(client, googleCalendarService),
+    new ImmediateSyncDggpGoogleCalendarJob(client, googleCalendarService),
+    new SyncDggpGoogleCalendarJob(client, googleCalendarService),
   ]
 
   // Bot
