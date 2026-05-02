@@ -2,7 +2,7 @@ import fetch, { type RequestInit } from 'node-fetch'
 import { URL } from 'node:url'
 
 const REQUEST_TIMEOUT_MS = 10_000
-const RECORD_ATTENDANCE_PATH = '/api/discord/record-attendance/'
+const RECORD_ATTENDANCE_PATH = '/api/discord/staged-event-participations/'
 const CAN_RECORD_ATTENDANCE_PATH = '/api/discord/can-record-attendance/'
 
 export interface CrmAttendancePayload {
