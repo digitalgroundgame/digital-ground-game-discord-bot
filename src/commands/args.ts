@@ -68,4 +68,13 @@ export class Args {
     min_value: 1,
     max_value: Rules.ServerRules.length,
   }
+  public static readonly ATTENDANCE_TRACK_NAME: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.attendanceEventName', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.attendanceEventName'),
+    description: Lang.getRef('argDescs.attendanceEventName', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.attendanceEventName'),
+    type: ApplicationCommandOptionType.String,
+    required: false,
+    max_length: 100,
+  }
 }

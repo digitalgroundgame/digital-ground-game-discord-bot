@@ -46,6 +46,7 @@ import { type Reaction } from './reactions/index.js'
 import {
   AttendanceService,
   CommandRegistrationService,
+  CrmService,
   EventDataService,
   GoogleCalendarService,
   JobService,
@@ -71,9 +72,29 @@ async function start(): Promise<void> {
     process.exit(0)
   }
 
+  // Register
+  if (process.argv[2] == 'commands') {
+    try {
+      const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN)
+      const commandRegistrationService = new CommandRegistrationService(rest)
+      const localCmds = [
+        ...Object.values(ChatCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
+        ...Object.values(MessageCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
+        ...Object.values(UserCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
+      ]
+      await commandRegistrationService.process(localCmds, process.argv)
+    } catch (error) {
+      Logger.error(Logs.error.commandAction, error)
+    }
+    // Wait for any final logs to be written.
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    process.exit()
+  }
+
   // Services
   const eventDataService = new EventDataService()
   const attendanceService = new AttendanceService()
+  const crmService = new CrmService()
 
   // Client
   const client = new CustomClient({
@@ -99,7 +120,7 @@ async function start(): Promise<void> {
     new PragPapersCommand(),
     new CensusCommand(),
     new AttendanceCommand(),
-    new AttendanceTrackCommand(attendanceService),
+    new AttendanceTrackCommand(attendanceService, crmService),
 
     // User Context Commands
     ...ONBOARDING_CONFIGS.map((config) => new SendOnboarding(config)),
@@ -138,7 +159,7 @@ async function start(): Promise<void> {
   const messageHandler = new MessageHandler(triggerHandler)
   const reactionHandler = new ReactionHandler(reactions, eventDataService)
   const guildScheduledEventHandler = new GuildScheduledEventHandler(googleCalendarService)
-  const voiceStateUpdateHandler = new VoiceStateUpdateHandler(attendanceService, client)
+  const voiceStateUpdateHandler = new VoiceStateUpdateHandler(attendanceService, crmService, client)
 
   // Jobs
   // Google Calendar sync jobs temporarily disabled (see ImmediateSyncDggpGoogleCalendarJob, SyncDggpGoogleCalendarJob).
@@ -164,25 +185,6 @@ async function start(): Promise<void> {
     new JobService(jobs),
     voiceStateUpdateHandler,
   )
-
-  // Register
-  if (process.argv[2] == 'commands') {
-    try {
-      const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN)
-      const commandRegistrationService = new CommandRegistrationService(rest)
-      const localCmds = [
-        ...Object.values(ChatCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
-        ...Object.values(MessageCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
-        ...Object.values(UserCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
-      ]
-      await commandRegistrationService.process(localCmds, process.argv)
-    } catch (error) {
-      Logger.error(Logs.error.commandAction, error)
-    }
-    // Wait for any final logs to be written.
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    process.exit()
-  }
 
   await bot.start()
 }

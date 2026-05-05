@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 import {
   GuildScheduledEventStatus,
   StageChannel,
@@ -6,6 +8,8 @@ import {
   type VoiceState,
 } from 'discord.js'
 import { DateTime } from 'luxon'
+
+import { StringUtils } from '../utils/string-utils.js'
 
 export interface AttendanceEntry {
   id: string
@@ -59,6 +63,43 @@ export function formatAttendanceDmContent(payload: AttendanceDmPayload): string 
 }
 
 /**
+ * Active scheduled event linked to this voice/stage channel. Returns both id and name so the
+ * bot can identify the event when pushing attendance to the CRM.
+ */
+export async function resolveScheduledEvent(
+  guild: Guild,
+  voiceChannelId: string,
+): Promise<{ id: string; name: string } | null> {
+  const cached = [...guild.scheduledEvents.cache.values()].find(
+    (e) => e.channelId === voiceChannelId && e.status === GuildScheduledEventStatus.Active,
+  )
+  if (cached) return { id: cached.id, name: cached.name }
+  try {
+    const events = await guild.scheduledEvents.fetch()
+    const active = [...events.values()].find(
+      (e) => e.channelId === voiceChannelId && e.status === GuildScheduledEventStatus.Active,
+    )
+    if (active) return { id: active.id, name: active.name }
+  } catch {
+    // swallow: perms/API error — null is the "no linked event" signal
+  }
+  return null
+}
+
+/**
+ * Pure derivation: scheduled event name if present, else stage topic when `channel` is a
+ * stage with a topic. Use this when the scheduled event was already resolved upstream.
+ */
+export function meetingSubjectFrom(
+  scheduledEvent: { name: string } | null,
+  channel: GuildBasedChannel | null,
+): string | undefined {
+  if (scheduledEvent) return scheduledEvent.name
+  if (channel instanceof StageChannel && channel.topic) return channel.topic
+  return undefined
+}
+
+/**
  * Active scheduled event linked to this voice/stage channel, else stage topic when `channel` is a
  * stage with a topic. Uses `voiceChannelId` so scheduled events still resolve if the channel was
  * deleted before the DM is sent (e.g. end of `/attendance-track`).
@@ -68,27 +109,34 @@ export async function resolveVoiceChannelMeetingSubject(
   voiceChannelId: string,
   channel?: GuildBasedChannel | null,
 ): Promise<string | undefined> {
-  try {
-    const events = await guild.scheduledEvents.fetch()
-    const active = [...events.values()].find(
-      (e) => e.channelId === voiceChannelId && e.status === GuildScheduledEventStatus.Active,
-    )
-    if (active) return active.name
-  } catch {
-    // Missing permissions or API error — fall through to stage topic
-  }
-  if (channel instanceof StageChannel && channel.topic) {
-    return channel.topic
-  }
-  return undefined
+  const active = await resolveScheduledEvent(guild, voiceChannelId)
+  return meetingSubjectFrom(active, channel ?? null)
 }
 
+/**
+ * Why CRM sync is off for a session. Set at `/attendance-track` invocation when the preflight
+ * permission check rejects or errors. Tracking still proceeds; the handler skips the CRM call
+ * at session end and tells the user why.
+ */
+export type CrmDisabledReason = 'not_authorized' | 'unlinked_discord_id' | 'check_failed'
+
 interface AttendanceSession {
+  /** Synthetic identifier used as event_id when no Discord scheduled event is linked.
+   * Stable for the lifetime of the tracking session so retries / multi-step CRM
+   * writes converge on the same StagedEvent row. */
+  sessionId: string
+  /** Synthetic event name ("<channel name> — <UTC start time>") used when there's
+   * no scheduled event AND the tracker didn't provide a custom name. */
+  defaultEventName: string
+  /** Optional override the tracker passed via the slash-command's name argument.
+   * When set, this wins over both the scheduled-event name and the default. */
+  customEventName?: string
   channelId: string
   guildId: string
   channelName: string
   /** Cumulative: everyone in the call when tracking started, plus anyone who joins later. */
   members: Map<string, string>
+  crmDisabledReason?: CrmDisabledReason
 }
 
 /**
@@ -110,6 +158,8 @@ export class AttendanceService {
     guildId: string,
     channelName: string,
     initialMembers: Array<{ id: string; displayName: string }>,
+    customName?: string,
+    crmDisabledReason?: CrmDisabledReason,
   ): boolean {
     if (this.sessions.has(userId)) {
       return false
@@ -118,11 +168,21 @@ export class AttendanceService {
     for (const m of initialMembers) {
       members.set(m.id, m.displayName)
     }
+    const trimmedCustomName = customName?.trim()
+    const startedAt = DateTime.utc()
+    const defaultEventName = StringUtils.truncate(
+      `${channelName} — ${startedAt.toFormat("LLL d, yyyy h:mm a 'UTC'")}`,
+      100,
+    )
     this.sessions.set(userId, {
+      sessionId: randomUUID(),
+      defaultEventName,
+      customEventName: trimmedCustomName ? StringUtils.truncate(trimmedCustomName, 100) : undefined,
       channelId,
       guildId,
       channelName,
       members,
+      crmDisabledReason,
     })
     return true
   }
@@ -140,7 +200,11 @@ export class AttendanceService {
     guildId: string
     channelId: string
     channelName: string
+    sessionId: string
+    defaultEventName: string
+    customEventName?: string
     entries: AttendanceEntry[]
+    crmDisabledReason?: CrmDisabledReason
   } | null {
     const memberId = newState.member?.id ?? oldState.member?.id
     if (!memberId) return null
@@ -173,7 +237,11 @@ export class AttendanceService {
         guildId: session.guildId,
         channelId: session.channelId,
         channelName: session.channelName,
+        sessionId: session.sessionId,
+        defaultEventName: session.defaultEventName,
+        customEventName: session.customEventName,
         entries,
+        crmDisabledReason: session.crmDisabledReason,
       }
     }
 
