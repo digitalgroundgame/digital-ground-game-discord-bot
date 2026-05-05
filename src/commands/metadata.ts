@@ -115,6 +115,7 @@ export const ChatCommandMetadata: {
     description: Lang.getRef('commandDescs.attendanceTrack', Language.Default),
     description_localizations: Lang.getRefLocalizationMap('commandDescs.attendanceTrack'),
     default_member_permissions: undefined,
+    options: [Args.ATTENDANCE_TRACK_NAME],
   },
 }
 
