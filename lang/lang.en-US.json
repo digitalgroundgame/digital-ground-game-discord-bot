@@ -150,13 +150,13 @@
         "description": "You're already taking attendance in another channel. Leave that channel first to get your list, then run this again in a new channel if needed."
       },
       "attendanceNotAuthorized": {
-        "description": "You're not authorized to record attendance. Ask an organizer to grant you the **events.record_attendance** permission in the CRM."
+        "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ You don't have CRM permission to record attendance, so the roster won't be synced — I'll DM you the list when you leave. Ask an organizer to grant you the **events.record_attendance** permission in the CRM."
       },
       "attendanceUnlinkedDiscordId": {
-        "description": "Your Discord account isn't linked to a CRM user, so attendance can't be recorded under your name. Ask an organizer to link your Discord ID in the CRM."
+        "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ Your Discord account isn't linked to a CRM user, so attendance won't be synced — I'll DM you the list when you leave. Ask an organizer to link your Discord ID in the CRM."
       },
       "attendancePermissionCheckFailed": {
-        "description": "Couldn't verify your authorization with the CRM right now. Try again in a moment, or ping an organizer if it keeps failing."
+        "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ Couldn't reach the CRM to verify your permissions, so attendance won't be synced — I'll DM you the list when you leave."
       }
     },
     "validationEmbeds": {

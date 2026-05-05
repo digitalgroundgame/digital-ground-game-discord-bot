@@ -10,12 +10,22 @@ import { type EventHandler } from './event-handler.js'
 import {
   type AttendanceEntry,
   AttendanceService,
+  type CrmDisabledReason,
   formatAttendanceDmContent,
   resolveScheduledEvent,
 } from '../services/attendance-service.js'
 import { type CrmAttendancePayload, type CrmService } from '../services/crm-service.js'
 import { Logger } from '../services/logger.js'
 import { MessageUtils } from '../utils/message-utils.js'
+
+const CRM_DISABLED_DM_NOTES: Record<CrmDisabledReason, string> = {
+  not_authorized:
+    "You weren't authorized to record CRM attendance, so this list wasn't synced — keep it for your records.",
+  unlinked_discord_id:
+    "Your Discord account isn't linked to a CRM user, so this list wasn't synced — keep it for your records.",
+  check_failed:
+    "The CRM was unreachable when tracking started, so this list wasn't synced — keep it for your records.",
+}
 
 export class VoiceStateUpdateHandler implements EventHandler {
   constructor(
@@ -37,6 +47,7 @@ export class VoiceStateUpdateHandler implements EventHandler {
       defaultEventName,
       customEventName,
       entries,
+      crmDisabledReason,
     } = result
     try {
       const guild = await this.client.guilds.fetch(guildId)
@@ -50,6 +61,18 @@ export class VoiceStateUpdateHandler implements EventHandler {
       //provide arg for custom name
       const eventId = scheduledEvent?.id ?? sessionId
       const displayEventName = customEventName ?? scheduledEvent?.name ?? defaultEventName
+
+      if (crmDisabledReason) {
+        await this.sendFallbackDm(
+          user,
+          channelName,
+          displayEventName,
+          entries,
+          CRM_DISABLED_DM_NOTES[crmDisabledReason],
+          null,
+        )
+        return
+      }
 
       const payload: CrmAttendancePayload = {
         event_id: eventId,

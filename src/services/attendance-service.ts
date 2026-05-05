@@ -87,6 +87,19 @@ export async function resolveScheduledEvent(
 }
 
 /**
+ * Pure derivation: scheduled event name if present, else stage topic when `channel` is a
+ * stage with a topic. Use this when the scheduled event was already resolved upstream.
+ */
+export function meetingSubjectFrom(
+  scheduledEvent: { name: string } | null,
+  channel: GuildBasedChannel | null,
+): string | undefined {
+  if (scheduledEvent) return scheduledEvent.name
+  if (channel instanceof StageChannel && channel.topic) return channel.topic
+  return undefined
+}
+
+/**
  * Active scheduled event linked to this voice/stage channel, else stage topic when `channel` is a
  * stage with a topic. Uses `voiceChannelId` so scheduled events still resolve if the channel was
  * deleted before the DM is sent (e.g. end of `/attendance-track`).
@@ -97,12 +110,15 @@ export async function resolveVoiceChannelMeetingSubject(
   channel?: GuildBasedChannel | null,
 ): Promise<string | undefined> {
   const active = await resolveScheduledEvent(guild, voiceChannelId)
-  if (active) return active.name
-  if (channel instanceof StageChannel && channel.topic) {
-    return channel.topic
-  }
-  return undefined
+  return meetingSubjectFrom(active, channel ?? null)
 }
+
+/**
+ * Why CRM sync is off for a session. Set at `/attendance-track` invocation when the preflight
+ * permission check rejects or errors. Tracking still proceeds; the handler skips the CRM call
+ * at session end and tells the user why.
+ */
+export type CrmDisabledReason = 'not_authorized' | 'unlinked_discord_id' | 'check_failed'
 
 interface AttendanceSession {
   /** Synthetic identifier used as event_id when no Discord scheduled event is linked.
@@ -120,6 +136,7 @@ interface AttendanceSession {
   channelName: string
   /** Cumulative: everyone in the call when tracking started, plus anyone who joins later. */
   members: Map<string, string>
+  crmDisabledReason?: CrmDisabledReason
 }
 
 /**
@@ -142,6 +159,7 @@ export class AttendanceService {
     channelName: string,
     initialMembers: Array<{ id: string; displayName: string }>,
     customName?: string,
+    crmDisabledReason?: CrmDisabledReason,
   ): boolean {
     if (this.sessions.has(userId)) {
       return false
@@ -164,6 +182,7 @@ export class AttendanceService {
       guildId,
       channelName,
       members,
+      crmDisabledReason,
     })
     return true
   }
@@ -185,6 +204,7 @@ export class AttendanceService {
     defaultEventName: string
     customEventName?: string
     entries: AttendanceEntry[]
+    crmDisabledReason?: CrmDisabledReason
   } | null {
     const memberId = newState.member?.id ?? oldState.member?.id
     if (!memberId) return null
@@ -221,6 +241,7 @@ export class AttendanceService {
         defaultEventName: session.defaultEventName,
         customEventName: session.customEventName,
         entries,
+        crmDisabledReason: session.crmDisabledReason,
       }
     }
 
