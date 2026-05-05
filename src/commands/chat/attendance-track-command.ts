@@ -8,7 +8,10 @@ import {
 import { RateLimiter } from 'discord.js-rate-limiter'
 import { Language } from '../../models/enum-helpers/index.js'
 import { type EventData } from '../../models/internal-models.js'
-import type { AttendanceService } from '../../services/attendance-service.js'
+import {
+  resolveVoiceChannelMeetingSubject,
+  type AttendanceService,
+} from '../../services/attendance-service.js'
 import { Lang } from '../../services/index.js'
 import { InteractionUtils } from '../../utils/index.js'
 import { type Command, CommandDeferType } from '../index.js'
@@ -44,7 +47,7 @@ export class AttendanceTrackCommand implements Command {
       return
     }
 
-    if (this.attendanceService.isTracking(intr.user.id)) {
+    if (await this.attendanceService.isTracking(intr.user.id)) {
       await InteractionUtils.send(
         intr,
         Lang.getEmbed('displayEmbeds.attendanceAlreadyTracking', data.lang),
@@ -58,12 +61,18 @@ export class AttendanceTrackCommand implements Command {
       displayName: m.displayName ?? m.user.username ?? 'Unknown',
     }))
 
-    const started = this.attendanceService.startTracking(
+    const meetingSubject = await resolveVoiceChannelMeetingSubject(
+      intr.guild,
+      voiceChannel.id,
+      voiceChannel,
+    )
+
+    const started = await this.attendanceService.startTracking(
       intr.user.id,
       voiceChannel.id,
-      voiceChannel.guild.id,
       voiceChannel.name,
       initialMembers,
+      meetingSubject,
     )
 
     if (!started) {

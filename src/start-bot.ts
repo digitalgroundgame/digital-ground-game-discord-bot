@@ -1,5 +1,5 @@
 import { REST } from '@discordjs/rest'
-import { Options, Partials } from 'discord.js'
+import { Events, Options, Partials } from 'discord.js'
 import { createRequire } from 'node:module'
 
 import { type Button } from './buttons/index.js'
@@ -13,6 +13,7 @@ import {
   CensusCommand,
   AttendanceCommand,
   AttendanceTrackCommand,
+  AttendanceStopCommand,
 } from './commands/chat/index.js'
 import {
   ChatCommandMetadata,
@@ -41,6 +42,7 @@ import {
   // SyncDggpGoogleCalendarJob,
   type Job,
 } from './jobs/index.js'
+import { createDatabase } from './database/index.js'
 import { Bot } from './models/bot.js'
 import { type Reaction } from './reactions/index.js'
 import {
@@ -51,6 +53,8 @@ import {
   JobService,
   Logger,
 } from './services/index.js'
+import { formatAttendanceDmContent } from './services/attendance-service.js'
+import { MessageUtils } from './utils/message-utils.js'
 import { type Trigger } from './triggers/index.js'
 import { CTAPostTrigger } from './triggers/cta-post.js'
 import { runCalendarSyncCli } from './calendar-sync-cli.js'
@@ -73,7 +77,8 @@ async function start(): Promise<void> {
 
   // Services
   const eventDataService = new EventDataService()
-  const attendanceService = new AttendanceService()
+  const db = createDatabase()
+  const attendanceService = new AttendanceService(db)
 
   // Client
   const client = new CustomClient({
@@ -100,6 +105,7 @@ async function start(): Promise<void> {
     new CensusCommand(),
     new AttendanceCommand(),
     new AttendanceTrackCommand(attendanceService),
+    new AttendanceStopCommand(attendanceService),
 
     // User Context Commands
     ...ONBOARDING_CONFIGS.map((config) => new SendOnboarding(config)),
@@ -138,7 +144,33 @@ async function start(): Promise<void> {
   const messageHandler = new MessageHandler(triggerHandler)
   const reactionHandler = new ReactionHandler(reactions, eventDataService)
   const guildScheduledEventHandler = new GuildScheduledEventHandler(googleCalendarService)
-  const voiceStateUpdateHandler = new VoiceStateUpdateHandler(attendanceService, client)
+  const voiceStateUpdateHandler = new VoiceStateUpdateHandler(attendanceService)
+
+  // Send the attendance DM whenever a session finalizes (stop command, grace timer, or
+  // startup-time reconciliation of an expired grace period).
+  attendanceService.onFinalized(async (result) => {
+    try {
+      const user = await client.users.fetch(result.userId)
+      await MessageUtils.send(
+        user,
+        formatAttendanceDmContent({
+          channelName: result.channelName,
+          meetingSubject: result.meetingSubject,
+          entries: result.entries,
+          at: new Date(),
+        }),
+      )
+    } catch (error) {
+      Logger.error('Failed to send attendance DM', error)
+    }
+  })
+
+  // Resume any in-flight attendance grace-period timers from before the last shutdown.
+  client.once(Events.ClientReady, () => {
+    void attendanceService.reconcileOnStartup().catch((error) => {
+      Logger.error('Failed to reconcile attendance sessions on startup', error)
+    })
+  })
 
   // Jobs
   // Google Calendar sync jobs temporarily disabled (see ImmediateSyncDggpGoogleCalendarJob, SyncDggpGoogleCalendarJob).

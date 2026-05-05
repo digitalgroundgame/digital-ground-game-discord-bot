@@ -2,9 +2,9 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
     "target": "es2021",
-    "module": "esnext",
+    "module": "nodenext",
     "moduleDetection": "force",
-    "moduleResolution": "node",
+    "moduleResolution": "nodenext",
     "lib": ["es2021"],
     "declaration": true,
     "declarationMap": true,
@@ -22,7 +22,8 @@
     "noUncheckedIndexedAccess": true,
     "resolveJsonModule": true,
     "noImplicitOverride": true,
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    "types": ["node"]
   },
-  "exclude": ["dist", "node_modules", "tests", "vitest.config.ts"]
+  "exclude": ["dist", "node_modules", "tests", "vitest.config.ts", "drizzle.config.ts"]
 }

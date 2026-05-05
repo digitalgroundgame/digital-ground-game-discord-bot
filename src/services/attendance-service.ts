@@ -5,7 +5,11 @@ import {
   type GuildBasedChannel,
   type VoiceState,
 } from 'discord.js'
+import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm'
 import { DateTime } from 'luxon'
+
+import type { Database } from '../database/index.js'
+import { session as sessionTable, userSession as userSessionTable } from '../database/schema.js'
 
 export interface AttendanceEntry {
   id: string
@@ -18,6 +22,22 @@ export interface AttendanceDmPayload {
   entries: AttendanceEntry[]
   at: Date
 }
+
+export interface AttendanceFinalizedResult {
+  userId: string
+  guildId: string
+  channelId: string
+  channelName: string
+  meetingSubject?: string
+  entries: AttendanceEntry[]
+}
+
+export type AttendanceFinalizedListener = (
+  result: AttendanceFinalizedResult,
+) => void | Promise<void>
+
+/** How long after the leader leaves before the session auto-finalizes. */
+export const ATTENDANCE_GRACE_PERIOD_MS = 5 * 60 * 1000
 
 function escapeMarkdownCodeFence(text: string): string {
   return text.replaceAll('```', "'''")
@@ -83,70 +103,106 @@ export async function resolveVoiceChannelMeetingSubject(
   return undefined
 }
 
-interface AttendanceSession {
-  channelId: string
-  guildId: string
-  channelName: string
-  /** Cumulative: everyone in the call when tracking started, plus anyone who joins later. */
-  members: Map<string, string>
-}
-
 /**
- * Tracks VC attendance for `/attendance-track`: seeds with everyone currently in the channel when
- * the command runs; anyone who joins after that is added and never removed when they leave. When
- * the tracker leaves, the session ends and the list is sent by DM.
+ * Tracks VC attendance for `/attendance-track`, persisting `session` and `user_session` rows.
+ * State lives entirely in the database — an "active" session is one whose `end_time` is NULL.
+ *
+ * Finalization is symmetrical: triggered by `/attendance-stop`, or by the leader leaving and not
+ * rejoining the tracked channel within {@link ATTENDANCE_GRACE_PERIOD_MS}. `leader_left_at` is
+ * persisted so grace periods survive bot restarts (see {@link reconcileOnStartup}).
+ *
+ * Each enter/leave produces one `user_session` row, so a user can have multiple non-overlapping
+ * intervals per `session`.
  */
 export class AttendanceService {
-  /** Tracker user id -> session for that user's VC */
-  private sessions = new Map<string, AttendanceSession>()
+  /** Pending grace-period timers, keyed by session id. */
+  private readonly graceTimers = new Map<number, NodeJS.Timeout>()
+  private readonly finalizedListeners: AttendanceFinalizedListener[] = []
+  private readonly guildId: string
+
+  constructor(private readonly db: Database) {
+    this.guildId = process.env.DISCORD_GUILD_ID
+  }
+
+  onFinalized(listener: AttendanceFinalizedListener): void {
+    this.finalizedListeners.push(listener)
+  }
+
+  /**
+   * Resume grace-period timers for sessions that were active at last shutdown. Sessions whose
+   * grace period has already elapsed are finalized immediately.
+   */
+  async reconcileOnStartup(): Promise<void> {
+    const rows = await this.db
+      .select({
+        id: sessionTable.id,
+        leaderLeftAt: sessionTable.leaderLeftAt,
+      })
+      .from(sessionTable)
+      .where(and(isNull(sessionTable.endTime), isNotNull(sessionTable.leaderLeftAt)))
+
+    const now = Date.now()
+    for (const row of rows) {
+      if (!row.leaderLeftAt) continue
+      const elapsed = now - row.leaderLeftAt.getTime()
+      const remaining = ATTENDANCE_GRACE_PERIOD_MS - elapsed
+      if (remaining <= 0) {
+        await this.finalizeAndEmit(row.id)
+      } else {
+        this.scheduleGraceTimer(row.id, remaining)
+      }
+    }
+  }
 
   /**
    * Start tracking in the user's current voice channel.
    * `initialMembers` should include everyone in that channel at invocation (e.g. voiceChannel.members).
    */
-  startTracking(
+  async startTracking(
     userId: string,
     channelId: string,
-    guildId: string,
     channelName: string,
     initialMembers: Array<{ id: string; displayName: string }>,
-  ): boolean {
-    if (this.sessions.has(userId)) {
+    meetingSubject?: string,
+  ): Promise<boolean> {
+    if (await this.isTracking(userId)) {
       return false
     }
-    const members = new Map<string, string>()
-    for (const m of initialMembers) {
-      members.set(m.id, m.displayName)
+
+    const [row] = await this.db
+      .insert(sessionTable)
+      .values({ sessionLeader: userId, channelId, channelName, meetingSubject })
+      .returning({ id: sessionTable.id })
+    if (!row) {
+      return false
     }
-    this.sessions.set(userId, {
-      channelId,
-      guildId,
-      channelName,
-      members,
-    })
+
+    if (initialMembers.length > 0) {
+      await this.db.insert(userSessionTable).values(
+        initialMembers.map((m) => ({
+          sessionId: row.id,
+          userId: m.id,
+          displayName: m.displayName,
+        })),
+      )
+    }
     return true
   }
 
   /**
-   * On voice state change: if a user joins or moves into a tracked channel, add them to that
-   * session’s cumulative roster. If the tracker leaves their tracked channel, finalize and return
-   * the roster for the attendance DM.
+   * On voice state change: open a `user_session` for joins into a tracked channel, close any open
+   * `user_session` for leaves out of a tracked channel. If the tracker leaves their tracked
+   * channel, mark `leader_left_at` and schedule the grace-period timer. If the tracker rejoins,
+   * clear `leader_left_at` and cancel the timer.
    */
-  handleVoiceStateUpdate(
-    oldState: VoiceState,
-    newState: VoiceState,
-  ): {
-    userId: string
-    guildId: string
-    channelId: string
-    channelName: string
-    entries: AttendanceEntry[]
-  } | null {
+  async handleVoiceStateUpdate(oldState: VoiceState, newState: VoiceState): Promise<void> {
     const memberId = newState.member?.id ?? oldState.member?.id
-    if (!memberId) return null
+    if (!memberId) return
 
     const oldChannelId = oldState.channelId ?? null
     const newChannelId = newState.channelId ?? null
+    if (oldChannelId === newChannelId) return
+
     const displayName =
       newState.member?.displayName ??
       oldState.member?.displayName ??
@@ -154,37 +210,184 @@ export class AttendanceService {
       oldState.member?.user?.username ??
       'Unknown'
 
-    if (newChannelId !== null && oldChannelId !== newChannelId) {
-      for (const session of this.sessions.values()) {
-        if (session.channelId !== newChannelId) continue
-        session.members.set(memberId, displayName)
+    const trackerSession = await this.findActiveSessionByLeader(memberId)
+
+    // Joined / moved into a tracked channel: open a user_session.
+    if (newChannelId !== null) {
+      const sessions = await this.findActiveSessionsByChannel(newChannelId)
+      for (const s of sessions) {
+        await this.db
+          .insert(userSessionTable)
+          .values({ sessionId: s.id, userId: memberId, displayName })
       }
     }
 
-    // If this user was a tracker and they left their tracked channel, finalize and return
-    const session = this.sessions.get(memberId)
-    if (session && oldChannelId === session.channelId && newChannelId !== session.channelId) {
-      this.sessions.delete(memberId)
-      const entries: AttendanceEntry[] = Array.from(session.members.entries()).map(
-        ([id, name]) => ({ id, displayName: name }),
+    // Left / moved out of a tracked channel: close any open user_session for this user.
+    if (oldChannelId !== null) {
+      const sessions = await this.findActiveSessionsByChannel(oldChannelId)
+      for (const s of sessions) {
+        await this.closeOpenUserSessions(s.id, memberId)
+      }
+    }
+
+    // Leader transitions for their own tracked channel.
+    if (trackerSession) {
+      const leftTracked =
+        oldChannelId === trackerSession.channelId && newChannelId !== trackerSession.channelId
+      const rejoinedTracked =
+        newChannelId === trackerSession.channelId && oldChannelId !== trackerSession.channelId
+      if (leftTracked) {
+        await this.db
+          .update(sessionTable)
+          .set({ leaderLeftAt: new Date() })
+          .where(eq(sessionTable.id, trackerSession.id))
+        this.scheduleGraceTimer(trackerSession.id, ATTENDANCE_GRACE_PERIOD_MS)
+      } else if (rejoinedTracked) {
+        await this.db
+          .update(sessionTable)
+          .set({ leaderLeftAt: null })
+          .where(eq(sessionTable.id, trackerSession.id))
+        this.cancelGraceTimer(trackerSession.id)
+      }
+    }
+  }
+
+  async isTracking(userId: string): Promise<boolean> {
+    const session = await this.findActiveSessionByLeader(userId)
+    return session !== null
+  }
+
+  /** Explicit stop, e.g. from `/attendance-stop`. Returns true if a session was finalized. */
+  async stopTracking(userId: string): Promise<boolean> {
+    const session = await this.findActiveSessionByLeader(userId)
+    if (!session) return false
+    await this.finalizeAndEmit(session.id)
+    return true
+  }
+
+  private scheduleGraceTimer(sessionId: number, delayMs: number): void {
+    this.cancelGraceTimer(sessionId)
+    const timer = setTimeout(() => {
+      this.graceTimers.delete(sessionId)
+      void this.finalizeAndEmit(sessionId)
+    }, delayMs)
+    // Don't keep the process alive solely for this timer.
+    timer.unref?.()
+    this.graceTimers.set(sessionId, timer)
+  }
+
+  private cancelGraceTimer(sessionId: number): void {
+    const timer = this.graceTimers.get(sessionId)
+    if (timer) {
+      clearTimeout(timer)
+      this.graceTimers.delete(sessionId)
+    }
+  }
+
+  private async findActiveSessionByLeader(userId: string): Promise<{
+    id: number
+    channelId: string
+    channelName: string
+  } | null> {
+    const [row] = await this.db
+      .select({
+        id: sessionTable.id,
+        channelId: sessionTable.channelId,
+        channelName: sessionTable.channelName,
+      })
+      .from(sessionTable)
+      .where(and(eq(sessionTable.sessionLeader, userId), isNull(sessionTable.endTime)))
+      .limit(1)
+    return row ?? null
+  }
+
+  private async findActiveSessionsByChannel(
+    channelId: string,
+  ): Promise<Array<{ id: number; channelId: string }>> {
+    return this.db
+      .select({ id: sessionTable.id, channelId: sessionTable.channelId })
+      .from(sessionTable)
+      .where(and(eq(sessionTable.channelId, channelId), isNull(sessionTable.endTime)))
+  }
+
+  /**
+   * Cumulative roster for `session_id`: one entry per distinct user, using the display_name from
+   * that user's most recent `user_session` row.
+   */
+  private async getCumulativeRoster(sessionId: number): Promise<AttendanceEntry[]> {
+    const rows = await this.db
+      .selectDistinctOn([userSessionTable.userId], {
+        userId: userSessionTable.userId,
+        displayName: userSessionTable.displayName,
+      })
+      .from(userSessionTable)
+      .where(eq(userSessionTable.sessionId, sessionId))
+      .orderBy(userSessionTable.userId, desc(userSessionTable.startTime))
+    return rows.map((r) => ({ id: r.userId, displayName: r.displayName }))
+  }
+
+  private async closeOpenUserSessions(sessionId: number, userId: string): Promise<void> {
+    await this.db
+      .update(userSessionTable)
+      .set({
+        endTime: sql`now()`,
+        durationSeconds: sql`floor(extract(epoch from (now() - ${userSessionTable.startTime})))::int`,
+      })
+      .where(
+        and(
+          eq(userSessionTable.sessionId, sessionId),
+          eq(userSessionTable.userId, userId),
+          isNull(userSessionTable.endTime),
+        ),
       )
-      return {
-        userId: memberId,
-        guildId: session.guildId,
-        channelId: session.channelId,
-        channelName: session.channelName,
-        entries,
+  }
+
+  private async finalizeAndEmit(sessionId: number): Promise<void> {
+    this.cancelGraceTimer(sessionId)
+
+    const [session] = await this.db
+      .select({
+        id: sessionTable.id,
+        sessionLeader: sessionTable.sessionLeader,
+        channelId: sessionTable.channelId,
+        channelName: sessionTable.channelName,
+        meetingSubject: sessionTable.meetingSubject,
+        endTime: sessionTable.endTime,
+      })
+      .from(sessionTable)
+      .where(eq(sessionTable.id, sessionId))
+      .limit(1)
+    // Bail if already finalized (e.g. timer + stop command race).
+    if (!session?.endTime) return
+
+    const entries = await this.getCumulativeRoster(sessionId)
+    const now = new Date()
+    await this.db
+      .update(userSessionTable)
+      .set({
+        endTime: now,
+        durationSeconds: sql`floor(extract(epoch from (${now.toISOString()}::timestamptz - ${userSessionTable.startTime})))::int`,
+      })
+      .where(and(eq(userSessionTable.sessionId, sessionId), isNull(userSessionTable.endTime)))
+    await this.db
+      .update(sessionTable)
+      .set({ endTime: now, leaderLeftAt: null })
+      .where(and(eq(sessionTable.id, sessionId), isNull(sessionTable.endTime)))
+
+    const result: AttendanceFinalizedResult = {
+      userId: session.sessionLeader,
+      guildId: this.guildId,
+      channelId: session.channelId,
+      channelName: session.channelName,
+      meetingSubject: session.meetingSubject ?? undefined,
+      entries,
+    }
+    for (const listener of this.finalizedListeners) {
+      try {
+        await listener(result)
+      } catch {
+        // Listeners must own their own error reporting.
       }
     }
-
-    return null
-  }
-
-  isTracking(userId: string): boolean {
-    return this.sessions.has(userId)
-  }
-
-  stopTracking(userId: string): void {
-    this.sessions.delete(userId)
   }
 }
