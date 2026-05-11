@@ -32,6 +32,13 @@ function escapeMarkdownCodeFence(text: string): string {
   return text.replaceAll('```', "'''")
 }
 
+function formatAttendanceEntriesText(entries: AttendanceEntry[]): string {
+  if (entries.length === 0) {
+    return '_No attendees._'
+  }
+  return entries.map((e) => `- ${escapeMarkdownCodeFence(e.displayName)}`).join('\n')
+}
+
 /** Plain report text (inside the DM code fence for copy-paste). */
 export function formatAttendanceRosterText(payload: AttendanceDmPayload): string {
   return formatAttendanceEntriesText(payload.entries)
@@ -74,13 +81,6 @@ export function formatAttendanceRosterCodeBlock(
         : report.slice(0, maxInner)
   }
   return `${CODE_FENCE_OPEN}${report}${CODE_FENCE_CLOSE}`
-}
-
-function formatAttendanceEntriesText(entries: AttendanceEntry[]): string {
-  if (entries.length === 0) {
-    return '_No attendees._'
-  }
-  return entries.map((e) => `- ${escapeMarkdownCodeFence(e.displayName)}`).join('\n')
 }
 
 /**
