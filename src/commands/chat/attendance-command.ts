@@ -76,10 +76,7 @@ export class AttendanceCommand implements Command {
         maxMessageLength: MESSAGE_CONTENT_MAX - summaryContent.length - 2,
       },
     )
-    const dm = await MessageUtils.send(
-      intr.user,
-      `${summaryContent}\n\n${reportContent}`,
-    )
+    const dm = await MessageUtils.send(intr.user, `${summaryContent}\n\n${reportContent}`)
 
     if (!dm) {
       await InteractionUtils.send(

@@ -200,10 +200,7 @@ export class VoiceStateUpdateHandler implements EventHandler {
         maxMessageLength: MESSAGE_CONTENT_MAX - crmReportContent.length - 2,
       },
     )
-    const sent = await MessageUtils.send(
-      user,
-      `${crmReportContent}\n\n${reportContent}`,
-    )
+    const sent = await MessageUtils.send(user, `${crmReportContent}\n\n${reportContent}`)
     return sent !== null
   }
 

@@ -18,9 +18,8 @@ describe('VoiceStateUpdateHandler', () => {
   })
 
   it('sends the attendee list after successfully staging attendance in the CRM', async () => {
-    const { VoiceStateUpdateHandler } = await import(
-      '../../src/events/voice-state-update-handler.js'
-    )
+    const { VoiceStateUpdateHandler } =
+      await import('../../src/events/voice-state-update-handler.js')
     const user = {} as User
     const guild = {
       scheduledEvents: {
@@ -86,9 +85,8 @@ describe('VoiceStateUpdateHandler', () => {
   })
 
   it('sends event details and a roster-only attendance list when CRM staging fails', async () => {
-    const { VoiceStateUpdateHandler } = await import(
-      '../../src/events/voice-state-update-handler.js'
-    )
+    const { VoiceStateUpdateHandler } =
+      await import('../../src/events/voice-state-update-handler.js')
     const user = {} as User
     const guild = {
       scheduledEvents: {
