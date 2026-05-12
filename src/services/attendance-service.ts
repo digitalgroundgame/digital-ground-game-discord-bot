@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import {
   GuildScheduledEventStatus,
   StageChannel,
+  escapeMarkdown,
   type Guild,
   type GuildBasedChannel,
   type VoiceState,
@@ -23,41 +24,61 @@ export interface AttendanceDmPayload {
   at: Date
 }
 
+interface AttendanceDmFormatOptions {
+  maxMessageLength?: number
+}
+
 function escapeMarkdownCodeFence(text: string): string {
   return text.replaceAll('```', "'''")
 }
 
+function formatAttendanceEntriesText(entries: AttendanceEntry[]): string {
+  if (entries.length === 0) {
+    return '_No attendees._'
+  }
+  return entries.map((e) => `- ${escapeMarkdownCodeFence(e.displayName)}`).join('\n')
+}
+
 /** Plain report text (inside the DM code fence for copy-paste). */
-export function formatAttendanceReportText(payload: AttendanceDmPayload): string {
-  const channelName = escapeMarkdownCodeFence(payload.channelName)
+export function formatAttendanceRosterText(payload: AttendanceDmPayload): string {
+  return formatAttendanceEntriesText(payload.entries)
+}
+
+/** Plain attendance metadata text for the part of a DM outside the code fence. */
+export function formatAttendanceContextText(payload: AttendanceDmPayload): string {
   const dt = DateTime.fromJSDate(payload.at, { zone: 'utc' })
-  const dateStr = dt.toFormat("cccc, LLLL d, yyyy 'at' h:mm a 'UTC'")
-  let text = `# Attendance of ${channelName}\nDate: ${dateStr}\n`
-  if (payload.meetingSubject) {
-    text += `Subject: ${escapeMarkdownCodeFence(payload.meetingSubject)}\n`
-  }
-  text += '\n'
-  if (payload.entries.length === 0) {
-    text += '_No attendees._'
-  } else {
-    text += payload.entries.map((e) => `- ${escapeMarkdownCodeFence(e.displayName)}`).join('\n')
-  }
-  return text
+  const lines = [
+    `Event: **${escapeMarkdown(payload.meetingSubject ?? payload.channelName)}**`,
+    `Channel: ${escapeMarkdown(payload.channelName)}`,
+    `Date: ${dt.toFormat("cccc, LLLL d, yyyy 'at' h:mm a 'UTC'")}`,
+  ]
+  return lines.join('\n')
 }
 
 /** Discord DM / message content max length. */
-const MESSAGE_CONTENT_MAX = 2000
+export const MESSAGE_CONTENT_MAX = 2000
 const CODE_FENCE_OPEN = '```\n'
 const CODE_FENCE_CLOSE = '\n```'
 
 /**
  * DM body: report wrapped in a ``` code block so Discord shows the one-click copy control.
  */
-export function formatAttendanceDmContent(payload: AttendanceDmPayload): string {
-  let report = formatAttendanceReportText(payload)
-  const maxInner = MESSAGE_CONTENT_MAX - CODE_FENCE_OPEN.length - CODE_FENCE_CLOSE.length
+export function formatAttendanceRosterCodeBlock(
+  payload: AttendanceDmPayload,
+  options: AttendanceDmFormatOptions = {},
+): string {
+  const maxMessageLength = options.maxMessageLength ?? MESSAGE_CONTENT_MAX
+  let report = formatAttendanceRosterText(payload)
+  const maxInner = maxMessageLength - CODE_FENCE_OPEN.length - CODE_FENCE_CLOSE.length
+  if (maxInner <= 0) {
+    return `${CODE_FENCE_OPEN}${CODE_FENCE_CLOSE}`
+  }
   if (report.length > maxInner) {
-    report = `${report.slice(0, maxInner - 24)}\n\n(truncated)`
+    const suffix = '\n\n(truncated)'
+    report =
+      maxInner > suffix.length
+        ? `${report.slice(0, maxInner - suffix.length)}${suffix}`
+        : report.slice(0, maxInner)
   }
   return `${CODE_FENCE_OPEN}${report}${CODE_FENCE_CLOSE}`
 }

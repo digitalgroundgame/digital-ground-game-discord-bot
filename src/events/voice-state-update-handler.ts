@@ -11,7 +11,9 @@ import {
   type AttendanceEntry,
   AttendanceService,
   type CrmDisabledReason,
-  formatAttendanceDmContent,
+  formatAttendanceContextText,
+  formatAttendanceRosterCodeBlock,
+  MESSAGE_CONTENT_MAX,
   resolveScheduledEvent,
 } from '../services/attendance-service.js'
 import { type CrmAttendancePayload, type CrmService } from '../services/crm-service.js'
@@ -61,13 +63,15 @@ export class VoiceStateUpdateHandler implements EventHandler {
       //provide arg for custom name
       const eventId = scheduledEvent?.id ?? sessionId
       const displayEventName = customEventName ?? scheduledEvent?.name ?? defaultEventName
+      const finalizedAt = new Date()
 
       if (crmDisabledReason) {
-        await this.sendFallbackDm(
+        await this.sendAttendanceFallbackDms(
           user,
           channelName,
           displayEventName,
           entries,
+          finalizedAt,
           CRM_DISABLED_DM_NOTES[crmDisabledReason],
           null,
         )
@@ -89,14 +93,14 @@ export class VoiceStateUpdateHandler implements EventHandler {
         const response = await this.crmService.recordAttendance(payload)
 
         try {
-          const sent = await MessageUtils.send(
+          const sent = await this.sendCrmSuccessDm(
             user,
-            this.formatCrmReportDm(
-              displayEventName,
-              channelName,
-              response.total_received,
-              response.unlinked_participants,
-            ),
+            displayEventName,
+            channelName,
+            entries,
+            finalizedAt,
+            response.total_received,
+            response.unlinked_participants,
           )
           if (!sent) {
             Logger.warn(
@@ -110,11 +114,12 @@ export class VoiceStateUpdateHandler implements EventHandler {
         }
       } catch (error) {
         Logger.error('CRM record-attendance failed', error)
-        await this.sendFallbackDm(
+        await this.sendAttendanceFallbackDms(
           user,
           channelName,
           displayEventName,
           entries,
+          finalizedAt,
           'Failed to sync attendance to the CRM. The raw payload is below so it can be replayed manually.',
           payload,
         )
@@ -124,21 +129,34 @@ export class VoiceStateUpdateHandler implements EventHandler {
     }
   }
 
-  private async sendFallbackDm(
+  private async sendAttendanceFallbackDms(
     user: User,
     channelName: string,
     meetingSubject: string | undefined,
     entries: AttendanceEntry[],
+    at: Date,
     note: string,
     payload: CrmAttendancePayload | null,
   ): Promise<void> {
-    await MessageUtils.send(user, `:warning: ${note}`)
+    await MessageUtils.send(
+      user,
+      [
+        `:warning: ${note}`,
+        '',
+        formatAttendanceContextText({
+          channelName,
+          meetingSubject,
+          entries,
+          at,
+        }),
+      ].join('\n'),
+    )
 
-    const reportContent = formatAttendanceDmContent({
+    const reportContent = formatAttendanceRosterCodeBlock({
       channelName,
       meetingSubject,
       entries,
-      at: new Date(),
+      at,
     })
 
     await MessageUtils.send(user, reportContent)
@@ -155,9 +173,41 @@ export class VoiceStateUpdateHandler implements EventHandler {
     }
   }
 
-  private formatCrmReportDm(
+  private async sendCrmSuccessDm(
+    user: User,
     eventName: string,
     channelName: string,
+    entries: AttendanceEntry[],
+    at: Date,
+    total: number,
+    unlinked: Array<{ discord_id: string; discord_name: string }>,
+  ): Promise<boolean> {
+    const crmReportContent = this.formatCrmAttendanceSummaryText(
+      eventName,
+      channelName,
+      at,
+      total,
+      unlinked,
+    )
+    const reportContent = formatAttendanceRosterCodeBlock(
+      {
+        channelName,
+        meetingSubject: eventName,
+        entries,
+        at,
+      },
+      {
+        maxMessageLength: MESSAGE_CONTENT_MAX - crmReportContent.length - 2,
+      },
+    )
+    const sent = await MessageUtils.send(user, `${crmReportContent}\n\n${reportContent}`)
+    return sent !== null
+  }
+
+  private formatCrmAttendanceSummaryText(
+    eventName: string,
+    channelName: string,
+    at: Date,
     total: number,
     unlinked: Array<{ discord_id: string; discord_name: string }>,
   ): string {
@@ -168,7 +218,12 @@ export class VoiceStateUpdateHandler implements EventHandler {
       : '. Go to the CRM to finish the upload into the event.'
     const lines: string[] = [
       '**Attendance staged in CRM** :white_check_mark:',
-      `Event: **${escapeMarkdown(eventName)}** (${escapeMarkdown(channelName)})`,
+      formatAttendanceContextText({
+        channelName,
+        meetingSubject: eventName,
+        entries: [],
+        at,
+      }),
       `All ${total} attendee${plural} recorded${tail}`,
     ]
 
