@@ -112,6 +112,13 @@
     "maxWelcomeTeamMembers": 4,
     "inactivityDays": 2
   },
+  "googleAdd": {
+    "// NOTE": "Maps a command group shortname to the Google Group address in the Workspace account.",
+    "allowedRoleKeys": ["COORDINATOR"],
+    "groups": {
+      "media-team": "media@derrickfarris.com"
+    }
+  },
   "roles": {
     "COORDINATOR": {
       "id": "1347653968641134683",

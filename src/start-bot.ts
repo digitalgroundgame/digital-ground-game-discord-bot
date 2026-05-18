@@ -13,6 +13,7 @@ import {
   CensusCommand,
   AttendanceCommand,
   AttendanceTrackCommand,
+  GoogleAddCommand,
 } from './commands/chat/index.js'
 import {
   ChatCommandMetadata,
@@ -34,6 +35,7 @@ import {
   TriggerHandler,
   VoiceStateUpdateHandler,
 } from './events/index.js'
+import { createDatabase } from './database/index.js'
 import { CustomClient } from './extensions/index.js'
 import {
   AutoCloseWelcomeThreadsJob,
@@ -48,8 +50,11 @@ import {
   CommandRegistrationService,
   EventDataService,
   GoogleCalendarService,
+  GoogleGroupsService,
+  GoogleOAuthService,
   JobService,
   Logger,
+  UserService,
 } from './services/index.js'
 import { type Trigger } from './triggers/index.js'
 import { CTAPostTrigger } from './triggers/cta-post.js'
@@ -88,6 +93,29 @@ async function start(): Promise<void> {
     enforceNonce: true,
   })
 
+  // Google Sign-In (OAuth) — used by /google-add to confirm a member's Workspace identity
+  const googleOAuthService = new GoogleOAuthService(
+    process.env.GOOGLE_OAUTH_CLIENT_ID,
+    process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+    process.env.GOOGLE_OAUTH_REDIRECT_URI,
+  )
+
+  // Optional: lets /google-add skip the OAuth DM for members whose Google
+  // account is already linked. Both the service account and a reachable
+  // database must be configured, otherwise the command falls back to OAuth.
+  const googleGroupsService = new GoogleGroupsService(
+    process.env.GOOGLE_CALENDAR_CREDENTIALS ?? process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    process.env.GOOGLE_WORKSPACE_ADMIN_SUBJECT,
+  )
+  let userService: UserService | undefined
+  if (process.env.DATABASE_URL) {
+    try {
+      userService = new UserService(createDatabase())
+    } catch (error) {
+      Logger.error('Failed to initialize the database; /google-add will always use OAuth.', error)
+    }
+  }
+
   // Commands
   const commands: Command[] = [
     // Chat Commands
@@ -100,6 +128,7 @@ async function start(): Promise<void> {
     new CensusCommand(),
     new AttendanceCommand(),
     new AttendanceTrackCommand(attendanceService),
+    new GoogleAddCommand(googleOAuthService, googleGroupsService, userService),
 
     // User Context Commands
     ...ONBOARDING_CONFIGS.map((config) => new SendOnboarding(config)),

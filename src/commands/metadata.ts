@@ -116,6 +116,25 @@ export const ChatCommandMetadata: {
     description_localizations: Lang.getRefLocalizationMap('commandDescs.attendanceTrack'),
     default_member_permissions: undefined,
   },
+  GOOGLE_ADD: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.googleAdd', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.googleAdd'),
+    description: Lang.getRef('commandDescs.googleAdd', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.googleAdd'),
+    dm_permission: false,
+    default_member_permissions: undefined,
+    options: [
+      {
+        ...Args.GOOGLE_ADD_GROUP,
+        required: true,
+      },
+      {
+        ...Args.GOOGLE_ADD_USER,
+        required: true,
+      },
+    ],
+  },
 }
 
 export const MessageCommandMetadata: {

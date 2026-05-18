@@ -4,6 +4,7 @@ import { DevCommandName, HelpOption, InfoOption } from '../enums/index.js'
 import { Language } from '../models/enum-helpers/index.js'
 import { Lang } from '../services/index.js'
 import { Rules } from '../constants/rules.js'
+import { GoogleGroups } from '../constants/index.js'
 
 export class Args {
   public static readonly DEV_COMMAND: APIApplicationCommandBasicOption = {
@@ -57,6 +58,24 @@ export class Args {
         value: InfoOption.TRANSLATE,
       },
     ],
+  }
+  public static readonly GOOGLE_ADD_GROUP: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.group', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.group'),
+    description: Lang.getRef('argDescs.googleAddGroup', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.googleAddGroup'),
+    type: ApplicationCommandOptionType.String,
+    choices: Object.keys(GoogleGroups).map((shortname) => ({
+      name: shortname,
+      value: shortname,
+    })),
+  }
+  public static readonly GOOGLE_ADD_USER: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.user', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.user'),
+    description: Lang.getRef('argDescs.googleAddUser', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.googleAddUser'),
+    type: ApplicationCommandOptionType.User,
   }
   public static readonly RULES_OPTIION: APIApplicationCommandBasicOption = {
     name: Lang.getRef('arguments.ruleNumber', Language.Default),

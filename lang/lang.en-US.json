@@ -148,6 +148,41 @@
       },
       "attendanceAlreadyTracking": {
         "description": "You're already taking attendance in another channel. Leave that channel first to get your list, then run this again in a new channel if needed."
+      },
+      "googleAddInvite": {
+        "title": "Join the {{GROUP_LABEL}} Google Group",
+        "description": [
+          "You've been invited to the **{{GROUP_LABEL}}** Google Group.",
+          "",
+          "Click the button below to sign in with Google. Once you confirm your Google account, you'll be added to the group automatically.",
+          "",
+          "This link expires in 15 minutes."
+        ]
+      },
+      "googleAddDmSent": {
+        "description": "Sent {{USER}} a Google sign-in link to join the **{{GROUP_LABEL}}** group. They'll be added once they complete sign-in."
+      },
+      "googleAddLinkedAdded": {
+        "description": "{{USER}} has already linked their Google account, so they were added to the **{{GROUP_LABEL}}** group directly — no sign-in needed."
+      },
+      "googleAddLinkedAlreadyMember": {
+        "description": "{{USER}} has already linked their Google account and is already a member of the **{{GROUP_LABEL}}** group."
+      },
+      "googleAddLinkedAddFailed": {
+        "description": "{{USER}} has a linked Google account, but adding them to the **{{GROUP_LABEL}}** group failed. Please try again or contact an administrator.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "googleAddDmFailed": {
+        "description": "Couldn't DM {{USER}} — their DMs may be closed. Ask them to enable DMs from server members and try again.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "googleAddUnknownGroup": {
+        "description": "Unknown group `{{GROUP}}`. No matching Google Group is configured.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "googleAddNotConfigured": {
+        "description": "Google group management isn't configured on this bot. The Google OAuth client and service account environment variables must be set.",
+        "color": "{{COM:colors.warning}}"
       }
     },
     "validationEmbeds": {
@@ -236,7 +271,8 @@
       "pragPapers": "prag-papers",
       "census": "census",
       "attendance": "attendance",
-      "attendanceTrack": "attendance-track"
+      "attendanceTrack": "attendance-track",
+      "googleAdd": "google-add"
     },
     "userCommands": {
       "sendDevOnboarding": "Send Dev Onboarding",
@@ -249,7 +285,9 @@
     "arguments": {
       "command": "command",
       "option": "option",
-      "ruleNumber": "rulenumber"
+      "ruleNumber": "rulenumber",
+      "group": "group",
+      "user": "user"
     },
     "commandDescs": {
       "dev": "Developer use only.",
@@ -260,13 +298,16 @@
       "pragPapers": "Gives a link to the Pragmatic Papers website.",
       "census": "Gives a link to the Census form.",
       "attendance": "DMs you a snapshot list of everyone currently in your voice channel.",
-      "attendanceTrack": "Tracks who is in your voice channel and DMs you the same formatted list when you leave."
+      "attendanceTrack": "Tracks who is in your voice channel and DMs you the same formatted list when you leave.",
+      "googleAdd": "Add a member to a Google Group via Google sign-in."
     },
     "argDescs": {
       "devCommand": "Command.",
       "helpOption": "Option.",
       "infoOption": "Option.",
-      "ruleNumber": "Rule number."
+      "ruleNumber": "Rule number.",
+      "googleAddGroup": "The Google Group to add the member to.",
+      "googleAddUser": "The member to add to the Google Group."
     },
     "fields": {
       "commands": "Commands",
