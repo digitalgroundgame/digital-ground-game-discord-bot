@@ -11,11 +11,11 @@ export const user = pgTable('user', {
 })
 
 /**
- * An external account a Discord user has verified (e.g. their Google account
- * via the `/google-add` OAuth flow). One row per (user, provider).
+ * An external account a Discord user has linked via `/link-account`.
+ * One row per (user, provider).
  *
- * - `externalId` is the provider's stable identifier (Google `sub`, X user id).
- * - `email` / `displayName` are nullable — not every provider returns both.
+ * - `externalId` is the provider's stable identifier (for Google, the account email).
+ * - `email` / `displayName` are nullable — not every provider supplies both.
  */
 export const linkedAccount = pgTable(
   'linked_account',

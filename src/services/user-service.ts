@@ -18,10 +18,10 @@ export interface LinkAccountInput {
 
 /**
  * Manages Discord members and the external accounts (Google, etc.) they have
- * verified through OAuth sign-in flows such as `/google-add`.
+ * linked via the `/link-account` command.
  */
 export class UserService {
-  constructor(private db: Database) {}
+  constructor(private readonly db: Database) {}
 
   /**
    * Link (or refresh) an external account for a Discord user. Ensures the
@@ -62,19 +62,9 @@ export class UserService {
           },
         })
     })
-    Logger.info(`User link: ${discordUserId} → ${provider} (${account.email ?? account.externalId})`)
-  }
-
-  /** Convenience wrapper for the Google provider. */
-  public async linkGoogleAccount(
-    discordUserId: string,
-    googleEmail: string,
-    googleSubject: string,
-  ): Promise<void> {
-    await this.linkAccount(discordUserId, 'google', {
-      externalId: googleSubject,
-      email: googleEmail,
-    })
+    Logger.info(
+      `User link: ${discordUserId} → ${provider} (${account.email ?? account.externalId})`,
+    )
   }
 
   /** Look up a Discord user's linked account for a given provider, if any. */

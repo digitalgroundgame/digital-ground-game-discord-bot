@@ -116,22 +116,41 @@ export const ChatCommandMetadata: {
     description_localizations: Lang.getRefLocalizationMap('commandDescs.attendanceTrack'),
     default_member_permissions: undefined,
   },
-  GOOGLE_ADD: {
+  GRANT_ACCESS: {
     type: ApplicationCommandType.ChatInput,
-    name: Lang.getRef('chatCommands.googleAdd', Language.Default),
-    name_localizations: Lang.getRefLocalizationMap('chatCommands.googleAdd'),
-    description: Lang.getRef('commandDescs.googleAdd', Language.Default),
-    description_localizations: Lang.getRefLocalizationMap('commandDescs.googleAdd'),
+    name: Lang.getRef('chatCommands.grantAccess', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.grantAccess'),
+    description: Lang.getRef('commandDescs.grantAccess', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.grantAccess'),
     dm_permission: false,
     default_member_permissions: undefined,
     options: [
       {
-        ...Args.GOOGLE_ADD_GROUP,
+        ...Args.GRANT_ACCESS_SERVICE,
         required: true,
       },
       {
-        ...Args.GOOGLE_ADD_USER,
+        ...Args.GRANT_ACCESS_TEAM,
         required: true,
+      },
+      {
+        ...Args.GRANT_ACCESS_USER,
+        required: true,
+      },
+    ],
+  },
+  LINK_ACCOUNT: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.linkAccount', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.linkAccount'),
+    description: Lang.getRef('commandDescs.linkAccount', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.linkAccount'),
+    dm_permission: false,
+    default_member_permissions: undefined,
+    options: [
+      {
+        ...Args.LINK_ACCOUNT_USER,
+        required: false,
       },
     ],
   },

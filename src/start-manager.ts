@@ -4,25 +4,20 @@ import 'reflect-metadata'
 
 import {
   type Controller,
-  GoogleOAuthController,
   GuildsController,
   IntegrationsController,
   RootController,
   ShardsController,
 } from './controllers/index.js'
-import { createDatabase } from './database/index.js'
 import { type Integration, PragmaticPapersIntegration } from './integrations/index.js'
 import { type Job } from './jobs/index.js'
 import { Api } from './models/api.js'
 import { Manager } from './models/manager.js'
 import {
-  GoogleGroupsService,
-  GoogleOAuthService,
   HttpService,
   JobService,
   Logger,
   MasterApiService,
-  UserService,
 } from './services/index.js'
 import { MathUtils, ShardUtils } from './utils/index.js'
 
@@ -97,27 +92,6 @@ async function start(): Promise<void> {
     integrationsController,
     rootController,
   ]
-
-  // Google Group sign-in callback (used by the /google-add command)
-  const googleOAuthService = new GoogleOAuthService(
-    process.env.GOOGLE_OAUTH_CLIENT_ID,
-    process.env.GOOGLE_OAUTH_CLIENT_SECRET,
-    process.env.GOOGLE_OAUTH_REDIRECT_URI,
-  )
-  const googleGroupsService = new GoogleGroupsService(
-    process.env.GOOGLE_CALENDAR_CREDENTIALS ?? process.env.GOOGLE_APPLICATION_CREDENTIALS,
-    process.env.GOOGLE_WORKSPACE_ADMIN_SUBJECT,
-  )
-  if (googleOAuthService.isConfigured() && googleGroupsService.isConfigured()) {
-    const userService = new UserService(createDatabase())
-    controllers.push(
-      new GoogleOAuthController(googleOAuthService, googleGroupsService, userService),
-    )
-  } else {
-    Logger.warn(
-      'Google Group management is not fully configured; /google-add callback endpoint will not be registered. Set GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, GOOGLE_OAUTH_REDIRECT_URI, the service account credentials, and GOOGLE_WORKSPACE_ADMIN_SUBJECT.',
-    )
-  }
 
   const api = new Api(controllers)
 

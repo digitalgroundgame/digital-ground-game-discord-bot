@@ -13,7 +13,8 @@ import {
   CensusCommand,
   AttendanceCommand,
   AttendanceTrackCommand,
-  GoogleAddCommand,
+  GrantAccessCommand,
+  LinkAccountCommand,
 } from './commands/chat/index.js'
 import {
   ChatCommandMetadata,
@@ -51,7 +52,6 @@ import {
   EventDataService,
   GoogleCalendarService,
   GoogleGroupsService,
-  GoogleOAuthService,
   JobService,
   Logger,
   UserService,
@@ -93,26 +93,27 @@ async function start(): Promise<void> {
     enforceNonce: true,
   })
 
-  // Google Sign-In (OAuth) — used by /google-add to confirm a member's Workspace identity
-  const googleOAuthService = new GoogleOAuthService(
-    process.env.GOOGLE_OAUTH_CLIENT_ID,
-    process.env.GOOGLE_OAUTH_CLIENT_SECRET,
-    process.env.GOOGLE_OAUTH_REDIRECT_URI,
-  )
-
-  // Optional: lets /google-add skip the OAuth DM for members whose Google
-  // account is already linked. Both the service account and a reachable
-  // database must be configured, otherwise the command falls back to OAuth.
+  // Service account used by /grant-access to manage Google Group membership.
   const googleGroupsService = new GoogleGroupsService(
     process.env.GOOGLE_CALENDAR_CREDENTIALS ?? process.env.GOOGLE_APPLICATION_CREDENTIALS,
     process.env.GOOGLE_WORKSPACE_ADMIN_SUBJECT,
   )
+  if (!googleGroupsService.isConfigured()) {
+    Logger.warn(
+      '/grant-access: disabled — set GOOGLE_APPLICATION_CREDENTIALS (or GOOGLE_CALENDAR_CREDENTIALS) and GOOGLE_WORKSPACE_ADMIN_SUBJECT (the Workspace admin email the service account impersonates). /link-account remains available.',
+    )
+  }
+  // Stores the external accounts members link via /link-account, and is read
+  // by /grant-access to resolve a member's Google email.
   let userService: UserService | undefined
   if (process.env.DATABASE_URL) {
     try {
       userService = new UserService(createDatabase())
     } catch (error) {
-      Logger.error('Failed to initialize the database; /google-add will always use OAuth.', error)
+      Logger.error(
+        'Failed to initialize the database; /link-account and /grant-access will be unavailable.',
+        error,
+      )
     }
   }
 
@@ -128,7 +129,8 @@ async function start(): Promise<void> {
     new CensusCommand(),
     new AttendanceCommand(),
     new AttendanceTrackCommand(attendanceService),
-    new GoogleAddCommand(googleOAuthService, googleGroupsService, userService),
+    new GrantAccessCommand(googleGroupsService, userService),
+    new LinkAccountCommand(userService),
 
     // User Context Commands
     ...ONBOARDING_CONFIGS.map((config) => new SendOnboarding(config)),

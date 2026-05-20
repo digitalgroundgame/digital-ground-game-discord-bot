@@ -10,8 +10,12 @@ export {
 export { ServerRoles, type ServerRole, getRoleNameById } from './server-roles.js'
 export {
   GOOGLE_DIRECTORY_SCOPES,
-  GOOGLE_OAUTH_SCOPES,
   GoogleGroups,
-  GoogleAddAllowedRoleKeys,
+  GrantAccessAllowedRoleKeys,
   getGoogleGroupAddress,
 } from './google-groups.js'
+export {
+  type LinkableAccount,
+  LinkableAccounts,
+  getLinkableAccount,
+} from './linkable-accounts.js'
