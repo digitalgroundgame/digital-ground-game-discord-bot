@@ -39,6 +39,7 @@ import {
   AutoCloseWelcomeThreadsJob,
   ImmediateSyncDggpGoogleCalendarJob,
   SyncDggpGoogleCalendarJob,
+  EventNotificationJob,
   type Job,
 } from './jobs/index.js'
 import { Bot } from './models/bot.js'
@@ -167,6 +168,7 @@ async function start(): Promise<void> {
     new AutoCloseWelcomeThreadsJob(client),
     new ImmediateSyncDggpGoogleCalendarJob(client, googleCalendarService),
     new SyncDggpGoogleCalendarJob(client, googleCalendarService),
+    new EventNotificationJob(client),
   ]
 
   // Bot

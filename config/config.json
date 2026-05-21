@@ -72,6 +72,14 @@
       "log": true,
       "runOnce": true,
       "initialDelaySecs": 0
+    },
+    "eventNotifications": {
+      "schedule": "0 * * * * *",
+      "log": true,
+      "runOnce": false,
+      "initialDelaySecs": 0,
+      "notificationsChannelId": "1506812700620230846",
+      "notificationTimeMins": 15
     }
   },
   "rateLimiting": {
