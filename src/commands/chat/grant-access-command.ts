@@ -2,19 +2,15 @@ import { type ChatInputCommandInteraction, type PermissionsString } from 'discor
 import { RateLimiter } from 'discord.js-rate-limiter'
 
 import {
-  GrantAccessAllowedRoleKeys,
   getGoogleGroupAddress,
-  ServerRoles,
+  GrantAccessAllowedRoleKeys,
   type ServerRole,
+  ServerRoles,
 } from '../../constants/index.js'
+import { LinkedAccount } from '../../database/schema.js'
 import { Language } from '../../models/enum-helpers/index.js'
 import { type EventData } from '../../models/internal-models.js'
-import {
-  type GoogleGroupsService,
-  Lang,
-  Logger,
-  type UserService,
-} from '../../services/index.js'
+import { type GoogleGroupsService, Lang, Logger, type UserService } from '../../services/index.js'
 import { InteractionUtils } from '../../utils/index.js'
 import { type Command, CommandDeferType } from '../index.js'
 
@@ -76,7 +72,7 @@ export class GrantAccessCommand implements Command {
       return
     }
 
-    let linked
+    let linked: LinkedAccount | undefined
     try {
       linked = await userService.findLinkedAccount(targetUser.id, 'google')
     } catch (err: unknown) {
@@ -124,7 +120,7 @@ export class GrantAccessCommand implements Command {
           USER: targetUser.toString(),
           TEAM_LABEL: teamShortname,
         }),
-        true,
+        false,
       )
       return
     }

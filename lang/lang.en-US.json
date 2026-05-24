@@ -175,12 +175,11 @@
         "description": "Google group management isn't configured on this bot. The service account credentials and database connection must be set.",
         "color": "{{COM:colors.warning}}"
       },
-      "linkAccountPrompt": {
-        "title": "Link an account",
-        "description": "Pick a service from the menu below to link to {{SUBJECT}} profile. You'll be asked for the details needed to link it."
-      },
       "linkAccountSuccess": {
         "description": "Linked **{{IDENTIFIER}}** as {{SUBJECT}} {{SERVICE}} account."
+      },
+      "linkAccountAnnounce": {
+        "description": "{{USER}}'s **{{SERVICE}}** account was linked."
       },
       "linkAccountUnchanged": {
         "description": "**{{IDENTIFIER}}** is already linked as {{SUBJECT}} {{SERVICE}} account — nothing to change."
@@ -322,7 +321,8 @@
       "ruleNumber": "rulenumber",
       "service": "service",
       "team": "team",
-      "user": "user"
+      "user": "user",
+      "identifier": "identifier"
     },
     "commandDescs": {
       "dev": "Developer use only.",
@@ -345,6 +345,8 @@
       "grantAccessService": "The service to grant access to.",
       "grantAccessTeam": "The team whose service the member should be added to.",
       "grantAccessUser": "The member to grant access to.",
+      "linkAccountService": "The service to link an account for.",
+      "linkAccountIdentifier": "The account identifier (e.g. a Google email address).",
       "linkAccountUser": "Coordinators only: the member to link an account for (defaults to you)."
     },
     "fields": {

@@ -149,6 +149,14 @@ export const ChatCommandMetadata: {
     default_member_permissions: undefined,
     options: [
       {
+        ...Args.LINK_ACCOUNT_SERVICE,
+        required: true,
+      },
+      {
+        ...Args.LINK_ACCOUNT_IDENTIFIER,
+        required: true,
+      },
+      {
         ...Args.LINK_ACCOUNT_USER,
         required: false,
       },

@@ -88,6 +88,24 @@ export class Args {
     description_localizations: Lang.getRefLocalizationMap('argDescs.grantAccessUser'),
     type: ApplicationCommandOptionType.User,
   }
+  public static readonly LINK_ACCOUNT_SERVICE: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.service', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.service'),
+    description: Lang.getRef('argDescs.linkAccountService', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.linkAccountService'),
+    type: ApplicationCommandOptionType.String,
+    choices: LinkableAccounts.map((account) => ({
+      name: account.label,
+      value: account.provider,
+    })),
+  }
+  public static readonly LINK_ACCOUNT_IDENTIFIER: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.identifier', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.identifier'),
+    description: Lang.getRef('argDescs.linkAccountIdentifier', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.linkAccountIdentifier'),
+    type: ApplicationCommandOptionType.String,
+  }
   public static readonly LINK_ACCOUNT_USER: APIApplicationCommandBasicOption = {
     name: Lang.getRef('arguments.user', Language.Default),
     name_localizations: Lang.getRefLocalizationMap('arguments.user'),

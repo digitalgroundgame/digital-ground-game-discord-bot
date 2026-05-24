@@ -5,18 +5,12 @@ import {
   type ChatInputCommandInteraction,
   ComponentType,
   GuildMember,
-  ModalBuilder,
   type PermissionsString,
-  StringSelectMenuBuilder,
-  StringSelectMenuOptionBuilder,
-  TextInputBuilder,
-  TextInputStyle,
 } from 'discord.js'
 import { RateLimiter } from 'discord.js-rate-limiter'
 
 import {
   GrantAccessAllowedRoleKeys,
-  LinkableAccounts,
   ServerRoles,
   type ServerRole,
   getLinkableAccount,
@@ -27,10 +21,6 @@ import { Lang, Logger, type UserService } from '../../services/index.js'
 import { InteractionUtils } from '../../utils/index.js'
 import { type Command, CommandDeferType } from '../index.js'
 
-/** How long the member has to pick a service from the drop-down. */
-const SELECT_TIMEOUT_MS = 60_000
-/** How long the member has to submit the identifier form. */
-const MODAL_TIMEOUT_MS = 5 * 60_000
 /** How long the issuer has to confirm replacing an existing account. */
 const CONFIRM_TIMEOUT_MS = 60_000
 
@@ -43,9 +33,8 @@ const COORDINATOR_ROLE_IDS = GrantAccessAllowedRoleKeys.map(
  * Links an external account (e.g. a Google email) to a Discord member.
  *
  * Self-service by default; a coordinator may pass a `user` to link on someone
- * else's behalf. The member picks a service from a drop-down, then fills in the
- * required identifier in a pop-up form. If an account is already linked, the
- * issuer must confirm replacing it before the change is saved.
+ * else's behalf. If an account is already linked, the issuer must confirm
+ * replacing it before the change is saved.
  */
 export class LinkAccountCommand implements Command {
   public names = [Lang.getRef('chatCommands.linkAccount', Language.Default)]
@@ -66,6 +55,11 @@ export class LinkAccountCommand implements Command {
       return
     }
 
+    const service = intr.options.getString(Lang.getRef('arguments.service', Language.Default), true)
+    const rawIdentifier = intr.options.getString(
+      Lang.getRef('arguments.identifier', Language.Default),
+      true,
+    )
     const targetUser =
       intr.options.getUser(Lang.getRef('arguments.user', Language.Default)) ?? intr.user
     const isSelf = targetUser.id === intr.user.id
@@ -88,97 +82,22 @@ export class LinkAccountCommand implements Command {
       }
     }
 
-    // Step 1 — show the service drop-down.
-    const selectId = `link-account-select-${intr.id}`
-    const select = new StringSelectMenuBuilder()
-      .setCustomId(selectId)
-      .setPlaceholder('Choose a service to link')
-      .addOptions(
-        LinkableAccounts.map((account) =>
-          new StringSelectMenuOptionBuilder()
-            .setLabel(account.label)
-            .setDescription(account.description)
-            .setValue(account.provider),
-        ),
-      )
-    const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select)
-
-    const prompt = await InteractionUtils.send(
-      intr,
-      {
-        embeds: [Lang.getEmbed('displayEmbeds.linkAccountPrompt', data.lang, { SUBJECT: subject })],
-        components: [row],
-      },
-      true,
-    )
-    if (!prompt) return
-
-    // Step 2 — wait for a service to be picked.
-    let selection
-    try {
-      selection = await prompt.awaitMessageComponent({
-        componentType: ComponentType.StringSelect,
-        filter: (i) => i.user.id === intr.user.id && i.customId === selectId,
-        time: SELECT_TIMEOUT_MS,
-      })
-    } catch {
-      await InteractionUtils.editReply(intr, {
-        embeds: [Lang.getEmbed('displayEmbeds.linkAccountTimedOut', data.lang)],
-        components: [],
-      })
-      return
-    }
-
-    const account = getLinkableAccount(selection.values[0] ?? '')
+    const account = getLinkableAccount(service)
     if (!account) {
-      await InteractionUtils.editReply(intr, {
-        embeds: [Lang.getEmbed('displayEmbeds.linkAccountTimedOut', data.lang)],
-        components: [],
-      })
-      return
-    }
-
-    // Step 3 — show the templated identifier form for the chosen service.
-    const modalId = `link-account-modal-${intr.id}`
-    const inputId = 'identifier'
-    const modal = new ModalBuilder()
-      .setCustomId(modalId)
-      .setTitle(`Link a ${account.label} account`)
-      .addComponents(
-        new ActionRowBuilder<TextInputBuilder>().addComponents(
-          new TextInputBuilder()
-            .setCustomId(inputId)
-            .setLabel(account.identifierLabel)
-            .setPlaceholder(account.identifierPlaceholder)
-            .setStyle(TextInputStyle.Short)
-            .setMaxLength(320)
-            .setRequired(true),
-        ),
+      await InteractionUtils.send(
+        intr,
+        Lang.getEmbed('displayEmbeds.linkAccountInvalid', data.lang, {
+          SERVICE: service,
+          VALUE: rawIdentifier,
+        }),
+        true,
       )
-    await selection.showModal(modal)
-
-    // Step 4 — wait for the form to be submitted.
-    let submit
-    try {
-      submit = await selection.awaitModalSubmit({
-        filter: (i) => i.user.id === intr.user.id && i.customId === modalId,
-        time: MODAL_TIMEOUT_MS,
-      })
-    } catch {
-      await InteractionUtils.editReply(intr, {
-        embeds: [Lang.getEmbed('displayEmbeds.linkAccountTimedOut', data.lang)],
-        components: [],
-      })
       return
     }
 
-    // The drop-down has served its purpose — drop it from the original message.
-    await InteractionUtils.editReply(intr, { components: [] })
-
-    const rawIdentifier = submit.fields.getTextInputValue(inputId)
     if (!account.validate(rawIdentifier)) {
       await InteractionUtils.send(
-        submit,
+        intr,
         Lang.getEmbed('displayEmbeds.linkAccountInvalid', data.lang, {
           SERVICE: account.label,
           VALUE: rawIdentifier,
@@ -191,14 +110,13 @@ export class LinkAccountCommand implements Command {
     const { externalId, email } = account.normalize(rawIdentifier)
     const newIdentifier = email ?? externalId
 
-    // Step 5 — if an account is already linked, confirm before replacing it.
     let existing
     try {
       existing = await userService.findLinkedAccount(targetUser.id, account.provider)
     } catch (err: unknown) {
       Logger.error(`/link-account: failed to look up linked account for ${targetUser.tag}`, err)
       await InteractionUtils.send(
-        submit,
+        intr,
         Lang.getEmbed('displayEmbeds.linkAccountFailed', data.lang),
         true,
       )
@@ -209,7 +127,7 @@ export class LinkAccountCommand implements Command {
     if (existing) {
       if (existingIdentifier === newIdentifier) {
         await InteractionUtils.send(
-          submit,
+          intr,
           Lang.getEmbed('displayEmbeds.linkAccountUnchanged', data.lang, {
             SUBJECT: subject,
             SERVICE: account.label,
@@ -230,7 +148,7 @@ export class LinkAccountCommand implements Command {
           .setStyle(ButtonStyle.Secondary),
       )
       const confirmMsg = await InteractionUtils.send(
-        submit,
+        intr,
         {
           embeds: [
             Lang.getEmbed('displayEmbeds.linkAccountConfirm', data.lang, {
@@ -255,7 +173,7 @@ export class LinkAccountCommand implements Command {
           time: CONFIRM_TIMEOUT_MS,
         })
       } catch {
-        await InteractionUtils.editReply(submit, {
+        await InteractionUtils.editReply(intr, {
           embeds: [Lang.getEmbed('displayEmbeds.linkAccountTimedOut', data.lang)],
           components: [],
         })
@@ -294,13 +212,20 @@ export class LinkAccountCommand implements Command {
         ],
         components: [],
       })
+      await InteractionUtils.send(
+        intr,
+        Lang.getEmbed('displayEmbeds.linkAccountAnnounce', data.lang, {
+          USER: targetUser.toString(),
+          SERVICE: account.label,
+        }),
+        false,
+      )
       return
     }
 
-    // Step 5 (no existing account) — link directly.
     if (!(await this.persistLink(userService, targetUser, account.provider, externalId, email))) {
       await InteractionUtils.send(
-        submit,
+        intr,
         Lang.getEmbed('displayEmbeds.linkAccountFailed', data.lang),
         true,
       )
@@ -309,13 +234,21 @@ export class LinkAccountCommand implements Command {
 
     Logger.info(`${intr.user.tag} linked ${targetUser.tag}'s ${account.label} account`)
     await InteractionUtils.send(
-      submit,
+      intr,
       Lang.getEmbed('displayEmbeds.linkAccountSuccess', data.lang, {
         SUBJECT: subject,
         SERVICE: account.label,
         IDENTIFIER: newIdentifier,
       }),
       true,
+    )
+    await InteractionUtils.send(
+      intr,
+      Lang.getEmbed('displayEmbeds.linkAccountAnnounce', data.lang, {
+        USER: targetUser.toString(),
+        SERVICE: account.label,
+      }),
+      false,
     )
   }
 
