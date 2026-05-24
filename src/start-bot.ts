@@ -96,11 +96,12 @@ async function start(): Promise<void> {
   // Service account used by /grant-access to manage Google Group membership.
   const googleGroupsService = new GoogleGroupsService(
     process.env.GOOGLE_CALENDAR_CREDENTIALS ?? process.env.GOOGLE_APPLICATION_CREDENTIALS,
-    process.env.GOOGLE_WORKSPACE_ADMIN_SUBJECT,
+    process.env.GOOGLE_WORKSPACE_ADMIN_SUBJECT ??
+      process.env.GOOGLE_CALENDAR_IMPERSONATION_SUBJECT,
   )
   if (!googleGroupsService.isConfigured()) {
     Logger.warn(
-      '/grant-access: disabled — set GOOGLE_APPLICATION_CREDENTIALS (or GOOGLE_CALENDAR_CREDENTIALS) and GOOGLE_WORKSPACE_ADMIN_SUBJECT (the Workspace admin email the service account impersonates). /link-account remains available.',
+      '/grant-access: disabled — set GOOGLE_APPLICATION_CREDENTIALS (or GOOGLE_CALENDAR_CREDENTIALS) and GOOGLE_WORKSPACE_ADMIN_SUBJECT (or GOOGLE_CALENDAR_IMPERSONATION_SUBJECT) — the Workspace admin email the service account impersonates. /link-account remains available.',
     )
   }
   // Stores the external accounts members link via /link-account, and is read
