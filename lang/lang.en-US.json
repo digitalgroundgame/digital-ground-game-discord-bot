@@ -149,6 +149,15 @@
       "attendanceAlreadyTracking": {
         "description": "You're already taking attendance in another channel. Leave that channel first to get your list, then run this again in a new channel if needed."
       },
+      "attendanceNotAuthorized": {
+        "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ You don't have CRM permission to record attendance, so the roster won't be synced — I'll DM you the list when you leave. Ask an organizer to grant you the **events.record_attendance** permission in the CRM."
+      },
+      "attendanceUnlinkedDiscordId": {
+        "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ Your Discord account isn't linked to a CRM user, so attendance won't be synced — I'll DM you the list when you leave. Ask an organizer to link your Discord ID in the CRM."
+      },
+      "attendancePermissionCheckFailed": {
+        "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ Couldn't reach the CRM to verify your permissions, so attendance won't be synced — I'll DM you the list when you leave."
+      },
       "grantAccessAdded": {
         "description": "{{USER}} was added to the **{{TEAM_LABEL}}** Google Group."
       },
@@ -319,6 +328,7 @@
       "command": "command",
       "option": "option",
       "ruleNumber": "rulenumber",
+      "attendanceEventName": "name",
       "service": "service",
       "team": "team",
       "user": "user",
@@ -342,6 +352,7 @@
       "helpOption": "Option.",
       "infoOption": "Option.",
       "ruleNumber": "Rule number.",
+      "attendanceEventName": "Override the default event name (scheduled-event name, or channel + start time).",
       "grantAccessService": "The service to grant access to.",
       "grantAccessTeam": "The team whose service the member should be added to.",
       "grantAccessUser": "The member to grant access to.",

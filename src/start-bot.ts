@@ -3,26 +3,28 @@ import { Options, Partials } from 'discord.js'
 import { createRequire } from 'node:module'
 
 import { type Button } from './buttons/index.js'
+import { runCalendarSyncCli } from './calendar-sync-cli.js'
 import {
+  AttendanceCommand,
+  AttendanceTrackCommand,
+  CensusCommand,
   DevCommand,
+  GrantAccessCommand,
   HelpCommand,
   InfoCommand,
+  LinkAccountCommand,
   PragPapersCommand,
   RulesCommand,
   TestCommand,
-  CensusCommand,
-  AttendanceCommand,
-  AttendanceTrackCommand,
-  GrantAccessCommand,
-  LinkAccountCommand,
 } from './commands/chat/index.js'
 import {
   ChatCommandMetadata,
-  type Command,
   MessageCommandMetadata,
   UserCommandMetadata,
+  type Command,
 } from './commands/index.js'
-import { SendOnboarding, ONBOARDING_CONFIGS } from './commands/user/index.js'
+import { ONBOARDING_CONFIGS, SendOnboarding } from './commands/user/index.js'
+import { createDatabase } from './database/index.js'
 import {
   ButtonHandler,
   CommandHandler,
@@ -36,7 +38,6 @@ import {
   TriggerHandler,
   VoiceStateUpdateHandler,
 } from './events/index.js'
-import { createDatabase } from './database/index.js'
 import { CustomClient } from './extensions/index.js'
 import {
   AutoCloseWelcomeThreadsJob,
@@ -49,6 +50,7 @@ import { type Reaction } from './reactions/index.js'
 import {
   AttendanceService,
   CommandRegistrationService,
+  CrmService,
   EventDataService,
   GoogleCalendarService,
   GoogleGroupsService,
@@ -56,9 +58,8 @@ import {
   Logger,
   UserService,
 } from './services/index.js'
-import { type Trigger } from './triggers/index.js'
 import { CTAPostTrigger } from './triggers/cta-post.js'
-import { runCalendarSyncCli } from './calendar-sync-cli.js'
+import { type Trigger } from './triggers/index.js'
 
 const require = createRequire(import.meta.url)
 const Config = require('../config/config.json')
@@ -76,9 +77,29 @@ async function start(): Promise<void> {
     process.exit(0)
   }
 
+  // Register
+  if (process.argv[2] == 'commands') {
+    try {
+      const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN)
+      const commandRegistrationService = new CommandRegistrationService(rest)
+      const localCmds = [
+        ...Object.values(ChatCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
+        ...Object.values(MessageCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
+        ...Object.values(UserCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
+      ]
+      await commandRegistrationService.process(localCmds, process.argv)
+    } catch (error) {
+      Logger.error(Logs.error.commandAction, error)
+    }
+    // Wait for any final logs to be written.
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    process.exit()
+  }
+
   // Services
   const eventDataService = new EventDataService()
   const attendanceService = new AttendanceService()
+  const crmService = new CrmService()
 
   // Client
   const client = new CustomClient({
@@ -96,8 +117,7 @@ async function start(): Promise<void> {
   // Service account used by /grant-access to manage Google Group membership.
   const googleGroupsService = new GoogleGroupsService(
     process.env.GOOGLE_CALENDAR_CREDENTIALS ?? process.env.GOOGLE_APPLICATION_CREDENTIALS,
-    process.env.GOOGLE_WORKSPACE_ADMIN_SUBJECT ??
-      process.env.GOOGLE_CALENDAR_IMPERSONATION_SUBJECT,
+    process.env.GOOGLE_WORKSPACE_ADMIN_SUBJECT ?? process.env.GOOGLE_CALENDAR_IMPERSONATION_SUBJECT,
   )
   if (!googleGroupsService.isConfigured()) {
     Logger.warn(
@@ -129,7 +149,7 @@ async function start(): Promise<void> {
     new PragPapersCommand(),
     new CensusCommand(),
     new AttendanceCommand(),
-    new AttendanceTrackCommand(attendanceService),
+    new AttendanceTrackCommand(attendanceService, crmService),
     new GrantAccessCommand(googleGroupsService, userService),
     new LinkAccountCommand(userService),
 
@@ -170,7 +190,7 @@ async function start(): Promise<void> {
   const messageHandler = new MessageHandler(triggerHandler)
   const reactionHandler = new ReactionHandler(reactions, eventDataService)
   const guildScheduledEventHandler = new GuildScheduledEventHandler(googleCalendarService)
-  const voiceStateUpdateHandler = new VoiceStateUpdateHandler(attendanceService, client)
+  const voiceStateUpdateHandler = new VoiceStateUpdateHandler(attendanceService, crmService, client)
 
   // Jobs
   // Google Calendar sync jobs temporarily disabled (see ImmediateSyncDggpGoogleCalendarJob, SyncDggpGoogleCalendarJob).
@@ -196,25 +216,6 @@ async function start(): Promise<void> {
     new JobService(jobs),
     voiceStateUpdateHandler,
   )
-
-  // Register
-  if (process.argv[2] == 'commands') {
-    try {
-      const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN)
-      const commandRegistrationService = new CommandRegistrationService(rest)
-      const localCmds = [
-        ...Object.values(ChatCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
-        ...Object.values(MessageCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
-        ...Object.values(UserCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
-      ]
-      await commandRegistrationService.process(localCmds, process.argv)
-    } catch (error) {
-      Logger.error(Logs.error.commandAction, error)
-    }
-    // Wait for any final logs to be written.
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    process.exit()
-  }
 
   await bot.start()
 }
