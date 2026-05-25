@@ -13,12 +13,7 @@ import { type Integration, PragmaticPapersIntegration } from './integrations/ind
 import { type Job } from './jobs/index.js'
 import { Api } from './models/api.js'
 import { Manager } from './models/manager.js'
-import {
-  HttpService,
-  JobService,
-  Logger,
-  MasterApiService,
-} from './services/index.js'
+import { HttpService, JobService, Logger, MasterApiService } from './services/index.js'
 import { MathUtils, ShardUtils } from './utils/index.js'
 
 const require = createRequire(import.meta.url)

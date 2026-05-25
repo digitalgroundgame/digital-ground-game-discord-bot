@@ -14,8 +14,4 @@ export {
   GrantAccessAllowedRoleKeys,
   getGoogleGroupAddress,
 } from './google-groups.js'
-export {
-  type LinkableAccount,
-  LinkableAccounts,
-  getLinkableAccount,
-} from './linkable-accounts.js'
+export { type LinkableAccount, LinkableAccounts, getLinkableAccount } from './linkable-accounts.js'
