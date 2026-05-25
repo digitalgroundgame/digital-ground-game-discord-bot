@@ -116,7 +116,7 @@
     "// NOTE": "Maps a /grant-access team shortname to the Google Group address in the Workspace account.",
     "allowedRoleKeys": ["COORDINATOR"],
     "groups": {
-      "Media Team": "media@derrickfarris.com"
+      "Dev Team": "dev-team@digitalgroundgame.org"
     }
   },
   "roles": {
