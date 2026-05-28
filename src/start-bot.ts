@@ -127,7 +127,7 @@ async function start(): Promise<void> {
   // Stores the external accounts members link via /link-account, and is read
   // by /grant-access to resolve a member's Google email.
   let userService: UserService | undefined
-  if (process.env.DATABASE_URL) {
+  if (process.env.SQLITE_PATH) {
     try {
       userService = new UserService(createDatabase())
     } catch (error) {

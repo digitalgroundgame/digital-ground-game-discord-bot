@@ -1,14 +1,16 @@
-import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
-import pg from 'pg'
+import Sqlite from 'better-sqlite3'
+import { type BetterSQLite3Database, drizzle } from 'drizzle-orm/better-sqlite3'
 
 import * as schema from './schema.js'
 
-export type Database = NodePgDatabase<typeof schema>
+export type Database = BetterSQLite3Database<typeof schema>
 
-export function createDatabase(connectionString = process.env.DATABASE_URL): Database {
-  if (!connectionString) {
-    throw new Error('DATABASE_URL is not set')
+export function createDatabase(filename = process.env.SQLITE_PATH): Database {
+  if (!filename) {
+    throw new Error('SQLITE_PATH is not set')
   }
-  const pool = new pg.Pool({ connectionString })
-  return drizzle(pool, { schema })
+  const sqlite = new Sqlite(filename)
+  sqlite.pragma('journal_mode = WAL')
+  sqlite.pragma('foreign_keys = ON')
+  return drizzle(sqlite, { schema })
 }

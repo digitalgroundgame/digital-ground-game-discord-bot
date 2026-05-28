@@ -34,13 +34,14 @@ export class UserService {
     account: LinkAccountInput,
   ): Promise<void> {
     const now = new Date()
-    await this.db.transaction(async (tx) => {
-      await tx
+    this.db.transaction((tx) => {
+      tx
         .insert(user)
         .values({ discordUserId, createdAt: now, updatedAt: now })
         .onConflictDoUpdate({ target: user.discordUserId, set: { updatedAt: now } })
+        .run()
 
-      await tx
+      tx
         .insert(linkedAccount)
         .values({
           discordUserId,
@@ -61,6 +62,7 @@ export class UserService {
             updatedAt: now,
           },
         })
+        .run()
     })
     Logger.info(
       `User link: ${discordUserId} → ${provider} (${account.email ?? account.externalId})`,

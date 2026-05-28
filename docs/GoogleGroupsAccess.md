@@ -14,7 +14,7 @@ Google Workspace groups:
 
 | Piece | Required by |
 | --- | --- |
-| Postgres database (`DATABASE_URL`) | `/link-account`, `/grant-access` |
+| SQLite database (`SQLITE_PATH`) | `/link-account`, `/grant-access` |
 | Service account JSON key with Domain-Wide Delegation | `/grant-access` |
 | A Workspace admin to impersonate | `/grant-access` |
 | Admin SDK API + Groups Settings API enabled on the project | `/grant-access` |
@@ -87,9 +87,9 @@ GOOGLE_APPLICATION_CREDENTIALS=/secrets/dggp-service-account.json
 # role, you can leave this unset.
 GOOGLE_WORKSPACE_ADMIN_SUBJECT=admin@your-domain.org
 
-# Postgres URL — required for /link-account to store linked accounts and
-# for /grant-access to read them back.
-DATABASE_URL=postgres://user:pass@host:5432/dbname
+# SQLite database file — required for /link-account to store linked accounts
+# and for /grant-access to read them back.
+SQLITE_PATH=./data/dggac.sqlite
 ```
 
 ### Calendar sync env vars (referenced above for fallback)

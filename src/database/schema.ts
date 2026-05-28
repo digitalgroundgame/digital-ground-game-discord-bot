@@ -1,13 +1,19 @@
-import { pgEnum, pgTable, serial, timestamp, uniqueIndex, varchar } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
+import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 /** External account providers a Discord user can link. Add new services here. */
-export const accountProvider = pgEnum('account_provider', ['google'])
+export const ACCOUNT_PROVIDERS = ['google'] as const
+export type AccountProvider = (typeof ACCOUNT_PROVIDERS)[number]
 
 /** A Discord member known to the bot. */
-export const user = pgTable('user', {
-  discordUserId: varchar('discord_user_id', { length: 20 }).primaryKey(),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+export const user = sqliteTable('user', {
+  discordUserId: text('discord_user_id').primaryKey(),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
 })
 
 /**
@@ -17,19 +23,23 @@ export const user = pgTable('user', {
  * - `externalId` is the provider's stable identifier (for Google, the account email).
  * - `email` / `displayName` are nullable — not every provider supplies both.
  */
-export const linkedAccount = pgTable(
+export const linkedAccount = sqliteTable(
   'linked_account',
   {
-    id: serial('id').primaryKey(),
-    discordUserId: varchar('discord_user_id', { length: 20 })
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    discordUserId: text('discord_user_id')
       .notNull()
       .references(() => user.discordUserId, { onDelete: 'cascade' }),
-    provider: accountProvider('provider').notNull(),
-    externalId: varchar('external_id', { length: 255 }).notNull(),
-    email: varchar('email', { length: 320 }),
-    displayName: varchar('display_name', { length: 255 }),
-    linkedAt: timestamp('linked_at', { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    provider: text('provider', { enum: ACCOUNT_PROVIDERS }).notNull(),
+    externalId: text('external_id').notNull(),
+    email: text('email'),
+    displayName: text('display_name'),
+    linkedAt: integer('linked_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
   },
   (t) => [
     // One account per provider per user; re-linking upserts the same row.
@@ -39,7 +49,6 @@ export const linkedAccount = pgTable(
   ],
 )
 
-export type AccountProvider = (typeof accountProvider.enumValues)[number]
 export type User = typeof user.$inferSelect
 export type NewUser = typeof user.$inferInsert
 export type LinkedAccount = typeof linkedAccount.$inferSelect
