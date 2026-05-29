@@ -35,14 +35,12 @@ export class UserService {
   ): Promise<void> {
     const now = new Date()
     this.db.transaction((tx) => {
-      tx
-        .insert(user)
+      tx.insert(user)
         .values({ discordUserId, createdAt: now, updatedAt: now })
         .onConflictDoUpdate({ target: user.discordUserId, set: { updatedAt: now } })
         .run()
 
-      tx
-        .insert(linkedAccount)
+      tx.insert(linkedAccount)
         .values({
           discordUserId,
           provider,
