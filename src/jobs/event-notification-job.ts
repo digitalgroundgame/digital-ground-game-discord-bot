@@ -39,7 +39,7 @@ export class EventNotificationJob extends Job {
     // Locate the notifications channel
     const channel = guild.channels.cache.get(this.notificationChannelId) as TextChannel
     if (!channel) {
-      Logger.error(`Event Notifications: Notification channel not found`)
+      Logger.error(`Event Notifications: Notification channel (${this.notificationChannelId}) not found`)
       return
     }
 
@@ -48,17 +48,20 @@ export class EventNotificationJob extends Job {
     try {
         events = await guild.scheduledEvents.fetch()
     } catch (error) {
-        Logger.error(`Event Notifications: Failed to fetch scheduled events for guild`)
+        Logger.error(`Event Notifications: Failed to fetch scheduled events for guild:\n${error}`)
         return
     }
 
-    // Define the time window
+    // Define the current wake's scan window
+    // NOTE: This assumes we actually woke a minute ago!
     const now = new Date()
-    const prev = new Date(now.getTime() - 60_000)
+    const prev = new Date(now.getTime() - (60 * 1000))
 
     for (const [, event] of events) {
+      // Ignore if the event has no start timestamp
       if (!event.scheduledStartTimestamp) continue
 
+      // Ignore if the event is not within its target notification window
       if (!this.doesEventNeedNotification(event, prev, now)) continue
 
       Logger.info(`Event Notifications: Triggering notification for "${event.name}"`)
@@ -69,7 +72,7 @@ export class EventNotificationJob extends Job {
         // TODO: This will break if we expect 100+ interested users for an event
         users = await event.fetchSubscribers({ limit: 100 })
       } catch (err) {
-        Logger.error(`Event Notifications: Failed to fetch subscribers for event ${event.name}`)
+        Logger.error(`Event Notifications: Failed to fetch subscribers for event ${event.name}\n${err}`)
         continue
       }
 
@@ -83,7 +86,7 @@ export class EventNotificationJob extends Job {
       try {
         await channel.send({ content: message })
       } catch (err) {
-        Logger.error(`Event Notifications: Failed to send notification message`)
+        Logger.error(`Event Notifications: Failed to send notification message\n${err}`)
       }
     }
   }
@@ -94,7 +97,7 @@ export class EventNotificationJob extends Job {
     now: Date
   ): boolean {
     // Define the notifiation window
-    const notifyOffsetMs = this.notificationTimeMins * 60_000
+    const notifyOffsetMs = this.notificationTimeMins * 60 * 1000
     const notifyTime = new Date(event.scheduledStartTimestamp! - notifyOffsetMs)
 
     // Return the status of whether we're in the notification window
