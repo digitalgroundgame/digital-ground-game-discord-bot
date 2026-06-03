@@ -10,7 +10,7 @@ const require = createRequire(import.meta.url)
 const Config = require('../../config/config.json')
 
 /**
- * Job that monitors scheduled events and fires off notifications in the 
+ * Job that monitors scheduled events and fires off notifications in the
  * specified channel to alert users of upcoming events.
  */
 export class EventNotificationJob extends Job {
@@ -21,7 +21,8 @@ export class EventNotificationJob extends Job {
   public override initialDelaySecs: number = Config.jobs.eventNotifications?.initialDelaySecs ?? 120
 
   public notificationTimeMins: number = Config.jobs.eventNotifications?.notificationTimeMins ?? 15
-  public notificationChannelId: string = Config.jobs.eventNotifications?.notificationsChannelId ?? null 
+  public notificationChannelId: string =
+    Config.jobs.eventNotifications?.notificationsChannelId ?? null
 
   constructor(private client: Client) {
     super()
@@ -32,24 +33,33 @@ export class EventNotificationJob extends Job {
     const guildId = process.env.DISCORD_GUILD_ID
     const guild = this.client.guilds.cache.find((g) => g.id === guildId)
     if (!guild) {
-        Logger.info(`Event Notifications: guild "${guildId}" not in cache; skipping run`)
-        return
+      Logger.info(`Event Notifications: guild "${guildId}" not in cache; skipping run`)
+      return
     }
 
     // Locate the notifications channel
     const channel = guild.channels.cache.get(this.notificationChannelId) as TextChannel
     if (!channel) {
+<<<<<<< HEAD
       Logger.error(`Event Notifications: Notification channel (${this.notificationChannelId}) not found`)
+=======
+      Logger.error('Event Notifications: Notification channel not found')
+>>>>>>> 73ae0785e450401e0350d9d2ab0000d6f1614018
       return
     }
 
     // Fetch the events
     let events
     try {
-        events = await guild.scheduledEvents.fetch()
+      events = await guild.scheduledEvents.fetch()
     } catch (error) {
+<<<<<<< HEAD
         Logger.error(`Event Notifications: Failed to fetch scheduled events for guild:\n${error}`)
         return
+=======
+      Logger.error('Event Notifications: Failed to fetch scheduled events for guild')
+      return
+>>>>>>> 73ae0785e450401e0350d9d2ab0000d6f1614018
     }
 
     // Define the current wake's scan window
@@ -79,23 +89,23 @@ export class EventNotificationJob extends Job {
       if (!users || users.size === 0) continue
 
       // Prepare the message with all interested user @s
-      const mentions = users.map(u => `<@${u.user.id}>`).join(' ')
+      const mentions = users.map((u) => `<@${u.user.id}>`).join(' ')
       const message = `${mentions}\n**${event.name}** starts in ${this.notificationTimeMins} minutes!`
 
       // Send the notification message
       try {
         await channel.send({ content: message })
       } catch (err) {
+<<<<<<< HEAD
         Logger.error(`Event Notifications: Failed to send notification message\n${err}`)
+=======
+        Logger.error('Event Notifications: Failed to send notification message')
+>>>>>>> 73ae0785e450401e0350d9d2ab0000d6f1614018
       }
     }
   }
 
-  private doesEventNeedNotification(
-    event: GuildScheduledEvent,
-    prev: Date,
-    now: Date
-  ): boolean {
+  private doesEventNeedNotification(event: GuildScheduledEvent, prev: Date, now: Date): boolean {
     // Define the notifiation window
     const notifyOffsetMs = this.notificationTimeMins * 60 * 1000
     const notifyTime = new Date(event.scheduledStartTimestamp! - notifyOffsetMs)
@@ -103,5 +113,4 @@ export class EventNotificationJob extends Job {
     // Return the status of whether we're in the notification window
     return prev < notifyTime && now >= notifyTime
   }
-
 }
