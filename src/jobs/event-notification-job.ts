@@ -40,7 +40,9 @@ export class EventNotificationJob extends Job {
     // Locate the notifications channel
     const channel = guild.channels.cache.get(this.notificationChannelId) as TextChannel
     if (!channel) {
-      Logger.error(`Event Notifications: Notification channel (${this.notificationChannelId}) not found`)
+      Logger.error(
+        `Event Notifications: Notification channel (${this.notificationChannelId}) not found`,
+      )
       return
     }
 
@@ -49,14 +51,14 @@ export class EventNotificationJob extends Job {
     try {
       events = await guild.scheduledEvents.fetch()
     } catch (error) {
-        Logger.error(`Event Notifications: Failed to fetch scheduled events for guild:\n${error}`)
-        return
+      Logger.error(`Event Notifications: Failed to fetch scheduled events for guild:\n${error}`)
+      return
     }
 
     // Define the current wake's scan window
     // NOTE: This assumes we actually woke a minute ago!
     const now = new Date()
-    const prev = new Date(now.getTime() - (60 * 1000))
+    const prev = new Date(now.getTime() - 60 * 1000)
 
     for (const [, event] of events) {
       // Ignore if the event has no start timestamp
@@ -73,7 +75,9 @@ export class EventNotificationJob extends Job {
         // TODO: This will break if we expect 100+ interested users for an event
         users = await event.fetchSubscribers({ limit: 100 })
       } catch (err) {
-        Logger.error(`Event Notifications: Failed to fetch subscribers for event ${event.name}\n${err}`)
+        Logger.error(
+          `Event Notifications: Failed to fetch subscribers for event ${event.name}\n${err}`,
+        )
         continue
       }
 
