@@ -40,11 +40,7 @@ export class EventNotificationJob extends Job {
     // Locate the notifications channel
     const channel = guild.channels.cache.get(this.notificationChannelId) as TextChannel
     if (!channel) {
-<<<<<<< HEAD
       Logger.error(`Event Notifications: Notification channel (${this.notificationChannelId}) not found`)
-=======
-      Logger.error('Event Notifications: Notification channel not found')
->>>>>>> 73ae0785e450401e0350d9d2ab0000d6f1614018
       return
     }
 
@@ -53,13 +49,8 @@ export class EventNotificationJob extends Job {
     try {
       events = await guild.scheduledEvents.fetch()
     } catch (error) {
-<<<<<<< HEAD
         Logger.error(`Event Notifications: Failed to fetch scheduled events for guild:\n${error}`)
         return
-=======
-      Logger.error('Event Notifications: Failed to fetch scheduled events for guild')
-      return
->>>>>>> 73ae0785e450401e0350d9d2ab0000d6f1614018
     }
 
     // Define the current wake's scan window
@@ -96,11 +87,7 @@ export class EventNotificationJob extends Job {
       try {
         await channel.send({ content: message })
       } catch (err) {
-<<<<<<< HEAD
         Logger.error(`Event Notifications: Failed to send notification message\n${err}`)
-=======
-        Logger.error('Event Notifications: Failed to send notification message')
->>>>>>> 73ae0785e450401e0350d9d2ab0000d6f1614018
       }
     }
   }
