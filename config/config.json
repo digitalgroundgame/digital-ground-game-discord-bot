@@ -112,6 +112,25 @@
     "maxWelcomeTeamMembers": 4,
     "inactivityDays": 2
   },
+  "grantAccess": {
+    "// NOTE": "Maps a /grant-access team shortname to the Google Group address in the Workspace account.",
+    "allowedRoleKeys": ["COORDINATOR"],
+    "groups": {
+      "Event Team": "event-team@digitalgroundgame.org",
+      "Media Team": "media-team@digitalgroundgame.org",
+      "Moderation Team": "moderation-team@digitalgroundgame.org",
+      "Research Team": "research-team@digitalgroundgame.org",
+      "Outreach Team": "outreach-team@digitalgroundgame.org",
+      "Welcome Team": "welcome-team@digitalgroundgame.org",
+      "Dev Team": "dev-team@digitalgroundgame.org",
+      "Pragmatic Papers Team": "pragmatic-papers-team@digitalgroundgame.org",
+      "International Squad": "international-squad@digitalgroundgame.org",
+      "Midwest Squad": "midwest-squad@digitalgroundgame.org",
+      "Northeast Squad": "northeast-squad@digitalgroundgame.org",
+      "South Squad": "south-squad@digitalgroundgame.org",
+      "West Squad": "west-squad@digitalgroundgame.org"
+    }
+  },
   "roles": {
     "COORDINATOR": {
       "id": "1347653968641134683",

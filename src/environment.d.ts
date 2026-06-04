@@ -6,6 +6,7 @@ declare global {
       DISCORD_BOT_API_SECRET: string
       DISCORD_BOT_MASTER_API_TOKEN: string
       DISCORD_BOT_DEVELOPER_IDS: string // comma-separated list of Discord user IDs
+      SQLITE_PATH: string
       NODE_ENV: 'development' | 'production' | 'test'
     }
   }

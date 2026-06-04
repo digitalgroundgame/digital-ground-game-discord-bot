@@ -3,6 +3,7 @@
 # =====================================================
 /dist
 /temp
+/data/**
 
 /config/bot-sites.json
 /config/debug.json

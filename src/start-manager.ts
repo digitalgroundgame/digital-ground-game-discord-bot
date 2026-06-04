@@ -3,6 +3,7 @@ import { createRequire } from 'node:module'
 import 'reflect-metadata'
 
 import {
+  type Controller,
   GuildsController,
   IntegrationsController,
   RootController,
@@ -79,7 +80,15 @@ async function start(): Promise<void> {
   const rootController = new RootController()
   const integrations: Integration[] = [new PragmaticPapersIntegration()]
   const integrationsController = new IntegrationsController(integrations, shardManager)
-  const api = new Api([guildsController, shardsController, integrationsController, rootController])
+
+  const controllers: Controller[] = [
+    guildsController,
+    shardsController,
+    integrationsController,
+    rootController,
+  ]
+
+  const api = new Api(controllers)
 
   // Start
   await manager.start()

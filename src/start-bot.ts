@@ -3,24 +3,28 @@ import { Options, Partials } from 'discord.js'
 import { createRequire } from 'node:module'
 
 import { type Button } from './buttons/index.js'
+import { runCalendarSyncCli } from './calendar-sync-cli.js'
 import {
+  AttendanceCommand,
+  AttendanceTrackCommand,
+  CensusCommand,
   DevCommand,
+  GrantAccessCommand,
   HelpCommand,
   InfoCommand,
+  LinkAccountCommand,
   PragPapersCommand,
   RulesCommand,
   TestCommand,
-  CensusCommand,
-  AttendanceCommand,
-  AttendanceTrackCommand,
 } from './commands/chat/index.js'
 import {
   ChatCommandMetadata,
-  type Command,
   MessageCommandMetadata,
   UserCommandMetadata,
+  type Command,
 } from './commands/index.js'
-import { SendOnboarding, ONBOARDING_CONFIGS } from './commands/user/index.js'
+import { ONBOARDING_CONFIGS, SendOnboarding } from './commands/user/index.js'
+import { createDatabase } from './database/index.js'
 import {
   ButtonHandler,
   CommandHandler,
@@ -49,12 +53,13 @@ import {
   CrmService,
   EventDataService,
   GoogleCalendarService,
+  GoogleGroupsService,
   JobService,
   Logger,
+  UserService,
 } from './services/index.js'
-import { type Trigger } from './triggers/index.js'
 import { CTAPostTrigger } from './triggers/cta-post.js'
-import { runCalendarSyncCli } from './calendar-sync-cli.js'
+import { type Trigger } from './triggers/index.js'
 
 const require = createRequire(import.meta.url)
 const Config = require('../config/config.json')
@@ -109,6 +114,30 @@ async function start(): Promise<void> {
     enforceNonce: true,
   })
 
+  // Service account used by /grant-access to manage Google Group membership.
+  const googleGroupsService = new GoogleGroupsService(
+    process.env.GOOGLE_CALENDAR_CREDENTIALS ?? process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    process.env.GOOGLE_WORKSPACE_ADMIN_SUBJECT ?? process.env.GOOGLE_CALENDAR_IMPERSONATION_SUBJECT,
+  )
+  if (!googleGroupsService.isConfigured()) {
+    Logger.warn(
+      '/grant-access: disabled — set GOOGLE_APPLICATION_CREDENTIALS (or GOOGLE_CALENDAR_CREDENTIALS) and GOOGLE_WORKSPACE_ADMIN_SUBJECT (or GOOGLE_CALENDAR_IMPERSONATION_SUBJECT) — the Workspace admin email the service account impersonates. /link-account remains available.',
+    )
+  }
+  // Stores the external accounts members link via /link-account, and is read
+  // by /grant-access to resolve a member's Google email.
+  let userService: UserService | undefined
+  if (process.env.SQLITE_PATH) {
+    try {
+      userService = new UserService(createDatabase())
+    } catch (error) {
+      Logger.error(
+        'Failed to initialize the database; /link-account and /grant-access will be unavailable.',
+        error,
+      )
+    }
+  }
+
   // Commands
   const commands: Command[] = [
     // Chat Commands
@@ -121,6 +150,8 @@ async function start(): Promise<void> {
     new CensusCommand(),
     new AttendanceCommand(),
     new AttendanceTrackCommand(attendanceService, crmService),
+    new GrantAccessCommand(googleGroupsService, userService),
+    new LinkAccountCommand(userService),
 
     // User Context Commands
     ...ONBOARDING_CONFIGS.map((config) => new SendOnboarding(config)),
