@@ -157,6 +157,73 @@
       },
       "attendancePermissionCheckFailed": {
         "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ Couldn't reach the CRM to verify your permissions, so attendance won't be synced — I'll DM you the list when you leave."
+      },
+      "grantAccessAdded": {
+        "description": "{{USER}} was added to the **{{TEAM_LABEL}}** Google Group."
+      },
+      "grantAccessAlreadyMember": {
+        "description": "{{USER}} is already a member of the **{{TEAM_LABEL}}** Google Group."
+      },
+      "grantAccessFailed": {
+        "description": "Couldn't add {{USER}} to the **{{TEAM_LABEL}}** team. Please try again or contact an administrator.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "grantAccessNotLinked": {
+        "description": "{{USER}} hasn't linked a Google account yet. Have them run `/link-account`, or run `/link-account` with their `user` to link it for them.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "grantAccessUnknownService": {
+        "description": "Unsupported service `{{SERVICE}}`.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "grantAccessUnknownTeam": {
+        "description": "Unknown team `{{TEAM}}`. No matching Google Group is configured.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "grantAccessNotConfigured": {
+        "description": "Google group management isn't configured on this bot. The service account credentials and database connection must be set.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "linkAccountSuccess": {
+        "description": "Linked **{{IDENTIFIER}}** as {{SUBJECT}} {{SERVICE}} account."
+      },
+      "linkAccountAnnounce": {
+        "description": "{{USER}}'s **{{SERVICE}}** account was linked."
+      },
+      "linkAccountUnchanged": {
+        "description": "**{{IDENTIFIER}}** is already linked as {{SUBJECT}} {{SERVICE}} account — nothing to change."
+      },
+      "linkAccountConfirm": {
+        "title": "Replace linked {{SERVICE}} account?",
+        "description": [
+          "Are you sure you want to replace {{SUBJECT}} old {{SERVICE}} account **{{OLD}}** with **{{NEW}}**?",
+          "",
+          "Press **Replace** to confirm, or **Cancel** to keep the current account."
+        ],
+        "color": "{{COM:colors.warning}}"
+      },
+      "linkAccountCancelled": {
+        "description": "Cancelled — {{SUBJECT}} {{SERVICE}} account was not changed."
+      },
+      "linkAccountInvalid": {
+        "description": "`{{VALUE}}` doesn't look like a valid {{SERVICE}} identifier. Run the command again to retry.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "linkAccountTimedOut": {
+        "description": "This account-linking session timed out. Run `/link-account` again when you're ready.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "linkAccountNoPermission": {
+        "description": "You don't have permission to link an account for another member.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "linkAccountNotConfigured": {
+        "description": "Account linking isn't configured on this bot. The database connection must be set.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "linkAccountFailed": {
+        "description": "Something went wrong saving the account link. Please try again or contact an administrator.",
+        "color": "{{COM:colors.warning}}"
       }
     },
     "validationEmbeds": {
@@ -245,7 +312,9 @@
       "pragPapers": "prag-papers",
       "census": "census",
       "attendance": "attendance",
-      "attendanceTrack": "attendance-track"
+      "attendanceTrack": "attendance-track",
+      "grantAccess": "grant-access",
+      "linkAccount": "link-account"
     },
     "userCommands": {
       "sendDevOnboarding": "Send Dev Onboarding",
@@ -259,7 +328,11 @@
       "command": "command",
       "option": "option",
       "ruleNumber": "rulenumber",
-      "attendanceEventName": "name"
+      "attendanceEventName": "name",
+      "service": "service",
+      "team": "team",
+      "user": "user",
+      "identifier": "identifier"
     },
     "commandDescs": {
       "dev": "Developer use only.",
@@ -270,14 +343,22 @@
       "pragPapers": "Gives a link to the Pragmatic Papers website.",
       "census": "Gives a link to the Census form.",
       "attendance": "DMs you a snapshot list of everyone currently in your voice channel.",
-      "attendanceTrack": "Tracks who is in your voice channel and DMs you the same formatted list when you leave."
+      "attendanceTrack": "Tracks who is in your voice channel and DMs you the same formatted list when you leave.",
+      "grantAccess": "Grant a member access to a team's service (e.g. a Google Group).",
+      "linkAccount": "Link an external account (e.g. your Google email) to a Discord profile."
     },
     "argDescs": {
       "devCommand": "Command.",
       "helpOption": "Option.",
       "infoOption": "Option.",
       "ruleNumber": "Rule number.",
-      "attendanceEventName": "Override the default event name (scheduled-event name, or channel + start time)."
+      "attendanceEventName": "Override the default event name (scheduled-event name, or channel + start time).",
+      "grantAccessService": "The service to grant access to.",
+      "grantAccessTeam": "The team whose service the member should be added to.",
+      "grantAccessUser": "The member to grant access to.",
+      "linkAccountService": "The service to link an account for.",
+      "linkAccountIdentifier": "The account identifier (e.g. a Google email address).",
+      "linkAccountUser": "Coordinators only: the member to link an account for (defaults to you)."
     },
     "fields": {
       "commands": "Commands",

@@ -117,6 +117,52 @@ export const ChatCommandMetadata: {
     default_member_permissions: undefined,
     options: [Args.ATTENDANCE_TRACK_NAME],
   },
+  GRANT_ACCESS: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.grantAccess', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.grantAccess'),
+    description: Lang.getRef('commandDescs.grantAccess', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.grantAccess'),
+    dm_permission: false,
+    default_member_permissions: undefined,
+    options: [
+      {
+        ...Args.GRANT_ACCESS_SERVICE,
+        required: true,
+      },
+      {
+        ...Args.GRANT_ACCESS_TEAM,
+        required: true,
+      },
+      {
+        ...Args.GRANT_ACCESS_USER,
+        required: true,
+      },
+    ],
+  },
+  LINK_ACCOUNT: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.linkAccount', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.linkAccount'),
+    description: Lang.getRef('commandDescs.linkAccount', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.linkAccount'),
+    dm_permission: false,
+    default_member_permissions: undefined,
+    options: [
+      {
+        ...Args.LINK_ACCOUNT_SERVICE,
+        required: true,
+      },
+      {
+        ...Args.LINK_ACCOUNT_IDENTIFIER,
+        required: true,
+      },
+      {
+        ...Args.LINK_ACCOUNT_USER,
+        required: false,
+      },
+    ],
+  },
 }
 
 export const MessageCommandMetadata: {

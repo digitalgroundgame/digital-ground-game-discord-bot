@@ -4,6 +4,7 @@ import { DevCommandName, HelpOption, InfoOption } from '../enums/index.js'
 import { Language } from '../models/enum-helpers/index.js'
 import { Lang } from '../services/index.js'
 import { Rules } from '../constants/rules.js'
+import { GoogleGroups, LinkableAccounts } from '../constants/index.js'
 
 export class Args {
   public static readonly DEV_COMMAND: APIApplicationCommandBasicOption = {
@@ -57,6 +58,60 @@ export class Args {
         value: InfoOption.TRANSLATE,
       },
     ],
+  }
+  public static readonly GRANT_ACCESS_SERVICE: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.service', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.service'),
+    description: Lang.getRef('argDescs.grantAccessService', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.grantAccessService'),
+    type: ApplicationCommandOptionType.String,
+    choices: LinkableAccounts.map((account) => ({
+      name: account.label,
+      value: account.provider,
+    })),
+  }
+  public static readonly GRANT_ACCESS_TEAM: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.team', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.team'),
+    description: Lang.getRef('argDescs.grantAccessTeam', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.grantAccessTeam'),
+    type: ApplicationCommandOptionType.String,
+    choices: Object.keys(GoogleGroups).map((shortname) => ({
+      name: shortname,
+      value: shortname,
+    })),
+  }
+  public static readonly GRANT_ACCESS_USER: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.user', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.user'),
+    description: Lang.getRef('argDescs.grantAccessUser', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.grantAccessUser'),
+    type: ApplicationCommandOptionType.User,
+  }
+  public static readonly LINK_ACCOUNT_SERVICE: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.service', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.service'),
+    description: Lang.getRef('argDescs.linkAccountService', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.linkAccountService'),
+    type: ApplicationCommandOptionType.String,
+    choices: LinkableAccounts.map((account) => ({
+      name: account.label,
+      value: account.provider,
+    })),
+  }
+  public static readonly LINK_ACCOUNT_IDENTIFIER: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.identifier', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.identifier'),
+    description: Lang.getRef('argDescs.linkAccountIdentifier', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.linkAccountIdentifier'),
+    type: ApplicationCommandOptionType.String,
+  }
+  public static readonly LINK_ACCOUNT_USER: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.user', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.user'),
+    description: Lang.getRef('argDescs.linkAccountUser', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.linkAccountUser'),
+    type: ApplicationCommandOptionType.User,
   }
   public static readonly RULES_OPTIION: APIApplicationCommandBasicOption = {
     name: Lang.getRef('arguments.ruleNumber', Language.Default),
