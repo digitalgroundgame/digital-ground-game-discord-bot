@@ -19,12 +19,9 @@ export const user = sqliteTable('user', {
 /** A Discord scheduled event known to the server. */
 export const scheduledEventTable = sqliteTable('scheduled_event', {
   id: text('id').primaryKey(),
-  name: text("name")
-    .notNull(),
-  startTime: integer('start_time', { mode: 'timestamp' })
-    .notNull(),
-  hasSentNotification: integer('has_sent_notification', { mode: 'boolean' })
-    .notNull()
+  name: text('name').notNull(),
+  startTime: integer('start_time', { mode: 'timestamp' }).notNull(),
+  hasSentNotification: integer('has_sent_notification', { mode: 'boolean' }).notNull(),
 })
 
 /**

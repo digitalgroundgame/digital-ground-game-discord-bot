@@ -1,7 +1,7 @@
 import { Snowflake, type Client } from 'discord.js'
 import { createRequire } from 'node:module'
 
-import { ScheduledEvent } from '../database/schema.js' 
+import { ScheduledEvent } from '../database/schema.js'
 import { Job } from './job.js'
 import { Logger } from '../services/logger.js'
 
@@ -44,7 +44,7 @@ export class EventNotificationJob extends Job {
     // Check for any required notifications
     await this.checkAllEventsForNotifications(guild)
   }
-  
+
   private async syncScheduledEvents(guild: Guild) {
     // Fetch the events
     let events
@@ -59,10 +59,8 @@ export class EventNotificationJob extends Job {
     for (const [, event] of events) {
       // Attempt to fetch event from DB
       // TODO: eventService.getEvent(event.id)
-
       // If new, add the event
       // TODO: eventService.addEvent({...})
-
       // If existing, check for changes (update if needed)
       // TODO: eventService.updateEvent({...})
     }
@@ -114,7 +112,6 @@ export class EventNotificationJob extends Job {
         Logger.error(`Event Notifications: Failed to send notification message\n${err}`)
       }
     }
-
   }
 
   private doesEventNeedNotification(event: ScheduledEvent): boolean {
@@ -130,7 +127,7 @@ export class EventNotificationJob extends Job {
     // Fetch notification sent flag
     let hasSentNotification
     // TODO: eventService.getEvent(event.id)
-    
+
     // If notifyTimeDiffMs is within notification window && more than notifyOffsetMs && flag is set
     if (hasSentNotification && notifyTimeDiffMs > 0 && notifyTimeDiffMs > notifyOffsetMs) {
       // Clear the flag
