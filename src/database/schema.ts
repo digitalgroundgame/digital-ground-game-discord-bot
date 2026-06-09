@@ -16,6 +16,17 @@ export const user = sqliteTable('user', {
     .default(sql`(unixepoch())`),
 })
 
+/** A Discord scheduled event known to the server. */
+export const scheduledEventTable = sqliteTable('scheduled_event', {
+  id: text('id').primaryKey(),
+  name: text("name")
+    .notNull(),
+  startTime: integer('start_time', { mode: 'timestamp' })
+    .notNull(),
+  hasSentNotification: integer('has_sent_notification', { mode: 'boolean' })
+    .notNull()
+})
+
 /**
  * An external account a Discord user has linked via `/link-account`.
  * One row per (user, provider).
@@ -53,3 +64,4 @@ export type User = typeof user.$inferSelect
 export type NewUser = typeof user.$inferInsert
 export type LinkedAccount = typeof linkedAccount.$inferSelect
 export type NewLinkedAccount = typeof linkedAccount.$inferInsert
+export type ScheduledEvent = typeof scheduledEventTable.$inferSelect

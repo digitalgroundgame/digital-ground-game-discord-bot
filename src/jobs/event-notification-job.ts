@@ -1,10 +1,11 @@
-import { type Client } from 'discord.js'
+import { Snowflake, type Client } from 'discord.js'
 import { createRequire } from 'node:module'
 
+import { ScheduledEvent } from '../database/schema.js' 
 import { Job } from './job.js'
 import { Logger } from '../services/logger.js'
 
-import { TextChannel, GuildScheduledEvent } from 'discord.js'
+import { TextChannel, GuildScheduledEvent, Guild, Collection } from 'discord.js'
 
 const require = createRequire(import.meta.url)
 const Config = require('../../config/config.json')
@@ -37,15 +38,14 @@ export class EventNotificationJob extends Job {
       return
     }
 
-    // Locate the notifications channel
-    const channel = guild.channels.cache.get(this.notificationChannelId) as TextChannel
-    if (!channel) {
-      Logger.error(
-        `Event Notifications: Notification channel (${this.notificationChannelId}) not found`,
-      )
-      return
-    }
+    // Sync current Discord server events with the DB
+    await this.syncScheduledEvents(guild)
 
+    // Check for any required notifications
+    await this.checkAllEventsForNotifications(guild)
+  }
+  
+  private async syncScheduledEvents(guild: Guild) {
     // Fetch the events
     let events
     try {
@@ -55,17 +55,36 @@ export class EventNotificationJob extends Job {
       return
     }
 
-    // Define the current wake's scan window
-    // NOTE: This assumes we actually woke a minute ago!
-    const now = new Date()
-    const prev = new Date(now.getTime() - 60 * 1000)
-
+    // Iterate over events
     for (const [, event] of events) {
-      // Ignore if the event has no start timestamp
-      if (!event.scheduledStartTimestamp) continue
+      // Attempt to fetch event from DB
+      // TODO: eventService.getEvent(event.id)
 
+      // If new, add the event
+      // TODO: eventService.addEvent({...})
+
+      // If existing, check for changes (update if needed)
+      // TODO: eventService.updateEvent({...})
+    }
+  }
+
+  private async checkAllEventsForNotifications(guild: Guild) {
+    // Locate the notifications channel
+    const channel = guild.channels.cache.get(this.notificationChannelId) as TextChannel
+    if (!channel) {
+      Logger.error(
+        `Event Notifications: Notification channel (${this.notificationChannelId}) not found`,
+      )
+      return
+    }
+
+    // Fetch the events to check from DB
+    let events // TODO: eventService.fetchScheduledEvents()
+
+    // Iterate over each event
+    for (const [, event] of events) {
       // Ignore if the event is not within its target notification window
-      if (!this.doesEventNeedNotification(event, prev, now)) continue
+      if (!this.doesEventNeedNotification(event)) continue
 
       Logger.info(`Event Notifications: Triggering notification for "${event.name}"`)
 
@@ -81,6 +100,7 @@ export class EventNotificationJob extends Job {
         continue
       }
 
+      // If no subs, skip it
       if (!users || users.size === 0) continue
 
       // Prepare the message with all interested user @s
@@ -94,14 +114,36 @@ export class EventNotificationJob extends Job {
         Logger.error(`Event Notifications: Failed to send notification message\n${err}`)
       }
     }
+
   }
 
-  private doesEventNeedNotification(event: GuildScheduledEvent, prev: Date, now: Date): boolean {
-    // Define the notifiation window
+  private doesEventNeedNotification(event: ScheduledEvent): boolean {
+    // Calculate the earliest allowable notification Date
     const notifyOffsetMs = this.notificationTimeMins * 60 * 1000
-    const notifyTime = new Date(event.scheduledStartTimestamp! - notifyOffsetMs)
+    const notifyTimeDiffMs = event.startTime.getTime() - Date.now() - notifyOffsetMs
 
-    // Return the status of whether we're in the notification window
-    return prev < notifyTime && now >= notifyTime
+    // If event has started, we can dip
+    if (notifyTimeDiffMs < 0) {
+      return false
+    }
+
+    // Fetch notification sent flag
+    let hasSentNotification
+    // TODO: eventService.getEvent(event.id)
+    
+    // If notifyTimeDiffMs is within notification window && more than notifyOffsetMs && flag is set
+    if (hasSentNotification && notifyTimeDiffMs > 0 && notifyTimeDiffMs > notifyOffsetMs) {
+      // Clear the flag
+      // TODO: eventService.updateEvent({...})
+    }
+
+    // If notifyTimeDiffMs is positive && less than notifyOffsetMs
+    if (notifyTimeDiffMs > 0 && notifyOffsetMs <= notifyOffsetMs) {
+      // Send notification
+      return true
+    }
+
+    // Otherwise its too early for a notification
+    return false
   }
 }
