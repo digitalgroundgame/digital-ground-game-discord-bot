@@ -1,5 +1,13 @@
 import { createRequire } from 'node:module'
 
+import {
+  DevOnboarding,
+  EventsOnboarding,
+  MediaOnboarding,
+  ResearchOnboarding,
+  WelcomeOnboarding,
+} from './onboarding.js'
+
 const require = createRequire(import.meta.url)
 const Config = require('../../config/config.json')
 
@@ -25,6 +33,11 @@ export interface ManagedContentEntry {
 
 export const ContentKeys = {
   WelcomeThread: 'welcome-thread',
+  OnboardingDev: 'onboarding-dev',
+  OnboardingEvents: 'onboarding-events',
+  OnboardingMedia: 'onboarding-media',
+  OnboardingResearch: 'onboarding-research',
+  OnboardingWelcome: 'onboarding-welcome',
 } as const
 
 const WELCOME_THREAD_MESSAGE = `
@@ -39,6 +52,27 @@ Activism work isn’t always easy, but we can make it easier by working together
 
 A Server Representative will be with you shortly.
 In the meantime, feel free to check out the FAQ, join the conversation, or hop into debate or movie night.`
+
+/** A team onboarding DM: an embed title plus its message body. */
+function onboardingEntry(
+  team: string,
+  defaults: { Title: string; Message: string },
+): ManagedContentEntry {
+  return {
+    label: `${team} Onboarding`,
+    description: `DMed by the "Send ${team} Onboarding" context menu command.`,
+    fields: [
+      { id: 'title', label: 'Title', style: 'short', maxLength: 256, default: defaults.Title },
+      {
+        id: 'message',
+        label: 'Message',
+        style: 'paragraph',
+        maxLength: 4000,
+        default: defaults.Message,
+      },
+    ],
+  }
+}
 
 /**
  * Registry of all runtime-editable content. The single source of truth for
@@ -59,6 +93,11 @@ export const ManagedContent: Record<string, ManagedContentEntry> = {
       },
     ],
   },
+  [ContentKeys.OnboardingDev]: onboardingEntry('Dev Team', DevOnboarding),
+  [ContentKeys.OnboardingEvents]: onboardingEntry('Events Team', EventsOnboarding),
+  [ContentKeys.OnboardingMedia]: onboardingEntry('Media Team', MediaOnboarding),
+  [ContentKeys.OnboardingResearch]: onboardingEntry('Research Team', ResearchOnboarding),
+  [ContentKeys.OnboardingWelcome]: onboardingEntry('Welcome Team', WelcomeOnboarding),
 }
 
 interface ManagedContentConfig {

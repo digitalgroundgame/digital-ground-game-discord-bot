@@ -162,7 +162,7 @@ async function start(): Promise<void> {
     new ContentCommand(contentService),
 
     // User Context Commands
-    ...ONBOARDING_CONFIGS.map((config) => new SendOnboarding(config)),
+    ...ONBOARDING_CONFIGS.map((config) => new SendOnboarding(config, contentService)),
   ]
 
   // Buttons
