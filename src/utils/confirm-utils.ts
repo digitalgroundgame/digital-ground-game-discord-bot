@@ -35,7 +35,10 @@ export class ConfirmUtils {
     const confirmId = `confirm-${intr.id}`
     const cancelId = `cancel-${intr.id}`
     const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId(confirmId).setLabel(confirmLabel).setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId(confirmId)
+        .setLabel(confirmLabel)
+        .setStyle(ButtonStyle.Danger),
       new ButtonBuilder().setCustomId(cancelId).setLabel('Cancel').setStyle(ButtonStyle.Secondary),
     )
 

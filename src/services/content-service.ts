@@ -105,7 +105,9 @@ export class ContentService {
           .run()
       }
     })
-    Logger.info(`Content override saved: ${key} (${Object.keys(values).join(', ')}) by ${updatedBy}`)
+    Logger.info(
+      `Content override saved: ${key} (${Object.keys(values).join(', ')}) by ${updatedBy}`,
+    )
   }
 
   /** Remove all overrides for a key, reverting it to registry defaults. */

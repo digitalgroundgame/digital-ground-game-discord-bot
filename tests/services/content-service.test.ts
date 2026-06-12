@@ -68,9 +68,7 @@ describe('ContentService', () => {
   it('merges overrides with defaults per field', async () => {
     // Overriding one field of a multi-field entry must not clobber the
     // defaults of the others.
-    const multiField = Object.entries(ManagedContent).find(
-      ([, entry]) => entry.fields.length > 1,
-    )
+    const multiField = Object.entries(ManagedContent).find(([, entry]) => entry.fields.length > 1)
     expect(multiField, 'registry must contain a multi-field entry').toBeDefined()
     const [key, entry] = multiField!
     const [first, ...rest] = entry.fields
