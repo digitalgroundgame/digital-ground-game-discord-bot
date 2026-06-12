@@ -145,6 +145,21 @@ export class ContentCommand implements Command {
       entry.fields.map((field) => [field.id, submit.fields.getTextInputValue(field.id).trim()]),
     )
 
+    // Discord's required-input check counts whitespace as content, so an
+    // all-spaces submission would otherwise save an empty override and
+    // silently break the consumer (e.g. thread.send rejects empty messages).
+    const emptyFields = entry.fields.filter((field) => !newValues[field.id])
+    if (emptyFields.length > 0) {
+      await InteractionUtils.send(
+        submit,
+        Lang.getEmbed('displayEmbeds.contentEmptyField', data.lang, {
+          FIELDS: emptyFields.map((field) => field.label).join(', '),
+        }),
+        true,
+      )
+      return
+    }
+
     try {
       await this.contentService.setContent(key, newValues, intr.user.id)
     } catch (error) {

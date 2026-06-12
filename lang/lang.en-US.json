@@ -255,6 +255,10 @@
         "description": "Unknown content entry: `{{KEY}}`. Pick one from the autocomplete list.",
         "color": "{{COM:colors.warning}}"
       },
+      "contentEmptyField": {
+        "description": "**{{FIELDS}}** cannot be empty (whitespace doesn't count). Nothing was saved.",
+        "color": "{{COM:colors.warning}}"
+      },
       "contentSaveFailed": {
         "description": "Something went wrong saving the content. Please try again or contact an administrator.",
         "color": "{{COM:colors.warning}}"

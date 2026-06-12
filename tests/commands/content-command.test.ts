@@ -58,6 +58,31 @@ describe('ContentCommand', () => {
     expect(intr.reply).toHaveBeenCalledTimes(1)
   })
 
+  it('rejects a whitespace-only submission without saving', async () => {
+    // Discord's required-input check passes whitespace; the command must not.
+    const service = new ContentService(createTestDatabase())
+    command = new ContentCommand(service)
+    const intr = createContentInteraction('edit', ContentKeys.WelcomeThread)
+    const submit = {
+      user: intr.user,
+      deferred: false,
+      replied: false,
+      fields: { getTextInputValue: vi.fn().mockReturnValue('   ') },
+      reply: vi.fn().mockResolvedValue({}),
+      deferReply: vi.fn().mockResolvedValue({}),
+      followUp: vi.fn().mockResolvedValue({}),
+    }
+    intr.awaitModalSubmit.mockResolvedValue(submit)
+
+    await command.execute(intr, data)
+
+    expect(submit.reply).toHaveBeenCalledTimes(1)
+    const embed = submit.reply.mock.calls[0]?.[0]?.embeds?.[0]
+    expect(embed?.data?.description).toContain('cannot be empty')
+    // Nothing was written.
+    expect((await service.getOverride(ContentKeys.WelcomeThread)).meta).toBeUndefined()
+  })
+
   it('refuses edit and reset without persistence, but still shows defaults', async () => {
     const detachedCommand = new ContentCommand(new ContentService())
 
