@@ -1,29 +1,10 @@
-import Sqlite from 'better-sqlite3'
-import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { ContentKeys, ManagedContent } from '../../src/constants/managed-content.js'
-import * as schema from '../../src/database/schema.js'
 import { ContentService } from '../../src/services/content-service.js'
+import { createTestDatabase } from '../helpers/test-database.js'
 
 const KEY = ContentKeys.WelcomeThread
-
-/** In-memory database with the content_override table (mirrors `npm run db:push`). */
-function createTestDatabase(): ReturnType<typeof drizzle<typeof schema>> {
-  const sqlite = new Sqlite(':memory:')
-  sqlite.exec(`
-    CREATE TABLE content_override (
-      id integer PRIMARY KEY AUTOINCREMENT,
-      key text NOT NULL,
-      field text NOT NULL,
-      value text NOT NULL,
-      updated_by text NOT NULL,
-      updated_at integer NOT NULL DEFAULT (unixepoch())
-    );
-    CREATE UNIQUE INDEX content_override_key_field_uq ON content_override (key, field);
-  `)
-  return drizzle(sqlite, { schema })
-}
 
 describe('ContentService', () => {
   let service: ContentService
