@@ -1,14 +1,7 @@
 import {
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
   type ChatInputCommandInteraction,
-  ComponentType,
-  ModalBuilder,
   type ModalSubmitInteraction,
   type PermissionsString,
-  TextInputBuilder,
-  TextInputStyle,
 } from 'discord.js'
 import { RateLimiter } from 'discord.js-rate-limiter'
 
@@ -17,13 +10,9 @@ import { RulesAdminSubcommand } from '../../enums/index.js'
 import { Language } from '../../models/enum-helpers/index.js'
 import { type EventData } from '../../models/internal-models.js'
 import { Lang, Logger, type RuleService, type RuleText } from '../../services/index.js'
-import { InteractionUtils } from '../../utils/index.js'
+import { ConfirmUtils, InteractionUtils, ModalUtils } from '../../utils/index.js'
 import { type Command, CommandDeferType } from '../index.js'
 
-/** How long the editor has to submit the rule modal. */
-const MODAL_TIMEOUT_MS = 10 * 60_000
-/** How long the issuer has to confirm a removal. */
-const CONFIRM_TIMEOUT_MS = 60_000
 /** Rendered inside an embed field name (256 cap, minus the number prefix). */
 const TITLE_MAX_LENGTH = 200
 /** Rendered as an embed field value (1024 cap). */
@@ -140,50 +129,19 @@ export class RulesAdminCommand implements Command {
       return
     }
 
-    const confirmId = `rule-remove-confirm-${intr.id}`
-    const cancelId = `rule-remove-cancel-${intr.id}`
-    const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId(confirmId).setLabel('Remove').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId(cancelId).setLabel('Cancel').setStyle(ButtonStyle.Secondary),
-    )
-    const confirmMsg = await InteractionUtils.send(
+    const button = await ConfirmUtils.confirm(
       intr,
       {
-        embeds: [
-          Lang.getEmbed('displayEmbeds.ruleRemoveConfirm', data.lang, {
-            NUMBER: position.toString(),
-            TITLE: existing.title,
-          }),
-        ],
-        components: [buttons],
+        confirm: Lang.getEmbed('displayEmbeds.ruleRemoveConfirm', data.lang, {
+          NUMBER: position.toString(),
+          TITLE: existing.title,
+        }),
+        cancelled: Lang.getEmbed('displayEmbeds.ruleRemoveCancelled', data.lang),
+        timedOut: Lang.getEmbed('displayEmbeds.ruleRemoveTimedOut', data.lang),
       },
-      true,
+      'Remove',
     )
-    if (!confirmMsg) return
-
-    let button
-    try {
-      button = await confirmMsg.awaitMessageComponent({
-        componentType: ComponentType.Button,
-        filter: (i) =>
-          i.user.id === intr.user.id && (i.customId === confirmId || i.customId === cancelId),
-        time: CONFIRM_TIMEOUT_MS,
-      })
-    } catch {
-      await InteractionUtils.editReply(intr, {
-        embeds: [Lang.getEmbed('displayEmbeds.ruleRemoveTimedOut', data.lang)],
-        components: [],
-      })
-      return
-    }
-
-    if (button.customId === cancelId) {
-      await InteractionUtils.update(button, {
-        embeds: [Lang.getEmbed('displayEmbeds.ruleRemoveCancelled', data.lang)],
-        components: [],
-      })
-      return
-    }
+    if (!button) return
 
     const removed = await this.ruleService.removeRule(position, intr.user.id)
     await InteractionUtils.update(button, {
@@ -208,42 +166,23 @@ export class RulesAdminCommand implements Command {
     modalTitle: string,
     current?: RuleText,
   ): Promise<ModalSubmitInteraction | null> {
-    const modalId = `rule-modal-${intr.id}`
-    const titleInput = new TextInputBuilder()
-      .setCustomId('title')
-      .setLabel('Title')
-      .setStyle(TextInputStyle.Short)
-      .setMaxLength(TITLE_MAX_LENGTH)
-      .setRequired(true)
-    const descriptionInput = new TextInputBuilder()
-      .setCustomId('description')
-      .setLabel('Description')
-      .setStyle(TextInputStyle.Paragraph)
-      .setMaxLength(DESCRIPTION_MAX_LENGTH)
-      .setRequired(false)
-    if (current) {
-      titleInput.setValue(current.title)
-      if (current.description) descriptionInput.setValue(current.description)
-    }
-
-    const modal = new ModalBuilder()
-      .setCustomId(modalId)
-      .setTitle(modalTitle)
-      .addComponents(
-        new ActionRowBuilder<TextInputBuilder>().addComponents(titleInput),
-        new ActionRowBuilder<TextInputBuilder>().addComponents(descriptionInput),
-      )
-    await intr.showModal(modal)
-
-    try {
-      return await intr.awaitModalSubmit({
-        filter: (i) => i.customId === modalId && i.user.id === intr.user.id,
-        time: MODAL_TIMEOUT_MS,
-      })
-    } catch {
-      // Modal abandoned; Discord dismisses it client-side, nothing to clean up.
-      return null
-    }
+    return ModalUtils.collect(intr, modalTitle, [
+      {
+        id: 'title',
+        label: 'Title',
+        style: 'short',
+        maxLength: TITLE_MAX_LENGTH,
+        value: current?.title,
+      },
+      {
+        id: 'description',
+        label: 'Description',
+        style: 'paragraph',
+        maxLength: DESCRIPTION_MAX_LENGTH,
+        required: false,
+        value: current?.description,
+      },
+    ])
   }
 
   private readRuleText(submit: ModalSubmitInteraction): RuleText {

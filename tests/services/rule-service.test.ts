@@ -1,28 +1,8 @@
-import Sqlite from 'better-sqlite3'
-import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { Rules } from '../../src/constants/rules.js'
-import * as schema from '../../src/database/schema.js'
 import { RuleService } from '../../src/services/rule-service.js'
-
-/** In-memory database with the rule table (mirrors `npm run db:push`). */
-function createTestDatabase(): ReturnType<typeof drizzle<typeof schema>> {
-  const sqlite = new Sqlite(':memory:')
-  sqlite.exec(`
-    CREATE TABLE rule (
-      id integer PRIMARY KEY AUTOINCREMENT,
-      position integer NOT NULL,
-      title text NOT NULL,
-      description text NOT NULL,
-      updated_by text,
-      created_at integer NOT NULL DEFAULT (unixepoch()),
-      updated_at integer NOT NULL DEFAULT (unixepoch())
-    );
-    CREATE UNIQUE INDEX rule_position_uq ON rule (position);
-  `)
-  return drizzle(sqlite, { schema })
-}
+import { createTestDatabase } from '../helpers/test-database.js'
 
 const DEFAULT_COUNT = Rules.ServerRules.length
 
