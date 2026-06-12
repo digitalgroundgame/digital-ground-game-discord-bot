@@ -165,7 +165,10 @@ export const ManagedContent: Record<string, ManagedContentEntry> = {
         id: 'message',
         label: 'Message',
         style: 'paragraph',
-        maxLength: 4000,
+        // Sent as raw message content (thread.send), which Discord caps at
+        // 2000 chars — unlike the onboarding entries, which render into an
+        // embed description (4096 cap).
+        maxLength: 2000,
         default: WELCOME_THREAD_MESSAGE,
       },
     ],

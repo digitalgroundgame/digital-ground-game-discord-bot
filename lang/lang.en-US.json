@@ -409,6 +409,10 @@
       "commands": "Commands",
       "links": "Links"
     },
+    "contentStatus": {
+      "overridden": "Overridden by {{USER}} on {{TIME}}",
+      "default": "Using the built-in default (no override)."
+    },
     "permissions": {
       "AddReactions": "Add Reactions",
       "Administrator": "Administrator",

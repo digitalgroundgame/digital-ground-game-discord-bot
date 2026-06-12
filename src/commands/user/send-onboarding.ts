@@ -81,6 +81,8 @@ export class SendOnboarding implements Command {
     try {
       await MessageUtils.send(
         intr.targetUser,
+        // The ?? '' bridges noUncheckedIndexedAccess: the registry guarantees
+        // these fields exist, but the Record type can't express that.
         Lang.getEmbed('displayEmbeds.onboarding', data.lang, {
           TITLE: title ?? '',
           CONTENT: message ?? '',

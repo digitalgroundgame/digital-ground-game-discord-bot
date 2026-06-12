@@ -115,12 +115,16 @@ export class ContentCommand implements Command {
 
     const { values, meta } = await this.contentService.getOverride(key)
 
+    const overrideStatus = meta
+      ? Lang.getRef('contentStatus.overridden', data.lang)
+          .replaceAll('{{USER}}', `<@${meta.updatedBy}>`)
+          .replaceAll('{{TIME}}', `<t:${Math.floor(meta.updatedAt.getTime() / 1000)}:f>`)
+      : Lang.getRef('contentStatus.default', data.lang)
+
     const embed = Lang.getEmbed('displayEmbeds.contentShow', data.lang, {
       LABEL: entry.label,
       DESCRIPTION: entry.description,
-      OVERRIDE_STATUS: meta
-        ? `Overridden by <@${meta.updatedBy}> on <t:${Math.floor(meta.updatedAt.getTime() / 1000)}:f>`
-        : 'Using the built-in default (no override).',
+      OVERRIDE_STATUS: overrideStatus,
     })
     embed.addFields(
       entry.fields.map((field) => ({
