@@ -128,6 +128,44 @@
       "rules": {
         "title": "Follow the rules!"
       },
+      "rulesEmpty": {
+        "description": "No rules are configured."
+      },
+      "ruleNotFound": {
+        "description": "Rule {{NUMBER}} doesn't exist — there are {{COUNT}} rules.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "ruleUpdated": {
+        "description": "Updated rule {{NUMBER}}: **{{TITLE}}**. The change is live immediately.",
+        "color": "{{COM:colors.success}}"
+      },
+      "ruleAdded": {
+        "description": "Added rule {{NUMBER}}: **{{TITLE}}**.",
+        "color": "{{COM:colors.success}}"
+      },
+      "ruleRemoved": {
+        "description": "Removed rule {{NUMBER}}: **{{TITLE}}**. Later rules were renumbered.",
+        "color": "{{COM:colors.success}}"
+      },
+      "ruleRemoveConfirm": {
+        "description": "Remove rule {{NUMBER}}: **{{TITLE}}**? Later rules will be renumbered.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "ruleRemoveCancelled": {
+        "description": "Cancelled. The rules are unchanged."
+      },
+      "ruleRemoveTimedOut": {
+        "description": "Timed out waiting for confirmation. Nothing was changed.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "ruleSaveFailed": {
+        "description": "Something went wrong saving the rule. Please try again or contact an administrator.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "rulesAdminNotConfigured": {
+        "description": "Rule management isn't configured on this bot. The database connection must be set.",
+        "color": "{{COM:colors.warning}}"
+      },
       "pragPapers": {
         "title": "{{REF:links.pragPapersEmbed}}"
       },
@@ -352,6 +390,7 @@
       "info": "info",
       "test": "test",
       "rules": "rules",
+      "rulesAdmin": "rules-admin",
       "pragPapers": "prag-papers",
       "census": "census",
       "attendance": "attendance",
@@ -388,6 +427,10 @@
       "info": "View bot info.",
       "test": "Run the test command.",
       "rules": "List the rules, or a specific one.",
+      "rulesAdmin": "Admins: manage the server rules.",
+      "rulesAdminEdit": "Edit a rule's title or description.",
+      "rulesAdminAdd": "Add a new rule at the end of the list.",
+      "rulesAdminRemove": "Remove a rule; later rules are renumbered.",
       "pragPapers": "Gives a link to the Pragmatic Papers website.",
       "census": "Gives a link to the Census form.",
       "attendance": "DMs you a snapshot list of everyone currently in your voice channel.",

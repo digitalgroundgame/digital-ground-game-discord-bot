@@ -3,7 +3,6 @@ import { type APIApplicationCommandBasicOption, ApplicationCommandOptionType } f
 import { DevCommandName, HelpOption, InfoOption } from '../enums/index.js'
 import { Language } from '../models/enum-helpers/index.js'
 import { Lang } from '../services/index.js'
-import { Rules } from '../constants/rules.js'
 import { GoogleGroups, LinkableAccounts } from '../constants/index.js'
 
 export class Args {
@@ -121,7 +120,9 @@ export class Args {
     type: ApplicationCommandOptionType.String,
     autocomplete: true,
   }
-  public static readonly RULES_OPTIION: APIApplicationCommandBasicOption = {
+  // No max_value: the rule count is dynamic (managed via /rules-admin), so
+  // the upper bound is validated at runtime.
+  public static readonly RULES_OPTION: APIApplicationCommandBasicOption = {
     name: Lang.getRef('arguments.ruleNumber', Language.Default),
     name_localizations: Lang.getRefLocalizationMap('arguments.ruleNumber'),
     description: Lang.getRef('argDescs.ruleNumber', Language.Default),
@@ -129,7 +130,6 @@ export class Args {
     type: ApplicationCommandOptionType.Integer,
     required: false,
     min_value: 1,
-    max_value: Rules.ServerRules.length,
   }
   public static readonly ATTENDANCE_TRACK_NAME: APIApplicationCommandBasicOption = {
     name: Lang.getRef('arguments.attendanceEventName', Language.Default),
