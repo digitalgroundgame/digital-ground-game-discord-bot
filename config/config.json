@@ -131,6 +131,10 @@
       "West Squad": "west-squad@digitalgroundgame.org"
     }
   },
+  "managedContent": {
+    "// NOTE": "Role config keys (see roles below) allowed to run /content.",
+    "allowedRoleKeys": ["ADMIN", "DIRECTOR"]
+  },
   "roles": {
     "COORDINATOR": {
       "id": "1347653968641134683",

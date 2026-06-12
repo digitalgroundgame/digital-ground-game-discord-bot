@@ -8,6 +8,7 @@ import {
   AttendanceCommand,
   AttendanceTrackCommand,
   CensusCommand,
+  ContentCommand,
   DevCommand,
   GrantAccessCommand,
   HelpCommand,
@@ -50,6 +51,7 @@ import { type Reaction } from './reactions/index.js'
 import {
   AttendanceService,
   CommandRegistrationService,
+  ContentService,
   CrmService,
   EventDataService,
   GoogleCalendarService,
@@ -127,12 +129,17 @@ async function start(): Promise<void> {
   // Stores the external accounts members link via /link-account, and is read
   // by /grant-access to resolve a member's Google email.
   let userService: UserService | undefined
+  // Resolves runtime-editable content (/content); without it, consumers use
+  // the hardcoded defaults.
+  let contentService: ContentService | undefined
   if (process.env.SQLITE_PATH) {
     try {
-      userService = new UserService(createDatabase())
+      const database = createDatabase()
+      userService = new UserService(database)
+      contentService = new ContentService(database)
     } catch (error) {
       Logger.error(
-        'Failed to initialize the database; /link-account and /grant-access will be unavailable.',
+        'Failed to initialize the database; /link-account, /grant-access, and /content will be unavailable.',
         error,
       )
     }
@@ -152,6 +159,7 @@ async function start(): Promise<void> {
     new AttendanceTrackCommand(attendanceService, crmService),
     new GrantAccessCommand(googleGroupsService, userService),
     new LinkAccountCommand(userService),
+    new ContentCommand(contentService),
 
     // User Context Commands
     ...ONBOARDING_CONFIGS.map((config) => new SendOnboarding(config)),
@@ -182,7 +190,7 @@ async function start(): Promise<void> {
   // Event handlers
   const guildJoinHandler = new GuildJoinHandler(eventDataService)
   const guildLeaveHandler = new GuildLeaveHandler()
-  const guildMemberAddHandler = new GuildMemberAddHandler()
+  const guildMemberAddHandler = new GuildMemberAddHandler(contentService)
   const guildMemberUpdateHandler = new GuildMemberUpdateHandler([])
   const commandHandler = new CommandHandler(commands, eventDataService)
   const buttonHandler = new ButtonHandler(buttons, eventDataService)
