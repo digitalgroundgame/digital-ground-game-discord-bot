@@ -71,6 +71,7 @@ export class RulesAdminCommand implements Command {
     const submit = await this.collectRuleModal(intr, `Edit Rule ${position}`, existing)
     if (!submit) return
     const text = this.readRuleText(submit)
+    if (!(await this.checkTitleNotEmpty(submit, data, text))) return
 
     try {
       const updated = await this.ruleService.updateRule(position, text, intr.user.id)
@@ -103,6 +104,7 @@ export class RulesAdminCommand implements Command {
     const submit = await this.collectRuleModal(intr, 'Add Rule')
     if (!submit) return
     const text = this.readRuleText(submit)
+    if (!(await this.checkTitleNotEmpty(submit, data, text))) return
 
     let added
     try {
@@ -198,6 +200,21 @@ export class RulesAdminCommand implements Command {
       title: submit.fields.getTextInputValue('title').trim(),
       description: submit.fields.getTextInputValue('description').trim(),
     }
+  }
+
+  /**
+   * Discord's required-input check counts whitespace as content, so an
+   * all-spaces title would otherwise save as empty and render a blank rule
+   * heading. The description is allowed to be empty (rule 1 is title-only).
+   */
+  private async checkTitleNotEmpty(
+    submit: ModalSubmitInteraction,
+    data: EventData,
+    text: RuleText,
+  ): Promise<boolean> {
+    if (text.title) return true
+    await InteractionUtils.send(submit, Lang.getEmbed('displayEmbeds.ruleTitleEmpty', data.lang), true)
+    return false
   }
 
   private getRuleNumber(intr: ChatInputCommandInteraction): number {

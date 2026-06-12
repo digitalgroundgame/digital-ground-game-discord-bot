@@ -158,6 +158,10 @@
         "description": "Timed out waiting for confirmation. Nothing was changed.",
         "color": "{{COM:colors.warning}}"
       },
+      "ruleTitleEmpty": {
+        "description": "The rule title cannot be empty (whitespace doesn't count). Nothing was saved.",
+        "color": "{{COM:colors.warning}}"
+      },
       "ruleSaveFailed": {
         "description": "Something went wrong saving the rule. Please try again or contact an administrator.",
         "color": "{{COM:colors.warning}}"
