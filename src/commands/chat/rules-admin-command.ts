@@ -213,7 +213,11 @@ export class RulesAdminCommand implements Command {
     text: RuleText,
   ): Promise<boolean> {
     if (text.title) return true
-    await InteractionUtils.send(submit, Lang.getEmbed('displayEmbeds.ruleTitleEmpty', data.lang), true)
+    await InteractionUtils.send(
+      submit,
+      Lang.getEmbed('displayEmbeds.ruleTitleEmpty', data.lang),
+      true,
+    )
     return false
   }
 
