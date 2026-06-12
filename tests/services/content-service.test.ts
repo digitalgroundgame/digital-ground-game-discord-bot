@@ -66,21 +66,21 @@ describe('ContentService', () => {
   })
 
   it('merges overrides with defaults per field', async () => {
-    // Guard for multi-field entries (onboarding/rules slices): overriding one
-    // field must not clobber the defaults of the others.
-    const multiFieldKey = Object.keys(ManagedContent).find(
-      (key) => (ManagedContent[key]?.fields.length ?? 0) > 1,
+    // Overriding one field of a multi-field entry must not clobber the
+    // defaults of the others.
+    const multiField = Object.entries(ManagedContent).find(
+      ([, entry]) => entry.fields.length > 1,
     )
-    if (!multiFieldKey) return // registry has no multi-field entries yet
+    expect(multiField, 'registry must contain a multi-field entry').toBeDefined()
+    const [key, entry] = multiField!
+    const [first, ...rest] = entry.fields
+    expect(first).toBeDefined()
+    expect(rest.length).toBeGreaterThan(0)
 
-    const entry = ManagedContent[multiFieldKey]
-    const [first, ...rest] = entry?.fields ?? []
-    if (!first) return
+    await service.setContent(key, { [first!.id]: 'Overridden' }, 'user-1')
 
-    await service.setContent(multiFieldKey, { [first.id]: 'Overridden' }, 'user-1')
-
-    const values = await service.getContent(multiFieldKey)
-    expect(values[first.id]).toBe('Overridden')
+    const values = await service.getContent(key)
+    expect(values[first!.id]).toBe('Overridden')
     for (const field of rest) {
       expect(values[field.id]).toBe(field.default)
     }

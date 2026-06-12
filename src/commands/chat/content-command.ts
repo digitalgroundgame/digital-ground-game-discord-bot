@@ -25,7 +25,7 @@ import { ContentSubcommand } from '../../enums/index.js'
 import { Language } from '../../models/enum-helpers/index.js'
 import { type EventData } from '../../models/internal-models.js'
 import { type ContentService, Lang, Logger } from '../../services/index.js'
-import { InteractionUtils } from '../../utils/index.js'
+import { InteractionUtils, StringUtils } from '../../utils/index.js'
 import { type Command, CommandDeferType } from '../index.js'
 
 /** How long the editor has to submit the edit modal. */
@@ -125,7 +125,7 @@ export class ContentCommand implements Command {
     embed.addFields(
       entry.fields.map((field) => ({
         name: field.label,
-        value: this.truncate(values[field.id] ?? '', EMBED_FIELD_VALUE_MAX) || '—',
+        value: StringUtils.truncate(values[field.id] ?? '', EMBED_FIELD_VALUE_MAX, true) || '—',
       })),
     )
 
@@ -143,13 +143,13 @@ export class ContentCommand implements Command {
     const modalId = `content-edit-${intr.id}`
     const modal = new ModalBuilder()
       .setCustomId(modalId)
-      .setTitle(this.truncate(entry.label, 45))
+      .setTitle(StringUtils.truncate(entry.label, 45, true))
       .addComponents(
         entry.fields.map((field) =>
           new ActionRowBuilder<TextInputBuilder>().addComponents(
             new TextInputBuilder()
               .setCustomId(field.id)
-              .setLabel(this.truncate(field.label, 45))
+              .setLabel(StringUtils.truncate(field.label, 45, true))
               .setStyle(
                 field.style === 'paragraph' ? TextInputStyle.Paragraph : TextInputStyle.Short,
               )
@@ -267,9 +267,5 @@ export class ContentCommand implements Command {
       embeds: [Lang.getEmbed('displayEmbeds.contentReset', data.lang, { LABEL: entry.label })],
       components: [],
     })
-  }
-
-  private truncate(value: string, max: number): string {
-    return value.length <= max ? value : `${value.slice(0, max - 1)}…`
   }
 }
