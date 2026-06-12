@@ -32,6 +32,11 @@ export interface ManagedContentEntry {
   description: string
   /** Max 5 fields (Discord modal limit); labels max 45 chars. */
   fields: ManagedContentField[]
+  /**
+   * Role config keys (see `config.roles`) allowed to edit/reset this entry.
+   * Defaults to `managedContent.allowedRoleKeys` from config.
+   */
+  allowedRoleKeys?: string[]
 }
 
 export const ContentKeys = {
@@ -114,6 +119,7 @@ export const ManagedContent: Record<string, ManagedContentEntry> = {
       {
         label: `Rule ${index + 1}: ${rule.title}`,
         description: `Shown by /rules as rule ${index + 1}.`,
+        allowedRoleKeys: ['ADMIN'],
         fields: [
           { id: 'title', label: 'Title', style: 'short', maxLength: 200, default: rule.title },
           {

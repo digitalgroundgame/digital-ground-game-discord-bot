@@ -7,6 +7,7 @@ import {
   ButtonStyle,
   type ChatInputCommandInteraction,
   ComponentType,
+  GuildMember,
   ModalBuilder,
   type ModalSubmitInteraction,
   type PermissionsString,
@@ -36,10 +37,15 @@ const CONFIRM_TIMEOUT_MS = 60_000
 /** Discord embed field value cap, for display truncation in `/content show`. */
 const EMBED_FIELD_VALUE_MAX = 1024
 
+/** Resolve role config keys (e.g. `ADMIN`) to role IDs, dropping unknown keys. */
+function toRoleIds(roleKeys: string[]): string[] {
+  return roleKeys
+    .map((key) => (ServerRoles as Record<string, ServerRole | undefined>)[key]?.id)
+    .filter((id): id is string => typeof id === 'string')
+}
+
 /** Role IDs allowed to manage content, from `config.managedContent.allowedRoleKeys`. */
-const ALLOWED_ROLE_IDS = ManagedContentAllowedRoleKeys.map(
-  (key) => (ServerRoles as Record<string, ServerRole | undefined>)[key]?.id,
-).filter((id): id is string => typeof id === 'string')
+const ALLOWED_ROLE_IDS = toRoleIds(ManagedContentAllowedRoleKeys)
 
 /**
  * Show, edit, or reset managed content (welcome/onboarding/rules text) at
@@ -97,14 +103,46 @@ export class ContentCommand implements Command {
         break
       }
       case ContentSubcommand.EDIT: {
+        if (!(await this.checkCanModify(intr, data, entry))) return
         await this.edit(intr, data, key, entry, this.contentService)
         break
       }
       case ContentSubcommand.RESET: {
+        if (!(await this.checkCanModify(intr, data, entry))) return
         await this.reset(intr, data, key, entry, this.contentService)
         break
       }
     }
+  }
+
+  /**
+   * Entries may narrow who can edit/reset them via `allowedRoleKeys`
+   * (e.g. rules are admin-only); replies with the missing-role embed when
+   * the member doesn't qualify. Viewing is gated only by `requireRoles`.
+   */
+  private async checkCanModify(
+    intr: ChatInputCommandInteraction,
+    data: EventData,
+    entry: ManagedContentEntry,
+  ): Promise<boolean> {
+    if (!entry.allowedRoleKeys) return true
+
+    const allowedIds = toRoleIds(entry.allowedRoleKeys)
+    const member = intr.member
+    const hasRole =
+      member instanceof GuildMember && allowedIds.some((id) => member.roles.cache.has(id))
+    if (hasRole) return true
+
+    await InteractionUtils.send(
+      intr,
+      Lang.getEmbed('validationEmbeds.missingRole', data.lang, {
+        ROLES: entry.allowedRoleKeys
+          .map((key) => (ServerRoles as Record<string, ServerRole | undefined>)[key]?.name ?? key)
+          .join(', '),
+      }),
+      true,
+    )
+    return false
   }
 
   private async show(
