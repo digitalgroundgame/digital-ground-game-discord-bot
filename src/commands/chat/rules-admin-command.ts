@@ -81,7 +81,11 @@ export class RulesAdminCommand implements Command {
       }
     } catch (error) {
       Logger.error(`/rules-admin: failed to update rule ${position}`, error)
-      await InteractionUtils.send(submit, Lang.getEmbed('displayEmbeds.ruleSaveFailed', data.lang), true)
+      await InteractionUtils.send(
+        submit,
+        Lang.getEmbed('displayEmbeds.ruleSaveFailed', data.lang),
+        true,
+      )
       return
     }
 
@@ -105,7 +109,11 @@ export class RulesAdminCommand implements Command {
       added = await this.ruleService.addRule(text, intr.user.id)
     } catch (error) {
       Logger.error('/rules-admin: failed to add rule', error)
-      await InteractionUtils.send(submit, Lang.getEmbed('displayEmbeds.ruleSaveFailed', data.lang), true)
+      await InteractionUtils.send(
+        submit,
+        Lang.getEmbed('displayEmbeds.ruleSaveFailed', data.lang),
+        true,
+      )
       return
     }
 
