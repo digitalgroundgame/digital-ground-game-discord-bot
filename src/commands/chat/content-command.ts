@@ -20,7 +20,6 @@ import {
   ManagedContentAllowedRoleKeys,
   type ManagedContentEntry,
   ServerRoles,
-  type ServerRole,
 } from '../../constants/index.js'
 import { ContentSubcommand } from '../../enums/index.js'
 import { Language } from '../../models/enum-helpers/index.js'
@@ -36,15 +35,8 @@ const CONFIRM_TIMEOUT_MS = 60_000
 /** Discord embed field value cap, for display truncation in `/content show`. */
 const EMBED_FIELD_VALUE_MAX = 1024
 
-/** Resolve role config keys (e.g. `ADMIN`) to role IDs, dropping unknown keys. */
-function toRoleIds(roleKeys: string[]): string[] {
-  return roleKeys
-    .map((key) => (ServerRoles as Record<string, ServerRole | undefined>)[key]?.id)
-    .filter((id): id is string => typeof id === 'string')
-}
-
-/** Role IDs allowed to manage content, from `config.managedContent.allowedRoleKeys`. */
-const ALLOWED_ROLE_IDS = toRoleIds(ManagedContentAllowedRoleKeys)
+/** Role IDs allowed to manage content; keys are validated at startup. */
+const ALLOWED_ROLE_IDS = ManagedContentAllowedRoleKeys.map((key) => ServerRoles[key].id)
 
 /**
  * Show, edit, or reset managed content (welcome/onboarding/rules text) at
