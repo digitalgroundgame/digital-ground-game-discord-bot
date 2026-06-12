@@ -7,7 +7,6 @@ import {
   ButtonStyle,
   type ChatInputCommandInteraction,
   ComponentType,
-  GuildMember,
   ModalBuilder,
   type ModalSubmitInteraction,
   type PermissionsString,
@@ -104,46 +103,14 @@ export class ContentCommand implements Command {
         break
       }
       case ContentSubcommand.EDIT: {
-        if (!(await this.checkCanModify(intr, data, entry))) return
         await this.edit(intr, data, key, entry)
         break
       }
       case ContentSubcommand.RESET: {
-        if (!(await this.checkCanModify(intr, data, entry))) return
         await this.reset(intr, data, key, entry)
         break
       }
     }
-  }
-
-  /**
-   * Entries may narrow who can edit/reset them via `allowedRoleKeys`
-   * (e.g. rules are admin-only); replies with the missing-role embed when
-   * the member doesn't qualify. Viewing is gated only by `requireRoles`.
-   */
-  private async checkCanModify(
-    intr: ChatInputCommandInteraction,
-    data: EventData,
-    entry: ManagedContentEntry,
-  ): Promise<boolean> {
-    if (!entry.allowedRoleKeys) return true
-
-    const allowedIds = toRoleIds(entry.allowedRoleKeys)
-    const member = intr.member
-    const hasRole =
-      member instanceof GuildMember && allowedIds.some((id) => member.roles.cache.has(id))
-    if (hasRole) return true
-
-    await InteractionUtils.send(
-      intr,
-      Lang.getEmbed('validationEmbeds.missingRole', data.lang, {
-        ROLES: entry.allowedRoleKeys
-          .map((key) => (ServerRoles as Record<string, ServerRole | undefined>)[key]?.name ?? key)
-          .join(', '),
-      }),
-      true,
-    )
-    return false
   }
 
   private async show(
@@ -196,7 +163,7 @@ export class ContentCommand implements Command {
               )
               .setMaxLength(field.maxLength)
               .setValue(values[field.id] ?? '')
-              .setRequired(field.required ?? true),
+              .setRequired(true),
           ),
         ),
       )

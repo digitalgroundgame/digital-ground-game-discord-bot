@@ -2,30 +2,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ContentCommand } from '../../src/commands/chat/content-command.js'
-import { ContentKeys, ruleContentKey } from '../../src/constants/managed-content.js'
-import { Rules } from '../../src/constants/rules.js'
-import { ServerRoles } from '../../src/constants/server-roles.js'
+import { ContentKeys } from '../../src/constants/managed-content.js'
 import { Language } from '../../src/models/enum-helpers/index.js'
 import { EventData } from '../../src/models/internal-models.js'
 import { ContentService } from '../../src/services/content-service.js'
 import { createMockGuildMember } from '../helpers/discord-mocks.js'
 import { createTestDatabase } from '../helpers/test-database.js'
 
-const FIRST_RULE_SLUG = Rules.ServerRules[0]?.slug ?? ''
-const RULE_KEY = ruleContentKey(FIRST_RULE_SLUG)
-
 /**
- * A ChatInputCommandInteraction stub for /content with the member holding
- * the given role IDs. The edit modal is stubbed to never be submitted.
+ * A ChatInputCommandInteraction stub for /content. The edit modal is
+ * stubbed to never be submitted.
  */
-function createContentInteraction(
-  subcommand: 'edit' | 'reset',
-  key: string,
-  memberRoleIds: string[],
-): any {
-  const member = createMockGuildMember({
-    roles: { cache: new Map(memberRoleIds.map((id) => [id, { id }])) },
-  })
+function createContentInteraction(subcommand: 'show' | 'edit' | 'reset', key: string): any {
+  const member = createMockGuildMember()
   return {
     user: member.user,
     member,
@@ -43,7 +32,7 @@ function createContentInteraction(
   }
 }
 
-describe('ContentCommand per-entry permissions', () => {
+describe('ContentCommand', () => {
   let command: ContentCommand
   const data = new EventData(Language.Default, Language.Default)
 
@@ -51,46 +40,39 @@ describe('ContentCommand per-entry permissions', () => {
     command = new ContentCommand(new ContentService(createTestDatabase()))
   })
 
-  it('denies editing a rule to a member without an allowed role', async () => {
-    const intr = createContentInteraction('edit', RULE_KEY, [ServerRoles.DIRECTOR.id])
+  it('opens the edit modal for a known key', async () => {
+    const intr = createContentInteraction('edit', ContentKeys.WelcomeThread)
+
+    await command.execute(intr, data)
+
+    expect(intr.showModal).toHaveBeenCalledTimes(1)
+    expect(intr.reply).not.toHaveBeenCalled()
+  })
+
+  it('rejects an unknown key', async () => {
+    const intr = createContentInteraction('edit', 'not-a-key')
 
     await command.execute(intr, data)
 
     expect(intr.showModal).not.toHaveBeenCalled()
     expect(intr.reply).toHaveBeenCalledTimes(1)
-    const embed = intr.reply.mock.calls[0]?.[0]?.embeds?.[0]
-    expect(embed?.data?.title).toBe('Permission Denied')
-    expect(embed?.data?.description).toContain(ServerRoles.ADMIN.name)
   })
 
-  it('denies resetting a rule to a member without an allowed role', async () => {
-    const intr = createContentInteraction('reset', RULE_KEY, [ServerRoles.DIRECTOR.id])
+  it('refuses edit and reset without persistence, but still shows defaults', async () => {
+    const detachedCommand = new ContentCommand(new ContentService())
 
-    await command.execute(intr, data)
+    const edit = createContentInteraction('edit', ContentKeys.WelcomeThread)
+    await detachedCommand.execute(edit, data)
+    expect(edit.showModal).not.toHaveBeenCalled()
+    expect(edit.reply).toHaveBeenCalledTimes(1)
 
-    expect(intr.deferReply).not.toHaveBeenCalled()
-    expect(intr.reply.mock.calls[0]?.[0]?.embeds?.[0]?.data?.title).toBe('Permission Denied')
-  })
+    const reset = createContentInteraction('reset', ContentKeys.WelcomeThread)
+    await detachedCommand.execute(reset, data)
+    expect(reset.deferReply).not.toHaveBeenCalled()
+    expect(reset.reply).toHaveBeenCalledTimes(1)
 
-  it('allows editing a rule for a member with the entry role', async () => {
-    const intr = createContentInteraction('edit', RULE_KEY, [ServerRoles.ADMIN.id])
-
-    await command.execute(intr, data)
-
-    expect(intr.showModal).toHaveBeenCalledTimes(1)
-    expect(intr.reply).not.toHaveBeenCalled()
-  })
-
-  it('falls back to the global gate for entries without allowedRoleKeys', async () => {
-    // Welcome thread has no per-entry restriction; a DIRECTOR (globally
-    // allowed via requireRoles) may edit it even without ADMIN.
-    const intr = createContentInteraction('edit', ContentKeys.WelcomeThread, [
-      ServerRoles.DIRECTOR.id,
-    ])
-
-    await command.execute(intr, data)
-
-    expect(intr.showModal).toHaveBeenCalledTimes(1)
-    expect(intr.reply).not.toHaveBeenCalled()
+    const show = createContentInteraction('show', ContentKeys.WelcomeThread)
+    await detachedCommand.execute(show, data)
+    expect(show.deferReply).toHaveBeenCalledTimes(1)
   })
 })

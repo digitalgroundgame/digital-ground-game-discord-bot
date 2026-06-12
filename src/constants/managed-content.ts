@@ -7,7 +7,6 @@ import {
   ResearchOnboarding,
   WelcomeOnboarding,
 } from './onboarding.js'
-import { Rules } from './rules.js'
 
 const require = createRequire(import.meta.url)
 const Config = require('../../config/config.json')
@@ -22,8 +21,6 @@ export interface ManagedContentField {
   style: 'short' | 'paragraph'
   maxLength: number
   default: string
-  /** Whether the modal input may be submitted empty (defaults to required). */
-  required?: boolean
 }
 
 /** A piece of bot content that may be edited at runtime via `/content`. */
@@ -32,11 +29,6 @@ export interface ManagedContentEntry {
   description: string
   /** Max 5 fields (Discord modal limit); labels max 45 chars. */
   fields: ManagedContentField[]
-  /**
-   * Role config keys (see `config.roles`) allowed to edit/reset this entry.
-   * Defaults to `managedContent.allowedRoleKeys` from config.
-   */
-  allowedRoleKeys?: string[]
 }
 
 export const ContentKeys = {
@@ -47,14 +39,6 @@ export const ContentKeys = {
   OnboardingResearch: 'onboarding-research',
   OnboardingWelcome: 'onboarding-welcome',
 } as const
-
-/**
- * Managed content key for a server rule. Keyed on the rule's stable slug —
- * not its position — so reordering rules never detaches stored overrides.
- */
-export function ruleContentKey(slug: string): string {
-  return `rule-${slug}`
-}
 
 const WELCOME_THREAD_MESSAGE = `
 ### 🗽 Welcome to Digital Ground Game (DGG)
@@ -114,30 +98,6 @@ export const ManagedContent: Record<string, ManagedContentEntry> = {
   [ContentKeys.OnboardingMedia]: onboardingEntry('Media Team', MediaOnboarding),
   [ContentKeys.OnboardingResearch]: onboardingEntry('Research Team', ResearchOnboarding),
   [ContentKeys.OnboardingWelcome]: onboardingEntry('Welcome Team', WelcomeOnboarding),
-  // Rule text is editable; the rule *count* stays code-defined (the /rules
-  // number option range is registered statically from Rules.ServerRules).
-  ...Object.fromEntries(
-    Rules.ServerRules.map((rule, index) => [
-      ruleContentKey(rule.slug),
-      {
-        label: `Rule ${index + 1}: ${rule.title}`,
-        description: `Shown by /rules as rule ${index + 1}.`,
-        allowedRoleKeys: ['ADMIN'],
-        fields: [
-          { id: 'title', label: 'Title', style: 'short', maxLength: 200, default: rule.title },
-          {
-            id: 'description',
-            label: 'Description',
-            style: 'paragraph',
-            // Rules render as embed fields, whose values cap at 1024 chars.
-            maxLength: 1024,
-            default: rule.description,
-            required: false,
-          },
-        ],
-      } satisfies ManagedContentEntry,
-    ]),
-  ),
 }
 
 interface ManagedContentConfig {
