@@ -51,7 +51,11 @@ export class RulesCommand implements Command {
 
   /** The nth rule (1-based), resolved at display time so /content edits apply. */
   private async getRule(ruleNumber: number): Promise<{ title: string; description: string }> {
-    const key = ruleContentKey(ruleNumber)
+    const rule = Rules.ServerRules[ruleNumber - 1]
+    if (!rule) {
+      return { title: '', description: '' }
+    }
+    const key = ruleContentKey(rule.slug)
     const values = this.contentService
       ? await this.contentService.getContent(key)
       : ContentService.getDefaults(key)

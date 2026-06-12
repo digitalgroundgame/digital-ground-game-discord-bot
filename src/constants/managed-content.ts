@@ -48,9 +48,12 @@ export const ContentKeys = {
   OnboardingWelcome: 'onboarding-welcome',
 } as const
 
-/** Managed content key for the nth server rule (1-based). */
-export function ruleContentKey(ruleNumber: number): string {
-  return `rule-${ruleNumber}`
+/**
+ * Managed content key for a server rule. Keyed on the rule's stable slug —
+ * not its position — so reordering rules never detaches stored overrides.
+ */
+export function ruleContentKey(slug: string): string {
+  return `rule-${slug}`
 }
 
 const WELCOME_THREAD_MESSAGE = `
@@ -115,7 +118,7 @@ export const ManagedContent: Record<string, ManagedContentEntry> = {
   // number option range is registered statically from Rules.ServerRules).
   ...Object.fromEntries(
     Rules.ServerRules.map((rule, index) => [
-      ruleContentKey(index + 1),
+      ruleContentKey(rule.slug),
       {
         label: `Rule ${index + 1}: ${rule.title}`,
         description: `Shown by /rules as rule ${index + 1}.`,

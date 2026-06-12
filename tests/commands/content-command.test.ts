@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ContentCommand } from '../../src/commands/chat/content-command.js'
 import { ContentKeys, ruleContentKey } from '../../src/constants/managed-content.js'
+import { Rules } from '../../src/constants/rules.js'
 import { ServerRoles } from '../../src/constants/server-roles.js'
 import { Language } from '../../src/models/enum-helpers/index.js'
 import { EventData } from '../../src/models/internal-models.js'
@@ -10,7 +11,8 @@ import { ContentService } from '../../src/services/content-service.js'
 import { createMockGuildMember } from '../helpers/discord-mocks.js'
 import { createTestDatabase } from '../helpers/test-database.js'
 
-const RULE_KEY = ruleContentKey(1)
+const FIRST_RULE_SLUG = Rules.ServerRules[0]?.slug ?? ''
+const RULE_KEY = ruleContentKey(FIRST_RULE_SLUG)
 
 /**
  * A ChatInputCommandInteraction stub for /content with the member holding
