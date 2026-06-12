@@ -129,7 +129,7 @@ export class ContentCommand implements Command {
     embed.addFields(
       entry.fields.map((field) => ({
         name: field.label,
-        value: this.truncate(values[field.id] ?? '', EMBED_FIELD_VALUE_MAX),
+        value: this.truncate(values[field.id] ?? '', EMBED_FIELD_VALUE_MAX) || '—',
       })),
     )
 
@@ -160,7 +160,7 @@ export class ContentCommand implements Command {
               )
               .setMaxLength(field.maxLength)
               .setValue(values[field.id] ?? '')
-              .setRequired(true),
+              .setRequired(field.required ?? true),
           ),
         ),
       )

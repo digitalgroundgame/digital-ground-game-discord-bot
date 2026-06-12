@@ -152,7 +152,7 @@ async function start(): Promise<void> {
     new HelpCommand(),
     new InfoCommand(),
     new TestCommand(),
-    new RulesCommand(),
+    new RulesCommand(contentService),
     new PragPapersCommand(),
     new CensusCommand(),
     new AttendanceCommand(),
