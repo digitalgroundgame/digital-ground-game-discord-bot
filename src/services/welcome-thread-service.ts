@@ -7,7 +7,7 @@ import {
 } from 'discord.js'
 import { createRequire } from 'node:module'
 
-import { ContentService } from './content-service.js'
+import { type ContentService } from './content-service.js'
 import { Logger } from './logger.js'
 import { ContentKeys } from '../constants/managed-content.js'
 
@@ -199,7 +199,7 @@ export class WelcomeThreadService {
    */
   public static async createWelcomeThread(
     member: GuildMember,
-    contentService?: ContentService,
+    contentService: ContentService,
   ): Promise<ThreadChannel | null> {
     const config = this.getConfig()
     if (!config) {
@@ -292,9 +292,7 @@ export class WelcomeThreadService {
       }
     }
 
-    const { message } = contentService
-      ? await contentService.getContent(ContentKeys.WelcomeThread)
-      : ContentService.getDefaults(ContentKeys.WelcomeThread)
+    const { message } = await contentService.getContent(ContentKeys.WelcomeThread)
 
     try {
       await thread.send({ content: message })

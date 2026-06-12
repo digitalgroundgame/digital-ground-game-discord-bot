@@ -3,7 +3,7 @@ import { RateLimiter } from 'discord.js-rate-limiter'
 import { type EventData } from '../../models/internal-models.js'
 import { type Command, CommandDeferType } from '../index.js'
 import { Lang } from '../../services/lang.js'
-import { ContentService } from '../../services/content-service.js'
+import { type ContentService } from '../../services/content-service.js'
 import { Language } from '../../models/enum-helpers/index.js'
 import { InteractionUtils } from '../../utils/interaction-utils.js'
 import { ruleContentKey } from '../../constants/managed-content.js'
@@ -15,7 +15,7 @@ export class RulesCommand implements Command {
   deferType = CommandDeferType.HIDDEN
   requireClientPerms = []
 
-  constructor(private readonly contentService?: ContentService) {}
+  constructor(private readonly contentService: ContentService) {}
 
   public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
     const args = {
@@ -55,10 +55,7 @@ export class RulesCommand implements Command {
     if (!rule) {
       return { title: '', description: '' }
     }
-    const key = ruleContentKey(rule.slug)
-    const values = this.contentService
-      ? await this.contentService.getContent(key)
-      : ContentService.getDefaults(key)
+    const values = await this.contentService.getContent(ruleContentKey(rule.slug))
     return { title: values['title'] ?? '', description: values['description'] ?? '' }
   }
 }

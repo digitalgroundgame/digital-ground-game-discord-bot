@@ -25,7 +25,7 @@ import {
   type Command,
 } from './commands/index.js'
 import { ONBOARDING_CONFIGS, SendOnboarding } from './commands/user/index.js'
-import { createDatabase } from './database/index.js'
+import { createDatabase, type Database } from './database/index.js'
 import {
   ButtonHandler,
   CommandHandler,
@@ -126,24 +126,23 @@ async function start(): Promise<void> {
       '/grant-access: disabled — set GOOGLE_APPLICATION_CREDENTIALS (or GOOGLE_CALENDAR_CREDENTIALS) and GOOGLE_WORKSPACE_ADMIN_SUBJECT (or GOOGLE_CALENDAR_IMPERSONATION_SUBJECT) — the Workspace admin email the service account impersonates. /link-account remains available.',
     )
   }
-  // Stores the external accounts members link via /link-account, and is read
-  // by /grant-access to resolve a member's Google email.
-  let userService: UserService | undefined
-  // Resolves runtime-editable content (/content); without it, consumers use
-  // the hardcoded defaults.
-  let contentService: ContentService | undefined
+  let database: Database | undefined
   if (process.env.SQLITE_PATH) {
     try {
-      const database = createDatabase()
-      userService = new UserService(database)
-      contentService = new ContentService(database)
+      database = createDatabase()
     } catch (error) {
       Logger.error(
-        'Failed to initialize the database; /link-account, /grant-access, and /content will be unavailable.',
+        'Failed to initialize the database; /link-account and /grant-access will be unavailable, and /content edits will not persist.',
         error,
       )
     }
   }
+  // Stores the external accounts members link via /link-account, and is read
+  // by /grant-access to resolve a member's Google email.
+  const userService = database ? new UserService(database) : undefined
+  // Resolves runtime-editable content. Always available — without a database
+  // it serves the registry defaults and rejects edits.
+  const contentService = new ContentService(database)
 
   // Commands
   const commands: Command[] = [

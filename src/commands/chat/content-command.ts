@@ -61,7 +61,7 @@ export class ContentCommand implements Command {
   public requireClientPerms: PermissionsString[] = []
   public requireRoles = ALLOWED_ROLE_IDS
 
-  constructor(private readonly contentService?: ContentService) {}
+  constructor(private readonly contentService: ContentService) {}
 
   public async autocomplete(
     _intr: AutocompleteInteraction,
@@ -77,15 +77,6 @@ export class ContentCommand implements Command {
   }
 
   public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
-    if (!this.contentService) {
-      await InteractionUtils.send(
-        intr,
-        Lang.getEmbed('displayEmbeds.contentNotConfigured', data.lang),
-        true,
-      )
-      return
-    }
-
     const key = intr.options.getString(Lang.getRef('arguments.contentKey', Language.Default), true)
     const entry = ManagedContent[key]
     if (!entry) {
@@ -97,19 +88,29 @@ export class ContentCommand implements Command {
       return
     }
 
-    switch (intr.options.getSubcommand()) {
+    const subcommand = intr.options.getSubcommand()
+    if (subcommand !== ContentSubcommand.SHOW && !this.contentService.isPersistent) {
+      await InteractionUtils.send(
+        intr,
+        Lang.getEmbed('displayEmbeds.contentNotConfigured', data.lang),
+        true,
+      )
+      return
+    }
+
+    switch (subcommand) {
       case ContentSubcommand.SHOW: {
-        await this.show(intr, data, key, entry, this.contentService)
+        await this.show(intr, data, key, entry)
         break
       }
       case ContentSubcommand.EDIT: {
         if (!(await this.checkCanModify(intr, data, entry))) return
-        await this.edit(intr, data, key, entry, this.contentService)
+        await this.edit(intr, data, key, entry)
         break
       }
       case ContentSubcommand.RESET: {
         if (!(await this.checkCanModify(intr, data, entry))) return
-        await this.reset(intr, data, key, entry, this.contentService)
+        await this.reset(intr, data, key, entry)
         break
       }
     }
@@ -150,12 +151,10 @@ export class ContentCommand implements Command {
     data: EventData,
     key: string,
     entry: ManagedContentEntry,
-    contentService: ContentService,
   ): Promise<void> {
     await InteractionUtils.deferReply(intr, true)
 
-    const values = await contentService.getContent(key)
-    const meta = await contentService.getOverrideMeta(key)
+    const { values, meta } = await this.contentService.getOverride(key)
 
     const embed = Lang.getEmbed('displayEmbeds.contentShow', data.lang, {
       LABEL: entry.label,
@@ -179,9 +178,8 @@ export class ContentCommand implements Command {
     data: EventData,
     key: string,
     entry: ManagedContentEntry,
-    contentService: ContentService,
   ): Promise<void> {
-    const values = await contentService.getContent(key)
+    const values = await this.contentService.getContent(key)
 
     const modalId = `content-edit-${intr.id}`
     const modal = new ModalBuilder()
@@ -223,7 +221,7 @@ export class ContentCommand implements Command {
     )
 
     try {
-      await contentService.setContent(key, newValues, intr.user.id)
+      await this.contentService.setContent(key, newValues, intr.user.id)
     } catch (error) {
       Logger.error(`/content: failed to save override for "${key}"`, error)
       await InteractionUtils.send(
@@ -247,11 +245,10 @@ export class ContentCommand implements Command {
     data: EventData,
     key: string,
     entry: ManagedContentEntry,
-    contentService: ContentService,
   ): Promise<void> {
     await InteractionUtils.deferReply(intr, true)
 
-    const meta = await contentService.getOverrideMeta(key)
+    const { meta } = await this.contentService.getOverride(key)
     if (!meta) {
       await InteractionUtils.send(
         intr,
@@ -305,7 +302,7 @@ export class ContentCommand implements Command {
       return
     }
 
-    await contentService.resetContent(key)
+    await this.contentService.resetContent(key)
     Logger.info(`${intr.user.tag} reset managed content "${key}" to defaults`)
     await InteractionUtils.update(button, {
       embeds: [Lang.getEmbed('displayEmbeds.contentReset', data.lang, { LABEL: entry.label })],

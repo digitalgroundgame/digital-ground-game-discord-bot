@@ -3,7 +3,7 @@ import { RateLimiter } from 'discord.js-rate-limiter'
 
 import { Language } from '../../models/enum-helpers/index.js'
 import { type EventData } from '../../models/internal-models.js'
-import { ContentService, Lang, Logger } from '../../services/index.js'
+import { type ContentService, Lang, Logger } from '../../services/index.js'
 import { InteractionUtils, MessageUtils } from '../../utils/index.js'
 import { type Command, CommandDeferType } from '../index.js'
 import { ContentKeys, ServerRoles } from '../../constants/index.js'
@@ -66,7 +66,7 @@ export class SendOnboarding implements Command {
 
   public constructor(
     config: OnboardingConfig,
-    private readonly contentService?: ContentService,
+    private readonly contentService: ContentService,
   ) {
     this.config = config
     this.names = [Lang.getRef(config.langKey, Language.Default)]
@@ -76,9 +76,7 @@ export class SendOnboarding implements Command {
 
   public async execute(intr: UserContextMenuCommandInteraction, data: EventData): Promise<void> {
     // Resolved at send time so /content edits apply without a restart.
-    const { title, message } = this.contentService
-      ? await this.contentService.getContent(this.config.contentKey)
-      : ContentService.getDefaults(this.config.contentKey)
+    const { title, message } = await this.contentService.getContent(this.config.contentKey)
 
     try {
       await MessageUtils.send(

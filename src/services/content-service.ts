@@ -11,16 +11,29 @@ export interface ContentOverrideMeta {
   updatedAt: Date
 }
 
+/** A content entry's effective values, plus override metadata if one exists. */
+export interface ResolvedContent {
+  values: Record<string, string>
+  meta?: ContentOverrideMeta
+}
+
 /**
  * Resolves managed content (see `constants/managed-content.ts`) to its
- * current values: database overrides where present, registry defaults
- * otherwise. Consumers without a database call the static `getDefaults`.
+ * current values. Content resolution is always available; persistence is
+ * optional — without a database (or on database errors) reads return the
+ * registry defaults, and writes are rejected (`isPersistent` tells callers
+ * whether edits are possible).
  */
 export class ContentService {
-  constructor(private readonly db: Database) {}
+  constructor(private readonly db?: Database) {}
+
+  /** Whether overrides can be stored (a database is configured). */
+  public get isPersistent(): boolean {
+    return this.db !== undefined
+  }
 
   /** Registry defaults for a key, keyed by field id. Throws on unknown key. */
-  public static getDefaults(key: string): Record<string, string> {
+  private static defaults(key: string): Record<string, string> {
     const entry = ManagedContent[key]
     if (!entry) {
       throw new Error(`Unknown managed content key: ${key}`)
@@ -28,35 +41,40 @@ export class ContentService {
     return Object.fromEntries(entry.fields.map((field) => [field.id, field.default]))
   }
 
-  /**
-   * Current effective values for a key: defaults merged with any overrides.
-   * Database errors fall back to defaults (overrides are best-effort by
-   * design); an unknown key still throws.
-   */
+  /** Current effective values for a key. Throws only on unknown keys. */
   public async getContent(key: string): Promise<Record<string, string>> {
-    const values = ContentService.getDefaults(key)
+    return (await this.getOverride(key)).values
+  }
+
+  /**
+   * Current effective values for a key plus override metadata (who/when),
+   * `meta` being undefined when the defaults are in effect. Database errors
+   * fall back to defaults; an unknown key still throws.
+   */
+  public async getOverride(key: string): Promise<ResolvedContent> {
+    const values = ContentService.defaults(key)
+    if (!this.db) {
+      return { values }
+    }
+
     try {
       const rows = await this.db.query.contentOverride.findMany({
         where: eq(contentOverride.key, key),
       })
+      let meta: ContentOverrideMeta | undefined
       for (const row of rows) {
         if (row.field in values) {
           values[row.field] = row.value
         }
+        if (!meta || row.updatedAt > meta.updatedAt) {
+          meta = { updatedBy: row.updatedBy, updatedAt: row.updatedAt }
+        }
       }
+      return { values, meta }
     } catch (error) {
       Logger.error(`Failed to read content overrides for "${key}"; using defaults`, error)
+      return { values }
     }
-    return values
-  }
-
-  /** Who last overrode this key and when, or undefined if no override exists. */
-  public async getOverrideMeta(key: string): Promise<ContentOverrideMeta | undefined> {
-    const rows = await this.db.query.contentOverride.findMany({
-      where: eq(contentOverride.key, key),
-    })
-    const latest = rows.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())[0]
-    return latest ? { updatedBy: latest.updatedBy, updatedAt: latest.updatedAt } : undefined
   }
 
   /**
@@ -68,14 +86,15 @@ export class ContentService {
     values: Record<string, string>,
     updatedBy: string,
   ): Promise<void> {
-    const defaults = ContentService.getDefaults(key)
+    const db = this.requireDb()
+    const defaults = ContentService.defaults(key)
     const unknownFields = Object.keys(values).filter((field) => !(field in defaults))
     if (unknownFields.length > 0) {
       throw new Error(`Unknown fields for content key "${key}": ${unknownFields.join(', ')}`)
     }
 
     const now = new Date()
-    this.db.transaction((tx) => {
+    db.transaction((tx) => {
       for (const [field, value] of Object.entries(values)) {
         tx.insert(contentOverride)
           .values({ key, field, value, updatedBy, updatedAt: now })
@@ -91,8 +110,16 @@ export class ContentService {
 
   /** Remove all overrides for a key, reverting it to registry defaults. */
   public async resetContent(key: string): Promise<void> {
-    ContentService.getDefaults(key) // validate key
-    await this.db.delete(contentOverride).where(eq(contentOverride.key, key))
+    const db = this.requireDb()
+    ContentService.defaults(key) // validate key
+    await db.delete(contentOverride).where(eq(contentOverride.key, key))
     Logger.info(`Content overrides reset: ${key}`)
+  }
+
+  private requireDb(): Database {
+    if (!this.db) {
+      throw new Error('Content persistence is not configured (no database)')
+    }
+    return this.db
   }
 }

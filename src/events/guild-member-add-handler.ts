@@ -9,7 +9,7 @@ import { WelcomeThreadService } from '../services/welcome-thread-service.js'
  * regardless of which role they select (or none). Bots are ignored.
  */
 export class GuildMemberAddHandler implements EventHandler {
-  constructor(private readonly contentService?: ContentService) {}
+  constructor(private readonly contentService: ContentService) {}
 
   public async process(member: GuildMember): Promise<void> {
     if (member.user.bot) {
