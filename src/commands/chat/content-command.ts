@@ -1,17 +1,9 @@
 import {
-  ActionRowBuilder,
   type ApplicationCommandOptionChoiceData,
   type AutocompleteFocusedOption,
   type AutocompleteInteraction,
-  ButtonBuilder,
-  ButtonStyle,
   type ChatInputCommandInteraction,
-  ComponentType,
-  ModalBuilder,
-  type ModalSubmitInteraction,
   type PermissionsString,
-  TextInputBuilder,
-  TextInputStyle,
 } from 'discord.js'
 import { RateLimiter } from 'discord.js-rate-limiter'
 
@@ -25,13 +17,9 @@ import { ContentSubcommand } from '../../enums/index.js'
 import { Language } from '../../models/enum-helpers/index.js'
 import { type EventData } from '../../models/internal-models.js'
 import { type ContentService, Lang, Logger } from '../../services/index.js'
-import { InteractionUtils, StringUtils } from '../../utils/index.js'
+import { ConfirmUtils, InteractionUtils, ModalUtils, StringUtils } from '../../utils/index.js'
 import { type Command, CommandDeferType } from '../index.js'
 
-/** How long the editor has to submit the edit modal. */
-const MODAL_TIMEOUT_MS = 10 * 60_000
-/** How long the issuer has to confirm a reset. */
-const CONFIRM_TIMEOUT_MS = 60_000
 /** Discord embed field value cap, for display truncation in `/content show`. */
 const EMBED_FIELD_VALUE_MAX = 1024
 
@@ -144,38 +132,12 @@ export class ContentCommand implements Command {
   ): Promise<void> {
     const values = await this.contentService.getContent(key)
 
-    const modalId = `content-edit-${intr.id}`
-    const modal = new ModalBuilder()
-      .setCustomId(modalId)
-      .setTitle(StringUtils.truncate(entry.label, 45, true))
-      .addComponents(
-        entry.fields.map((field) =>
-          new ActionRowBuilder<TextInputBuilder>().addComponents(
-            new TextInputBuilder()
-              .setCustomId(field.id)
-              .setLabel(StringUtils.truncate(field.label, 45, true))
-              .setStyle(
-                field.style === 'paragraph' ? TextInputStyle.Paragraph : TextInputStyle.Short,
-              )
-              .setMaxLength(field.maxLength)
-              .setValue(values[field.id] ?? '')
-              .setRequired(true),
-          ),
-        ),
-      )
-
-    await intr.showModal(modal)
-
-    let submit: ModalSubmitInteraction
-    try {
-      submit = await intr.awaitModalSubmit({
-        filter: (i) => i.customId === modalId && i.user.id === intr.user.id,
-        time: MODAL_TIMEOUT_MS,
-      })
-    } catch {
-      // Modal abandoned; Discord dismisses it client-side, nothing to clean up.
-      return
-    }
+    const submit = await ModalUtils.collect(
+      intr,
+      entry.label,
+      entry.fields.map((field) => ({ ...field, value: values[field.id] })),
+    )
+    if (!submit) return
 
     await InteractionUtils.deferReply(submit, true)
 
@@ -221,49 +183,20 @@ export class ContentCommand implements Command {
       return
     }
 
-    const confirmId = `content-reset-confirm-${intr.id}`
-    const cancelId = `content-reset-cancel-${intr.id}`
-    const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId(confirmId).setLabel('Reset').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId(cancelId).setLabel('Cancel').setStyle(ButtonStyle.Secondary),
-    )
-    const confirmMsg = await InteractionUtils.send(
+    const button = await ConfirmUtils.confirm(
       intr,
       {
-        embeds: [
-          Lang.getEmbed('displayEmbeds.contentResetConfirm', data.lang, { LABEL: entry.label }),
-        ],
-        components: [buttons],
+        confirm: Lang.getEmbed('displayEmbeds.contentResetConfirm', data.lang, {
+          LABEL: entry.label,
+        }),
+        cancelled: Lang.getEmbed('displayEmbeds.contentResetCancelled', data.lang, {
+          LABEL: entry.label,
+        }),
+        timedOut: Lang.getEmbed('displayEmbeds.contentResetTimedOut', data.lang),
       },
-      true,
+      'Reset',
     )
-    if (!confirmMsg) return
-
-    let button
-    try {
-      button = await confirmMsg.awaitMessageComponent({
-        componentType: ComponentType.Button,
-        filter: (i) =>
-          i.user.id === intr.user.id && (i.customId === confirmId || i.customId === cancelId),
-        time: CONFIRM_TIMEOUT_MS,
-      })
-    } catch {
-      await InteractionUtils.editReply(intr, {
-        embeds: [Lang.getEmbed('displayEmbeds.contentResetTimedOut', data.lang)],
-        components: [],
-      })
-      return
-    }
-
-    if (button.customId === cancelId) {
-      await InteractionUtils.update(button, {
-        embeds: [
-          Lang.getEmbed('displayEmbeds.contentResetCancelled', data.lang, { LABEL: entry.label }),
-        ],
-        components: [],
-      })
-      return
-    }
+    if (!button) return
 
     await this.contentService.resetContent(key)
     Logger.info(`${intr.user.tag} reset managed content "${key}" to defaults`)
