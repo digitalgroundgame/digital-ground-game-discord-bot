@@ -7,6 +7,7 @@ import {
 } from 'discord.js'
 import { createRequire } from 'node:module'
 
+import { ServerRoles } from '../constants/server-roles.js'
 import { Logger } from './logger.js'
 
 const require = createRequire(import.meta.url)
@@ -14,8 +15,6 @@ const Config = require('../../config/config.json')
 
 interface WelcomeThreadConfig {
   channelName: string
-  welcomeTeamRoleName: string
-  welcomeSupervisorsRoleName: string
   maxActiveThreads: number
   maxTotalThreads: number
   maxWelcomeTeamMembers: number
@@ -33,8 +32,6 @@ export class WelcomeThreadService {
     if (!wt?.channelName) return null
     return {
       channelName: wt.channelName,
-      welcomeTeamRoleName: wt.welcomeTeamRoleName ?? 'Welcome Team',
-      welcomeSupervisorsRoleName: wt.welcomeSupervisorsRoleName ?? 'Welcome Supervisors',
       maxActiveThreads: Math.max(1, Number(wt.maxActiveThreads) || 50),
       maxTotalThreads: Math.max(1, Number(wt.maxTotalThreads) || 500),
       maxWelcomeTeamMembers: Math.max(1, Number(wt.maxWelcomeTeamMembers) || 4),
@@ -250,10 +247,19 @@ export class WelcomeThreadService {
       return null
     }
 
-    const welcomeRole = member.guild.roles.cache.find((r) => r.name === config.welcomeTeamRoleName)
-    const welcomeSupervisorsRole = member.guild.roles.cache.find(
-      (r) => r.name === config.welcomeSupervisorsRoleName,
-    )
+    const welcomeRole = member.guild.roles.cache.get(ServerRoles.WELCOME_TEAM.id)
+    const welcomeSupervisorsRole = member.guild.roles.cache.get(ServerRoles.WELCOME_SUPERVISOR.id)
+
+    if (!welcomeRole) {
+      Logger.warn(
+        `Welcome Team role (id: ${ServerRoles.WELCOME_TEAM.id}) not found in ${member.guild.name}; no welcome team members will be added`,
+      )
+    }
+    if (!welcomeSupervisorsRole) {
+      Logger.warn(
+        `Welcome Supervisor role (id: ${ServerRoles.WELCOME_SUPERVISOR.id}) not found in ${member.guild.name}; no welcome supervisors will be added`,
+      )
+    }
 
     const membersToAdd = new Set<string>()
     const allMembers = await member.guild.members.fetch({ withPresences: true })
