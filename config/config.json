@@ -106,8 +106,6 @@
   },
   "welcomeThread": {
     "channelName": "entrance",
-    "welcomeTeamRoleName": "Welcome Team",
-    "welcomeSupervisorsRoleName": "Welcome Supervisors",
     "maxActiveThreads": 50,
     "maxWelcomeTeamMembers": 4,
     "inactivityDays": 2
@@ -155,6 +153,14 @@
     "ADMIN": {
       "id": "1347656064900005970",
       "name": "Admin"
+    },
+    "WELCOME_TEAM": {
+      "id": "1459295527886651595",
+      "name": "Welcome Team"
+    },
+    "WELCOME_SUPERVISOR": {
+      "id": "1482565506945777735",
+      "name": "Welcome Supervisors"
     }
   }
 }

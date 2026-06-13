@@ -7,7 +7,14 @@ export interface ServerRole {
   name: string
 }
 
-export type RoleKey = 'COORDINATOR' | 'TEAM_LEAD' | 'ORGANIZER' | 'DIRECTOR' | 'ADMIN'
+export type RoleKey =
+  | 'COORDINATOR'
+  | 'TEAM_LEAD'
+  | 'ORGANIZER'
+  | 'DIRECTOR'
+  | 'ADMIN'
+  | 'WELCOME_TEAM'
+  | 'WELCOME_SUPERVISOR'
 
 export const ServerRoles: Record<RoleKey, ServerRole> = Config.roles
 
