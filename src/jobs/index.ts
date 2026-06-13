@@ -3,3 +3,4 @@ export { ImmediateSyncDggpGoogleCalendarJob } from './immediate-sync-dggp-google
 export { Job } from './job.js'
 export { SyncDggpGoogleCalendarJob } from './sync-dggp-google-calendar-job.js'
 export { UpdateServerCountJob } from './update-server-count-job.js'
+export { EventNotificationJob } from './event-notification-job.js'
