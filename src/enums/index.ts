@@ -1,4 +1,5 @@
 export { ContentSubcommand } from './content-subcommand.js'
 export { DevCommandName } from './dev-command-name.js'
+export { RulesAdminSubcommand } from './rules-admin-subcommand.js'
 export { HelpOption } from './help-option.js'
 export { InfoOption } from './info-option.js'

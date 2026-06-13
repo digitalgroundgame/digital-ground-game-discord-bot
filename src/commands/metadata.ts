@@ -8,7 +8,7 @@ import {
 } from 'discord.js'
 
 import { Args } from './index.js'
-import { ContentSubcommand } from '../enums/index.js'
+import { ContentSubcommand, RulesAdminSubcommand } from '../enums/index.js'
 import { Language } from '../models/enum-helpers/index.js'
 import { Lang } from '../services/index.js'
 import { ONBOARDING_CONFIGS } from '../commands/user/index.js'
@@ -110,8 +110,36 @@ export const ChatCommandMetadata: {
     default_member_permissions: undefined,
     options: [
       {
-        ...Args.RULES_OPTIION,
+        ...Args.RULES_OPTION,
         required: false,
+      },
+    ],
+  },
+  RULES_ADMIN: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.rulesAdmin', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.rulesAdmin'),
+    description: Lang.getRef('commandDescs.rulesAdmin', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.rulesAdmin'),
+    dm_permission: false,
+    default_member_permissions: undefined,
+    options: [
+      {
+        type: ApplicationCommandOptionType.Subcommand,
+        name: RulesAdminSubcommand.EDIT,
+        description: Lang.getRef('commandDescs.rulesAdminEdit', Language.Default),
+        options: [{ ...Args.RULES_OPTION, required: true }],
+      },
+      {
+        type: ApplicationCommandOptionType.Subcommand,
+        name: RulesAdminSubcommand.ADD,
+        description: Lang.getRef('commandDescs.rulesAdminAdd', Language.Default),
+      },
+      {
+        type: ApplicationCommandOptionType.Subcommand,
+        name: RulesAdminSubcommand.REMOVE,
+        description: Lang.getRef('commandDescs.rulesAdminRemove', Language.Default),
+        options: [{ ...Args.RULES_OPTION, required: true }],
       },
     ],
   },

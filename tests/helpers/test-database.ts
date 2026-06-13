@@ -5,7 +5,7 @@ import * as schema from '../../src/database/schema.js'
 
 export type TestDatabase = ReturnType<typeof drizzle<typeof schema>>
 
-/** In-memory database with the content_override table (mirrors `npm run db:push`). */
+/** In-memory database with the bot's tables (mirrors `npm run db:push`). */
 export function createTestDatabase(): TestDatabase {
   const sqlite = new Sqlite(':memory:')
   sqlite.exec(`
@@ -18,6 +18,17 @@ export function createTestDatabase(): TestDatabase {
       updated_at integer NOT NULL DEFAULT (unixepoch())
     );
     CREATE UNIQUE INDEX content_override_key_field_uq ON content_override (key, field);
+
+    CREATE TABLE rule (
+      id integer PRIMARY KEY AUTOINCREMENT,
+      position integer NOT NULL,
+      title text NOT NULL,
+      description text NOT NULL,
+      updated_by text,
+      created_at integer NOT NULL DEFAULT (unixepoch()),
+      updated_at integer NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE UNIQUE INDEX rule_position_uq ON rule (position);
   `)
   return drizzle(sqlite, { schema })
 }
