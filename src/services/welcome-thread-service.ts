@@ -7,8 +7,10 @@ import {
 } from 'discord.js'
 import { createRequire } from 'node:module'
 
+import { type ContentService } from './content-service.js'
 import { ServerRoles } from '../constants/server-roles.js'
 import { Logger } from './logger.js'
+import { ContentKeys } from '../constants/managed-content.js'
 
 const require = createRequire(import.meta.url)
 const Config = require('../../config/config.json')
@@ -192,7 +194,10 @@ export class WelcomeThreadService {
    * send the standard welcome message. Returns the thread or null if cap reached,
    * config missing, or user already has a thread.
    */
-  public static async createWelcomeThread(member: GuildMember): Promise<ThreadChannel | null> {
+  public static async createWelcomeThread(
+    member: GuildMember,
+    contentService: ContentService,
+  ): Promise<ThreadChannel | null> {
     const config = this.getConfig()
     if (!config) {
       Logger.warn('Welcome thread config (welcomeThread.channelName) is missing')
@@ -293,21 +298,10 @@ export class WelcomeThreadService {
       }
     }
 
-    const content = `
-### 🗽 Welcome to Digital Ground Game (DGG)
-We are a grassroots Liberal political activism community committed to protecting individual liberties, the rule of law, and equal justice.
-
-### 🎯 What We Do
-Through our weekly [Call To Action (CTA)](https://digitalgroundgame.org/call-to-action), phonebanking, canvassing, and team-led projects, we organize real political action for real change. Partnering with like-minded organizations, we advance liberal values through a pragmatic, evidence-based approach to improve the material conditions of all Americans.
-
-### 🫡 Get Involved
-Activism work isn’t always easy, but we can make it easier by working together to build a brighter future.
-
-A Server Representative will be with you shortly. 
-In the meantime, feel free to check out the FAQ, join the conversation, or hop into debate or movie night.`
+    const { message } = await contentService.getContent(ContentKeys.WelcomeThread)
 
     try {
-      await thread.send({ content })
+      await thread.send({ content: message })
     } catch (error) {
       Logger.error(`Failed to send welcome message in thread ${thread.name}:`, error)
     }

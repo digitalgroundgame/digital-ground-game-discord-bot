@@ -113,6 +113,14 @@ export class Args {
     description_localizations: Lang.getRefLocalizationMap('argDescs.linkAccountUser'),
     type: ApplicationCommandOptionType.User,
   }
+  public static readonly CONTENT_KEY: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.contentKey', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.contentKey'),
+    description: Lang.getRef('argDescs.contentKey', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.contentKey'),
+    type: ApplicationCommandOptionType.String,
+    autocomplete: true,
+  }
   public static readonly RULES_OPTIION: APIApplicationCommandBasicOption = {
     name: Lang.getRef('arguments.ruleNumber', Language.Default),
     name_localizations: Lang.getRefLocalizationMap('arguments.ruleNumber'),

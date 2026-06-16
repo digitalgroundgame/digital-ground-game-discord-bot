@@ -1,4 +1,5 @@
 import {
+  ApplicationCommandOptionType,
   ApplicationCommandType,
   PermissionFlagsBits,
   PermissionsBitField,
@@ -7,6 +8,7 @@ import {
 } from 'discord.js'
 
 import { Args } from './index.js'
+import { ContentSubcommand } from '../enums/index.js'
 import { Language } from '../models/enum-helpers/index.js'
 import { Lang } from '../services/index.js'
 import { ONBOARDING_CONFIGS } from '../commands/user/index.js'
@@ -14,6 +16,35 @@ import { ONBOARDING_CONFIGS } from '../commands/user/index.js'
 export const ChatCommandMetadata: {
   [command: string]: RESTPostAPIChatInputApplicationCommandsJSONBody
 } = {
+  CONTENT: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.content', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.content'),
+    description: Lang.getRef('commandDescs.content', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.content'),
+    dm_permission: false,
+    default_member_permissions: undefined,
+    options: [
+      {
+        type: ApplicationCommandOptionType.Subcommand,
+        name: ContentSubcommand.SHOW,
+        description: Lang.getRef('commandDescs.contentShow', Language.Default),
+        options: [{ ...Args.CONTENT_KEY, required: true }],
+      },
+      {
+        type: ApplicationCommandOptionType.Subcommand,
+        name: ContentSubcommand.EDIT,
+        description: Lang.getRef('commandDescs.contentEdit', Language.Default),
+        options: [{ ...Args.CONTENT_KEY, required: true }],
+      },
+      {
+        type: ApplicationCommandOptionType.Subcommand,
+        name: ContentSubcommand.RESET,
+        description: Lang.getRef('commandDescs.contentReset', Language.Default),
+        options: [{ ...Args.CONTENT_KEY, required: true }],
+      },
+    ],
+  },
   DEV: {
     type: ApplicationCommandType.ChatInput,
     name: Lang.getRef('chatCommands.dev', Language.Default),

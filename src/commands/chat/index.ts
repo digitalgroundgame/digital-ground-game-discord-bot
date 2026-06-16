@@ -1,3 +1,4 @@
+export { ContentCommand } from './content-command.js'
 export { DevCommand } from './dev-command.js'
 export { HelpCommand } from './help-command.js'
 export { InfoCommand } from './info-command.js'

@@ -49,7 +49,28 @@ export const linkedAccount = sqliteTable(
   ],
 )
 
+/**
+ * A runtime override of one field of a managed content entry (see
+ * `constants/managed-content.ts`). One row per (key, field); a missing row
+ * means the hardcoded default is used.
+ */
+export const contentOverride = sqliteTable(
+  'content_override',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    key: text('key').notNull(),
+    field: text('field').notNull(),
+    value: text('value').notNull(),
+    updatedBy: text('updated_by').notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => [uniqueIndex('content_override_key_field_uq').on(t.key, t.field)],
+)
+
 export type User = typeof user.$inferSelect
 export type NewUser = typeof user.$inferInsert
 export type LinkedAccount = typeof linkedAccount.$inferSelect
 export type NewLinkedAccount = typeof linkedAccount.$inferInsert
+export type ContentOverride = typeof contentOverride.$inferSelect
