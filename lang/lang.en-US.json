@@ -224,6 +224,48 @@
       "linkAccountFailed": {
         "description": "Something went wrong saving the account link. Please try again or contact an administrator.",
         "color": "{{COM:colors.warning}}"
+      },
+      "contentShow": {
+        "title": "{{LABEL}}",
+        "description": ["{{DESCRIPTION}}", "", "{{OVERRIDE_STATUS}}"]
+      },
+      "contentUpdated": {
+        "description": "Updated **{{LABEL}}**. The change is live immediately.",
+        "color": "{{COM:colors.success}}"
+      },
+      "contentReset": {
+        "description": "Reset **{{LABEL}}** to its built-in default.",
+        "color": "{{COM:colors.success}}"
+      },
+      "contentResetConfirm": {
+        "description": "Reset **{{LABEL}}** to its built-in default? This deletes the runtime override.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "contentResetCancelled": {
+        "description": "Cancelled. **{{LABEL}}** is unchanged."
+      },
+      "contentResetTimedOut": {
+        "description": "Timed out waiting for confirmation. Nothing was changed.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "contentNoOverride": {
+        "description": "**{{LABEL}}** has no override; it is already using the built-in default."
+      },
+      "contentUnknownKey": {
+        "description": "Unknown content entry: `{{KEY}}`. Pick one from the autocomplete list.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "contentEmptyField": {
+        "description": "**{{FIELDS}}** cannot be empty (whitespace doesn't count). Nothing was saved.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "contentSaveFailed": {
+        "description": "Something went wrong saving the content. Please try again or contact an administrator.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "contentNotConfigured": {
+        "description": "Content management isn't configured on this bot. The database connection must be set.",
+        "color": "{{COM:colors.warning}}"
       }
     },
     "validationEmbeds": {
@@ -304,6 +346,7 @@
       "description": "{{REF:links.templateEmbed}} helps give developers a starting point for new Discord bots, so that much of the initial setup can be avoided and developers can instead focus on meaningful bot features."
     },
     "chatCommands": {
+      "content": "content",
       "dev": "dev",
       "help": "help",
       "info": "info",
@@ -326,6 +369,7 @@
     "messageCommands": {},
     "arguments": {
       "command": "command",
+      "contentKey": "key",
       "option": "option",
       "ruleNumber": "rulenumber",
       "attendanceEventName": "name",
@@ -335,6 +379,10 @@
       "identifier": "identifier"
     },
     "commandDescs": {
+      "content": "View or edit bot-managed content (welcome, onboarding, rules text).",
+      "contentShow": "Show the current value of a managed content entry.",
+      "contentEdit": "Edit a managed content entry. Changes apply immediately.",
+      "contentReset": "Reset a managed content entry to its built-in default.",
       "dev": "Developer use only.",
       "help": "Find help or contact support.",
       "info": "View bot info.",
@@ -348,6 +396,7 @@
       "linkAccount": "Link an external account (e.g. your Google email) to a Discord profile."
     },
     "argDescs": {
+      "contentKey": "The content entry to manage.",
       "devCommand": "Command.",
       "helpOption": "Option.",
       "infoOption": "Option.",
@@ -363,6 +412,10 @@
     "fields": {
       "commands": "Commands",
       "links": "Links"
+    },
+    "contentStatus": {
+      "overridden": "Overridden by {{USER}} on {{TIME}}",
+      "default": "Using the built-in default (no override)."
     },
     "permissions": {
       "AddReactions": "Add Reactions",
