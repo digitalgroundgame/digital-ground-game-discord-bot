@@ -30,7 +30,15 @@ Important entry points:
 - `npm run format` - check Prettier formatting.
 - `npm run format:fix` - apply Prettier formatting.
 - `npm run commands:register` - build and register Discord commands after command metadata/name/shape changes.
-- `npm run db:push` - push Drizzle schema changes.
+- `npm run db:push` - push Drizzle schema changes directly to a local database (dev convenience).
+
+After editing `src/database/schema.ts`, generate a migration so the change ships
+with the app and is applied automatically on startup:
+
+- `npx drizzle-kit generate` - write a migration file under `drizzle/` from the
+  schema diff, then commit it. `createDatabase()` runs pending migrations on
+  boot (`migrate()`), so production databases are updated on deploy without a
+  manual `db:push`.
 
 ## Required Verification
 

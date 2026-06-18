@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1781757434572,
+      "tag": "0000_green_korvac",
+      "breakpoints": true
+    }
+  ]
+}
