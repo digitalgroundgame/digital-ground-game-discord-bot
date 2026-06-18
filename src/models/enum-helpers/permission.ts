@@ -190,6 +190,11 @@ export class Permission {
         return Lang.getRef('permissions.SendVoiceMessages', langCode)
       },
     },
+    SetVoiceChannelStatus: {
+      displayName(langCode: Locale): string {
+        return Lang.getRef('permissions.SetVoiceChannelStatus', langCode)
+      },
+    },
     Speak: {
       displayName(langCode: Locale): string {
         return Lang.getRef('permissions.Speak', langCode)
