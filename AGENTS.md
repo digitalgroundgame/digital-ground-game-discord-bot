@@ -30,15 +30,24 @@ Important entry points:
 - `npm run format` - check Prettier formatting.
 - `npm run format:fix` - apply Prettier formatting.
 - `npm run commands:register` - build and register Discord commands after command metadata/name/shape changes.
-- `npm run db:push` - push Drizzle schema changes directly to a local database (dev convenience).
+- `npm run db:push` - push Drizzle schema changes directly to a local database (dev convenience, no migration file).
+- `npm run db:migrate` - apply committed migrations under `drizzle/` to `SQLITE_PATH`. Snapshots the database first (`*.bak`, last 10 kept) and exits non-zero on failure.
 
-After editing `src/database/schema.ts`, generate a migration so the change ships
-with the app and is applied automatically on startup:
+### Schema changes
 
-- `npx drizzle-kit generate` - write a migration file under `drizzle/` from the
-  schema diff, then commit it. `createDatabase()` runs pending migrations on
-  boot (`migrate()`), so production databases are updated on deploy without a
-  manual `db:push`.
+After editing `src/database/schema.ts`:
+
+1. `npx drizzle-kit generate` - write a migration file under `drizzle/` from the schema diff, then **commit it**. Review the SQL for destructive/table-rebuild changes (SQLite drops/renames columns by rebuilding the table).
+2. Apply it: run `npm run db:migrate` locally (or `db:push` for quick throwaway iteration).
+
+`createDatabase()` does **not** migrate on startup — each shard is its own
+process, so migrating there would race. Migrations run as a single-process deploy
+gate instead:
+
+- **Production (Coolify):** the pre-deployment command is `node dist/migrate.js`.
+  It runs once, before the new containers take over, so a failed migration aborts
+  the deploy and the previous version keeps serving. If you recreate the Coolify
+  app, re-set this command.
 
 ## Required Verification
 
