@@ -1,7 +1,6 @@
 import {
   AutocompleteInteraction,
   ButtonInteraction,
-  ChannelType,
   type Client,
   CommandInteraction,
   Events,

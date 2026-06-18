@@ -61,6 +61,7 @@ import {
 } from './services/index.js'
 import { CTAPostTrigger } from './triggers/cta-post.js'
 import { type Trigger } from './triggers/index.js'
+import { ScheduledEventsService } from './services/scheduled-events-service.js'
 
 const require = createRequire(import.meta.url)
 const Config = require('../config/config.json')
@@ -125,6 +126,7 @@ async function start(): Promise<void> {
       '/grant-access: disabled — set GOOGLE_APPLICATION_CREDENTIALS (or GOOGLE_CALENDAR_CREDENTIALS) and GOOGLE_WORKSPACE_ADMIN_SUBJECT (or GOOGLE_CALENDAR_IMPERSONATION_SUBJECT) — the Workspace admin email the service account impersonates. /link-account remains available.',
     )
   }
+
   // Stores the external accounts members link via /link-account, and is read
   // by /grant-access to resolve a member's Google email.
   let userService: UserService | undefined
@@ -134,6 +136,19 @@ async function start(): Promise<void> {
     } catch (error) {
       Logger.error(
         'Failed to initialize the database; /link-account and /grant-access will be unavailable.',
+        error,
+      )
+    }
+  }
+
+  // Service for accessing scheduled Discord server events
+  let scheduledEventsService: ScheduledEventsService | undefined
+  if (process.env.SQLITE_PATH) {
+    try {
+      scheduledEventsService = new ScheduledEventsService(createDatabase())
+    } catch (error) {
+      Logger.error(
+        'Failed to initialize the database; ScheduledEvent notifications will be unavailable',
         error,
       )
     }
@@ -199,7 +214,7 @@ async function start(): Promise<void> {
     new AutoCloseWelcomeThreadsJob(client),
     new ImmediateSyncDggpGoogleCalendarJob(client, googleCalendarService),
     new SyncDggpGoogleCalendarJob(client, googleCalendarService),
-    new EventNotificationJob(client),
+    new EventNotificationJob(client, scheduledEventsService),
   ]
 
   // Bot
