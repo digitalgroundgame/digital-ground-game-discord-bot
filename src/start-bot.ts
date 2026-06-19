@@ -40,14 +40,10 @@ import {
   VoiceStateUpdateHandler,
 } from './events/index.js'
 import { CustomClient } from './extensions/index.js'
-import {
-  AutoCloseWelcomeThreadsJob,
-  ImmediateSyncDggpGoogleCalendarJob,
-  SyncDggpGoogleCalendarJob,
-  type Job,
-} from './jobs/index.js'
+import { AutoCloseWelcomeThreadsJob, SyncDggpGoogleCalendarJob, type Job } from './jobs/index.js'
 import { Bot } from './models/bot.js'
 import { type Reaction } from './reactions/index.js'
+import { syncDggpScheduledEventsToGoogle } from './services/sync-dggp-google-calendar.js'
 import {
   AttendanceService,
   CommandRegistrationService,
@@ -200,10 +196,8 @@ async function start(): Promise<void> {
   const voiceStateUpdateHandler = new VoiceStateUpdateHandler(attendanceService, crmService, client)
 
   // Jobs
-  // Google Calendar sync jobs temporarily disabled (see ImmediateSyncDggpGoogleCalendarJob, SyncDggpGoogleCalendarJob).
   const jobs: Job[] = [
     new AutoCloseWelcomeThreadsJob(client),
-    new ImmediateSyncDggpGoogleCalendarJob(client, googleCalendarService),
     new SyncDggpGoogleCalendarJob(client, googleCalendarService),
   ]
 
@@ -222,6 +216,19 @@ async function start(): Promise<void> {
     guildScheduledEventHandler,
     new JobService(jobs),
     voiceStateUpdateHandler,
+    // onBotReady callback: run immediate Google Calendar sync once after bot is ready
+    async () => {
+      if (googleCalendarService.isConfigured()) {
+        try {
+          await syncDggpScheduledEventsToGoogle(client, googleCalendarService)
+        } catch (error) {
+          Logger.error(
+            Logs.error.calendarSync.replace('{EVENT_NAME}', 'immediate startup sync'),
+            error,
+          )
+        }
+      }
+    },
   )
 
   await bot.start()
