@@ -1,6 +1,6 @@
 export { DiscordLimits } from './discord-limits.js'
 export { Rules } from './rules.js'
-export { ServerRoles, type ServerRole, getRoleNameById } from './server-roles.js'
+export { ServerRoles, type ServerRole, getRoleById, getRoleNameById } from './server-roles.js'
 export {
   ContentKeys,
   ManagedContent,
