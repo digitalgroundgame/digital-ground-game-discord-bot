@@ -64,8 +64,8 @@ export function listWindowForDiscordEvents(discordEvents: Iterable<GuildSchedule
 export function buildCalendarInputFromDiscordEvent(event: GuildScheduledEvent): CalendarEventInput {
   const { start, end } = discordScheduledEventTimeRange(event)
   const description = event.description
-    ? `${event.description}\n\nSynced from DGGP Discord: ${event.url}`
-    : `Synced from DGGP Discord: ${event.url}`
+    ? `${event.description}\n\n${event.url}`
+    : `${event.url}`
   const location =
     event.entityMetadata && 'location' in event.entityMetadata
       ? (event.entityMetadata.location ?? null)
