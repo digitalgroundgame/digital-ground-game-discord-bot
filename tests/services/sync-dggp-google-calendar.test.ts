@@ -119,9 +119,7 @@ describe('buildCalendarInputFromDiscordEvent', () => {
 
   it('uses only sync line when description is empty', () => {
     const input = buildCalendarInputFromDiscordEvent(mockScheduledEvent({ description: null }))
-    expect(input.description).toBe(
-      'https://discord.com/events/guild/scheduled/1',
-    )
+    expect(input.description).toBe('https://discord.com/events/guild/scheduled/1')
   })
 
   it('reads location from external entity metadata when present', () => {
