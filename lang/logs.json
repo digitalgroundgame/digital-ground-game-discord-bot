@@ -25,9 +25,9 @@
     "updatedServerCountSite": "Updated server count on '{BOT_SITE}'.",
     "guildJoined": "Guild '{GUILD_NAME}' ({GUILD_ID}) joined.",
     "guildLeft": "Guild '{GUILD_NAME}' ({GUILD_ID}) left.",
-    "calendarSyncCreated": "Calendar sync: created '{EVENT_NAME}' on DGGP Google Calendar.",
-    "calendarSyncUpdated": "Calendar sync: updated '{EVENT_NAME}' on DGGP Google Calendar.",
-    "calendarSyncDeleted": "Calendar sync: removed '{EVENT_NAME}' from DGGP Google Calendar."
+    "calendarSyncCreated": "Calendar sync: created '{EVENT_NAME}' on Google Calendar.",
+    "calendarSyncUpdated": "Calendar sync: updated '{EVENT_NAME}' on Google Calendar.",
+    "calendarSyncDeleted": "Calendar sync: removed '{EVENT_NAME}' from Google Calendar."
   },
   "warn": {
     "managerNoShards": "No shards to spawn."

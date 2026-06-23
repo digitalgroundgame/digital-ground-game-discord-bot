@@ -114,15 +114,12 @@ describe('buildCalendarInputFromDiscordEvent', () => {
     expect(input.end.toISOString()).toBe('2026-06-01T20:00:00.000Z')
     expect(input.discordScheduledEventId).toBe('evt_discord_1')
     expect(input.description).toContain('Agenda items')
-    expect(input.description).toContain('Synced from DGGP Discord:')
     expect(input.description).toContain('https://discord.com/events/guild/scheduled/1')
   })
 
   it('uses only sync line when description is empty', () => {
     const input = buildCalendarInputFromDiscordEvent(mockScheduledEvent({ description: null }))
-    expect(input.description).toBe(
-      'Synced from DGGP Discord: https://discord.com/events/guild/scheduled/1',
-    )
+    expect(input.description).toBe('https://discord.com/events/guild/scheduled/1')
   })
 
   it('reads location from external entity metadata when present', () => {

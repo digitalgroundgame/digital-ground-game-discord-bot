@@ -86,7 +86,7 @@ DISCORD_BOT_DEVELOPER_IDS="123456789012345678,987654321098765432" # comma-separa
 
 ### Optional: Google Calendar sync
 
-To mirror Discord scheduled events from **DGG Political Action** into the DGGP group calendar, the bot runs an **hourly** job that reconciles with Google Calendar.
+To mirror Discord scheduled events from **DGG Political Action** into the DGG group calendar, the bot runs an **hourly** job that reconciles with Google Calendar.
 
 1. Create a [Google Cloud project](https://console.cloud.google.com/) and enable the **Google Calendar API**.
 
