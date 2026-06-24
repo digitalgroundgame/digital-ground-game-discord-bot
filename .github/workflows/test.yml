@@ -21,11 +21,14 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
+      - name: Enable Corepack
+        run: corepack enable
       - name: Install
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       - name: Copy example config
-        run: npm run copyconfig
+        run: pnpm run copyconfig
       - name: Test
-        run: npm test
+        run: pnpm test
       - name: Build
-        run: npm run build
+        run: pnpm run build
