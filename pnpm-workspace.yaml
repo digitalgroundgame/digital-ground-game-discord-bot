@@ -1,3 +1,4 @@
+# pnpm 11 uses allowBuilds; legacy onlyBuiltDependencies was removed.
 allowBuilds:
   better-sqlite3: true
   canvas: true
