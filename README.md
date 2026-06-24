@@ -96,6 +96,21 @@ To mirror Discord scheduled events from **DGG Political Action** into the DGG gr
 
 The bot lists Google Calendar events in a fixed time window and compares them to Discord scheduled events. Discord is the source of truth: each new Google event’s description includes the Discord scheduled event id so the next run can tell what is already synced—no separate state file on disk.
 
+### Optional: SQLite-backed commands
+
+`/link-account`, `/grant-access`, and runtime content edits use SQLite when
+`SQLITE_PATH` is set. In Docker/Coolify, prefer an absolute path:
+
+```bash
+SQLITE_PATH=/app/db/dggbot.sqlite
+```
+
+Persist the whole `/app/db` directory, not only `/app/db/dggbot.sqlite`. The
+app enables SQLite WAL mode, which creates adjacent `-wal` and `-shm` files
+that must live on persistent storage with the main database file. The Docker
+startup command runs `npm run db:push` when `SQLITE_PATH` is set, so schema
+changes are applied to the mounted runtime database before the bot starts.
+
 ### Not used
 
 Clustering Configuration (only needed if clustering.enabled is true), we will likely never cluster because it's for bots that serve 2,500+ guilds.
