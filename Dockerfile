@@ -20,5 +20,9 @@ RUN npm run build
 # Expose ports
 EXPOSE 3001
 
-# Run the application
-CMD [ "node", "dist/start-manager.js" ]
+# Push the database schema against the runtime-mounted SQLite file, then start the app.
+CMD if [ -n "$SQLITE_PATH" ]; then \
+      mkdir -p "$(dirname "$SQLITE_PATH")" && \
+      DRIZZLE_STRICT=false npm run db:push; \
+    fi; \
+    exec node --enable-source-maps dist/start-manager.js
