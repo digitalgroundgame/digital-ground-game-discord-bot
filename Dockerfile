@@ -8,7 +8,7 @@ COPY .nvmrc package*.json ./
 COPY scripts/check-node-version.mjs scripts/check-node-version.mjs
 
 # Install packages
-RUN npm run check-node-version -- --major && NODE_VERSION_CHECK=major npm ci
+RUN NODE_VERSION_CHECK=major npm ci
 
 # Copy the app code
 COPY . .

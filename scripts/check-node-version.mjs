@@ -1,9 +1,13 @@
+/* global console, process */
+
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const rootDirectory = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const expectedVersion = readFileSync(resolve(rootDirectory, '.nvmrc'), 'utf8').trim()
+const expectedVersion = readFileSync(resolve(rootDirectory, '.nvmrc'), 'utf8')
+  .trim()
+  .replace(/^v/, '')
 const actualVersion = process.version.replace(/^v/, '')
 const checkMajorOnly =
   process.argv.includes('--major') || process.env.NODE_VERSION_CHECK === 'major'
