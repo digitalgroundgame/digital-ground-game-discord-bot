@@ -1,7 +1,7 @@
 name: autofix.ci
 
 concurrency:
-  group: ci-autofix-${{ github.ref_name == 'main' && github.sha || github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 on:

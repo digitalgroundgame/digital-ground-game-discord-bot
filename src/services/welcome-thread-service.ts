@@ -11,6 +11,7 @@ import { type ContentService } from './content-service.js'
 import { ServerRoles } from '../constants/server-roles.js'
 import { Logger } from './logger.js'
 import { ContentKeys } from '../constants/managed-content.js'
+import { RoleUtils } from '../utils/role-utils.js'
 
 const require = createRequire(import.meta.url)
 const Config = require('../../config/config.json')
@@ -252,8 +253,11 @@ export class WelcomeThreadService {
       return null
     }
 
-    const welcomeRole = member.guild.roles.cache.get(ServerRoles.WELCOME_TEAM.id)
-    const welcomeSupervisorsRole = member.guild.roles.cache.get(ServerRoles.WELCOME_SUPERVISOR.id)
+    const welcomeRole = RoleUtils.findConfiguredRole(member.guild, ServerRoles.WELCOME_TEAM.id)
+    const welcomeSupervisorsRole = RoleUtils.findConfiguredRole(
+      member.guild,
+      ServerRoles.WELCOME_SUPERVISOR.id,
+    )
 
     if (!welcomeRole) {
       Logger.warn(

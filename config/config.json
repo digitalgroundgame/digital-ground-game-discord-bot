@@ -131,7 +131,7 @@
   },
   "managedContent": {
     "// NOTE": "Role config keys (see roles below) allowed to run /content.",
-    "allowedRoleKeys": ["ADMIN", "DIRECTOR"]
+    "allowedRoleKeys": ["ADMIN", "DIRECTOR", "WELCOME_SUPERVISOR"]
   },
   "roles": {
     "COORDINATOR": {

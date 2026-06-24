@@ -1,15 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { type Command } from '../../src/commands/index.js'
+import { ServerRoles } from '../../src/constants/index.js'
 import { CommandUtils } from '../../src/utils/command-utils.js'
 import {
   createMockCommand,
   createMockCommandInteraction,
   createMockGuildChannel,
+  createMockGuildMember,
 } from '../helpers/discord-mocks.js'
 import {
+  Collection,
   Locale,
   type CommandInteraction,
+  type Role,
   type MessageComponentInteraction,
   type ModalSubmitInteraction,
 } from 'discord.js'
@@ -29,6 +33,9 @@ vi.mock('../../src/services/index.js', () => ({
   Lang: {
     getEmbed: vi.fn().mockReturnValue({ title: 'Mock Embed' }),
   },
+  Logger: {
+    warn: vi.fn(),
+  },
 }))
 
 vi.mock('../../src/models/enum-helpers/index.js', () => ({
@@ -45,6 +52,14 @@ vi.mock('../../src/models/enum-helpers/index.js', () => ({
 }))
 
 describe('CommandUtils', () => {
+  function createRole(id: string, name: string): Role {
+    return { id, name } as Role
+  }
+
+  function createRoleCollection(roles: Role[]): Collection<string, Role> {
+    return new Collection<string, Role>(roles.map((role) => [role.id, role]))
+  }
+
   // Test findCommand method
   describe('findCommand', () => {
     let mockCommands: Command[]
@@ -168,6 +183,37 @@ describe('CommandUtils', () => {
       // Verify the result
       expect(result).toBe(false)
       expect(InteractionUtils.send).toHaveBeenCalled()
+    })
+
+    it('should fall back to the configured role name when a required role ID is absent from the guild', async () => {
+      const localAdminRole = createRole('local-admin-role', ServerRoles.ADMIN.name)
+      const member = createMockGuildMember({
+        guild: {
+          id: '111222333444555666',
+          name: 'Test Guild',
+          roles: { cache: createRoleCollection([localAdminRole]) },
+        },
+        roles: {
+          cache: createRoleCollection([localAdminRole]),
+        },
+      })
+
+      mockInteraction = createMockCommandInteraction({
+        member,
+        user: member.user,
+        channel: createMockGuildChannel({
+          permissionsFor: vi.fn().mockReturnValue({
+            has: vi.fn().mockReturnValue(true),
+          }),
+        }),
+        inGuild: vi.fn().mockReturnValue(true),
+      })
+      mockCommand.requireRoles = [ServerRoles.ADMIN.id]
+      mockCommand.cooldown.take.mockReturnValue(false)
+
+      const result = await CommandUtils.runChecks(mockCommand, mockInteraction, mockEventData)
+
+      expect(result).toBe(true)
     })
   })
 })
