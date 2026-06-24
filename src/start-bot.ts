@@ -218,15 +218,13 @@ async function start(): Promise<void> {
     voiceStateUpdateHandler,
     // onBotReady callback: run immediate Google Calendar sync once after bot is ready
     async () => {
-      if (googleCalendarService.isConfigured()) {
-        try {
-          await syncDggpScheduledEventsToGoogle(client, googleCalendarService)
-        } catch (error) {
-          Logger.error(
-            Logs.error.calendarSync.replace('{EVENT_NAME}', 'immediate startup sync'),
-            error,
-          )
-        }
+      try {
+        await syncDggpScheduledEventsToGoogle(client, googleCalendarService)
+      } catch (error) {
+        Logger.error(
+          Logs.error.calendarSync.replace('{EVENT_NAME}', 'immediate startup sync'),
+          error,
+        )
       }
     },
   )

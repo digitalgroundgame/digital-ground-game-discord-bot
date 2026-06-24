@@ -138,7 +138,7 @@ export class Bot {
       try {
         await this.onBotReady()
       } catch (error) {
-        Logger.error('Error in onBotReady callback', error)
+        Logger.error(Logs.error.botReady, error)
       }
     }
   }

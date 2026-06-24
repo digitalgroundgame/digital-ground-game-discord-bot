@@ -43,6 +43,7 @@
     "commandActionRenameMissingArg": "Please supply the current command name and new command name.",
     "commandActionDeleteMissingArg": "Please supply a command name to delete.",
     "clientLogin": "An error occurred while the client attempted to login.",
+    "botReady": "An error occurred while running the onBotReady callback.",
     "job": "An error occurred while running the '{JOB}' job.",
     "updatedServerCountSite": "An error occurred while updating the server count on '{BOT_SITE}'.",
     "guildJoin": "An error occurred while processing a guild join.",
