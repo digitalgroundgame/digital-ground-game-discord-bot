@@ -5,9 +5,6 @@
   "description": "A discord.js bot for DGGAC discord server",
   "license": "MIT",
   "private": true,
-  "engines": {
-    "node": "24.15.0"
-  },
   "type": "module",
   "exports": [
     "./dist/start-bot.js",
@@ -20,7 +17,10 @@
     "format:fix": "prettier --write .",
     "clean": "git clean -xdf --exclude=\"/config/**/*\"",
     "clean:dry": "git clean -xdf --exclude=\"/config/**/*\" --dry-run",
+    "check-node-version": "node scripts/check-node-version.mjs",
     "build": "tsc --project tsconfig.json",
+    "docker:build": "docker build .",
+    "preinstall": "node scripts/check-node-version.mjs",
     "commands:view": "npm run build && node --enable-source-maps dist/start-bot.js commands view",
     "commands:register": "npm run build && node --enable-source-maps dist/start-bot.js commands register",
     "commands:rename": "npm run build && node --enable-source-maps dist/start-bot.js commands rename",

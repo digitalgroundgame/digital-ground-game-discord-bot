@@ -14,7 +14,7 @@ Important entry points:
 
 ## Local Setup
 
-- Use the pinned Node version: `nvm use` (`.nvmrc` currently pins `24.15.0`).
+- Use the pinned Node version: `nvm use` (the exact version lives in `.nvmrc`).
 - Install dependencies with `npm ci` for normal development. Use `npm install` only when intentionally changing dependencies.
 - Local config can be initialized with `npm run copyconfig`.
 - Do not commit secrets from `.env`, local config, service account keys, or generated database files.
