@@ -66,12 +66,6 @@
       "log": true,
       "runOnce": false,
       "initialDelaySecs": 60
-    },
-    "syncDggpGoogleCalendarImmediate": {
-      "schedule": "* * * * * *",
-      "log": true,
-      "runOnce": true,
-      "initialDelaySecs": 0
     }
   },
   "rateLimiting": {
