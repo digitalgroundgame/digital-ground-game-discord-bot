@@ -4,11 +4,14 @@ FROM node:24
 WORKDIR /app
 
 # Copy package metadata and the shared Node version check.
-COPY .nvmrc package*.json ./
+COPY .nvmrc package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY scripts/check-node-version.mjs scripts/check-node-version.mjs
 
+# Enable the pinned package manager from package.json.
+RUN corepack enable
+
 # Install packages
-RUN NODE_VERSION_CHECK=major npm ci
+RUN NODE_VERSION_CHECK=major pnpm install --frozen-lockfile
 
 # Copy the app code
 COPY . .
@@ -16,7 +19,7 @@ COPY config/bot-sites.example.json config/bot-sites.json
 COPY config/debug.example.json config/debug.json
 
 # Build the project
-RUN npm run build
+RUN pnpm run build
 
 # Expose ports
 EXPOSE 3001
@@ -24,6 +27,6 @@ EXPOSE 3001
 # Push the database schema against the runtime-mounted SQLite file, then start the app.
 CMD if [ -n "$SQLITE_PATH" ]; then \
       mkdir -p "$(dirname "$SQLITE_PATH")" && \
-      DRIZZLE_STRICT=false npm run db:push; \
+      DRIZZLE_STRICT=false pnpm run db:push; \
     fi; \
     exec node --enable-source-maps dist/start-manager.js

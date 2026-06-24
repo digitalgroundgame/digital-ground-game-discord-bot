@@ -11,7 +11,7 @@ const Config = require('../config/config.json')
 
 /**
  * Log in once, run a full Discord ↔ Google Calendar reconcile, then disconnect.
- * Used by `npm run calendar:sync` / `node dist/start-bot.js calendar sync`.
+ * Used by `pnpm run calendar:sync` / `node dist/start-bot.js calendar sync`.
  */
 export async function runCalendarSyncCli(): Promise<void> {
   const token = process.env.DISCORD_BOT_TOKEN
