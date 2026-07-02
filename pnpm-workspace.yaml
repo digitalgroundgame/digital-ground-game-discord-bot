@@ -1,0 +1,7 @@
+# pnpm 11 uses allowBuilds; legacy onlyBuiltDependencies was removed.
+# See https://pnpm.io/blog/releases/11.0#allowbuilds-replaces-the-old-build-settings
+# and https://pnpm.io/settings#allowbuilds.
+allowBuilds:
+  better-sqlite3: true
+  canvas: true
+  esbuild: true

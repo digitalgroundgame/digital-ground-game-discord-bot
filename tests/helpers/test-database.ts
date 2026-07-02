@@ -5,7 +5,7 @@ import * as schema from '../../src/database/schema.js'
 
 export type TestDatabase = ReturnType<typeof drizzle<typeof schema>>
 
-/** In-memory database mirroring the schema created by `npm run db:push`. */
+/** In-memory database mirroring the schema created by `pnpm run db:push`. */
 export function createTestDatabase(): TestDatabase {
   const sqlite = new Sqlite(':memory:')
   sqlite.exec(`
