@@ -30,9 +30,7 @@ const sampleUser = {
   ],
 }
 
-async function buildApp(
-  broadcastEval: ReturnType<typeof vi.fn>,
-): Promise<Express> {
+async function buildApp(broadcastEval: ReturnType<typeof vi.fn>): Promise<Express> {
   const { UsersController } = await import('../../src/controllers/users-controller.js')
   const { Api } = await import('../../src/models/api.js')
   const shardManager = { broadcastEval } as unknown as import('discord.js').ShardingManager

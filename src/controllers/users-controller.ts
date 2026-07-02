@@ -36,8 +36,7 @@ export class UsersController implements Controller {
     }
 
     const results = await this.shardManager.broadcastEval(
-      (client, context) =>
-        (client as CustomClient).getUserInfo(context.guildId, context.userId),
+      (client, context) => (client as CustomClient).getUserInfo(context.guildId, context.userId),
       { context: { guildId, userId } },
     )
 
