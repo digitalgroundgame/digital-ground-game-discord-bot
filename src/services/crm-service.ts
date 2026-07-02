@@ -2,8 +2,15 @@ import fetch, { type RequestInit } from 'node-fetch'
 import { URL } from 'node:url'
 
 const REQUEST_TIMEOUT_MS = 10_000
+const RESPONSE_BODY_PREVIEW_CHARS = 500
 const RECORD_ATTENDANCE_PATH = '/api/discord/staged-event-participations/'
 const CAN_RECORD_ATTENDANCE_PATH = '/api/discord/can-record-attendance/'
+const CLOUDFLARE_CHALLENGE_MARKERS = [
+  'Just a moment...',
+  'Enable JavaScript and cookies to continue',
+  'window._cf_chl_opt',
+  '/cdn-cgi/challenge-platform/',
+] as const
 
 export interface CrmAttendancePayload {
   event_id: string
@@ -35,6 +42,65 @@ export type AttendancePermissionReason =
 export interface CrmAttendancePermissionResponse {
   authorized: boolean
   reason: AttendancePermissionReason
+}
+
+type CrmResponseFailureReason = 'http_status' | 'invalid_json'
+
+interface CrmResponseErrorOptions {
+  label: string
+  status: number
+  statusText: string
+  contentType: string | null
+  body: string
+  reason: CrmResponseFailureReason
+}
+
+function summarizeBody(body: string): string {
+  const normalized = body.replace(/\s+/g, ' ').trim()
+  if (normalized.length <= RESPONSE_BODY_PREVIEW_CHARS) {
+    return normalized
+  }
+
+  return `${normalized.slice(0, RESPONSE_BODY_PREVIEW_CHARS)}...`
+}
+
+function isCloudflareChallengeResponse(body: string): boolean {
+  return CLOUDFLARE_CHALLENGE_MARKERS.some((marker) => body.includes(marker))
+}
+
+export class CrmResponseError extends Error {
+  public readonly label: string
+  public readonly status: number
+  public readonly statusText: string
+  public readonly contentType: string | null
+  public readonly bodyPreview: string
+  public readonly isCloudflareChallenge: boolean
+
+  constructor(options: CrmResponseErrorOptions) {
+    const bodyPreview = summarizeBody(options.body)
+    const isCloudflareChallenge = isCloudflareChallengeResponse(options.body)
+    const statusDescription = options.statusText
+      ? `${options.status} ${options.statusText}`
+      : `${options.status}`
+    const failureDescription =
+      options.reason === 'invalid_json' ? 'returned invalid JSON' : 'failed'
+    const contentTypeDescription = options.contentType
+      ? `; content-type ${options.contentType}`
+      : ''
+    const bodyDescription = bodyPreview ? `; response body preview: ${bodyPreview}` : ''
+    const message = isCloudflareChallenge
+      ? `CRM ${options.label} ${failureDescription}: ${statusDescription} (Cloudflare challenge). Configure Cloudflare to bypass browser challenges for this Discord API route, or set CRM_API_URL to an unchallenged internal/origin URL.`
+      : `CRM ${options.label} ${failureDescription}: ${statusDescription}${contentTypeDescription}${bodyDescription}`
+
+    super(message)
+    this.name = 'CrmResponseError'
+    this.label = options.label
+    this.status = options.status
+    this.statusText = options.statusText
+    this.contentType = options.contentType
+    this.bodyPreview = isCloudflareChallenge ? '[Cloudflare challenge page omitted]' : bodyPreview
+    this.isCloudflareChallenge = isCloudflareChallenge
+  }
 }
 
 export class CrmService {
@@ -93,10 +159,29 @@ export class CrmService {
 
       if (!res.ok) {
         const text = await res.text().catch(() => '')
-        throw new Error(`CRM ${label} failed: ${res.status} ${text}`)
+        throw new CrmResponseError({
+          label,
+          status: res.status,
+          statusText: res.statusText,
+          contentType: res.headers.get('content-type'),
+          body: text,
+          reason: 'http_status',
+        })
       }
 
-      return (await res.json()) as T
+      const text = await res.text()
+      try {
+        return JSON.parse(text) as T
+      } catch {
+        throw new CrmResponseError({
+          label,
+          status: res.status,
+          statusText: res.statusText,
+          contentType: res.headers.get('content-type'),
+          body: text,
+          reason: 'invalid_json',
+        })
+      }
     } finally {
       clearTimeout(timer)
     }
