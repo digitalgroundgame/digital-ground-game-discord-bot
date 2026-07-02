@@ -66,12 +66,6 @@
       "log": true,
       "runOnce": false,
       "initialDelaySecs": 60
-    },
-    "syncDggpGoogleCalendarImmediate": {
-      "schedule": "* * * * * *",
-      "log": true,
-      "runOnce": true,
-      "initialDelaySecs": 0
     }
   },
   "rateLimiting": {
@@ -112,7 +106,7 @@
   },
   "grantAccess": {
     "// NOTE": "Maps a /grant-access team shortname to the Google Group address in the Workspace account.",
-    "allowedRoleKeys": ["COORDINATOR"],
+    "allowedRoleKeys": ["DIRECTOR", "COORDINATOR"],
     "groups": {
       "Event Team": "event-team@digitalgroundgame.org",
       "Media Team": "media-team@digitalgroundgame.org",

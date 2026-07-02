@@ -58,6 +58,7 @@ export class Bot {
     private guildScheduledEventHandler: GuildScheduledEventHandler,
     private jobService: JobService,
     private voiceStateUpdateHandler?: VoiceStateUpdateHandler,
+    private onBotReady?: () => Promise<void>,
   ) {}
 
   public async start(): Promise<void> {
@@ -132,6 +133,14 @@ export class Bot {
 
     this.ready = true
     Logger.info(Logs.info.clientReady)
+
+    if (this.onBotReady) {
+      try {
+        await this.onBotReady()
+      } catch (error) {
+        Logger.error(Logs.error.botReady, error)
+      }
+    }
   }
 
   private onShardReady(shardId: number, _unavailableGuilds: Set<string>): void {

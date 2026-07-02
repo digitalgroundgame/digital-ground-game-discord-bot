@@ -44,6 +44,13 @@ This template for a Discord bot was based upon this public template. https://git
      - It may take up to an hour for command changes to appear.
 5. `npm start`
 
+Docker builds use the cached Node major-version image and verify that it matches
+the major version pinned in `.nvmrc`:
+
+```
+npm run docker:build
+```
+
 ## Contributing With Low Lockfile Noise
 
 When contributors use different Node/npm versions, `package-lock.json` often churns (including platform/libc metadata). To reduce noise:

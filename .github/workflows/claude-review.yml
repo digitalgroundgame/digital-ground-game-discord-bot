@@ -1,0 +1,50 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+    branches: [dev]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  claude-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Claude Code Review
+        id: claude-review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY_CODE_REVIEW }}
+          track_progress: true
+          show_full_output: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Perform a general code review for a Django/DRF backend and React/Next.js frontend.
+            Look for high-signal, actionable issues introduced by this PR, including correctness bugs,
+            security vulnerabilities, authorization mistakes, data leaks, unsafe database access,
+            broken API contracts, frontend state/rendering bugs, missing or weak tests for changed
+            behavior, performance regressions, maintainability problems, and clear CLAUDE.md violations.
+
+            Review only issues introduced by this PR. Do not flag pre-existing code unless the PR makes it worse.
+            Prefer inline comments for specific code issues. Include a top-level summary comment when the review is complete.
+            If no issues are found, post a top-level comment saying no high-signal issues were found.
+
+          claude_args: |
+            --model claude-opus-4-8
+            --allowedTools "Read,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git show:*),Bash(rg:*),Bash(sed:*),Bash(nl:*)"

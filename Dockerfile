@@ -1,13 +1,14 @@
-FROM node:22.12
+FROM node:24
 
 # Create app directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json
-COPY package*.json ./
+# Copy package metadata and the shared Node version check.
+COPY .nvmrc package*.json ./
+COPY scripts/check-node-version.mjs scripts/check-node-version.mjs
 
 # Install packages
-RUN npm install
+RUN NODE_VERSION_CHECK=major npm ci
 
 # Copy the app code
 COPY . .
