@@ -79,4 +79,11 @@ export class UserService {
       ),
     })
   }
+
+  /** All external accounts a Discord user has linked, across every provider. */
+  public async listLinkedAccounts(discordUserId: string): Promise<LinkedAccount[]> {
+    return this.db.query.linkedAccount.findMany({
+      where: eq(linkedAccount.discordUserId, discordUserId),
+    })
+  }
 }
