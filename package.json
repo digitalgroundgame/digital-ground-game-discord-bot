@@ -27,6 +27,7 @@
     "commands:delete": "npm run build && node --enable-source-maps dist/start-bot.js commands delete",
     "commands:clear": "npm run build && node --enable-source-maps dist/start-bot.js commands clear",
     "calendar:sync": "npm run build && node --enable-source-maps dist/start-bot.js calendar sync",
+    "backup:sqlite": "node --enable-source-maps dist/backup-sqlite.js",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "start": "npm run start:bot",
@@ -43,6 +44,7 @@
     "copyconfig": "cp config/debug.example.json config/debug.json && cp config/bot-sites.example.json config/bot-sites.json  && cp .env.example .env"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1082.0",
     "@discordjs/rest": "^2.5.1",
     "better-sqlite3": "^12.10.0",
     "canvas": "^3.2.0",
