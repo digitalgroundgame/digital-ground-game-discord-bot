@@ -5,7 +5,6 @@ import { createRequire } from 'node:module'
 import { type Button } from './buttons/index.js'
 import { runCalendarSyncCli } from './calendar-sync-cli.js'
 import {
-  AttendanceCommand,
   AttendanceTrackCommand,
   CensusCommand,
   ContentCommand,
@@ -16,6 +15,7 @@ import {
   LinkAccountCommand,
   PragPapersCommand,
   RulesCommand,
+  StopAttendanceTrackCommand,
   TestCommand,
 } from './commands/chat/index.js'
 import {
@@ -140,6 +140,8 @@ async function start(): Promise<void> {
   // it serves the registry defaults and rejects edits.
   const contentService = new ContentService(database)
 
+  const voiceStateUpdateHandler = new VoiceStateUpdateHandler(attendanceService, crmService, client)
+
   // Commands
   const commands: Command[] = [
     // Chat Commands
@@ -150,8 +152,8 @@ async function start(): Promise<void> {
     new RulesCommand(),
     new PragPapersCommand(),
     new CensusCommand(),
-    new AttendanceCommand(),
     new AttendanceTrackCommand(attendanceService, crmService),
+    new StopAttendanceTrackCommand(attendanceService, voiceStateUpdateHandler),
     new GrantAccessCommand(googleGroupsService, userService),
     new LinkAccountCommand(userService),
     new ContentCommand(contentService),
@@ -193,7 +195,6 @@ async function start(): Promise<void> {
   const messageHandler = new MessageHandler(triggerHandler)
   const reactionHandler = new ReactionHandler(reactions, eventDataService)
   const guildScheduledEventHandler = new GuildScheduledEventHandler(googleCalendarService)
-  const voiceStateUpdateHandler = new VoiceStateUpdateHandler(attendanceService, crmService, client)
 
   // Jobs
   const jobs: Job[] = [
