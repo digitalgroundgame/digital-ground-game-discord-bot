@@ -10,6 +10,7 @@ import { type EventHandler } from './event-handler.js'
 import {
   type AttendanceEntry,
   AttendanceService,
+  type CompletedAttendanceSession,
   type CrmDisabledReason,
   formatAttendanceContextText,
   formatAttendanceRosterCodeBlock,
@@ -40,6 +41,10 @@ export class VoiceStateUpdateHandler implements EventHandler {
     const result = this.attendanceService.handleVoiceStateUpdate(oldState, newState)
     if (!result) return
 
+    await this.processCompletedSession(result)
+  }
+
+  public async processCompletedSession(result: CompletedAttendanceSession): Promise<void> {
     const {
       userId,
       guildId,

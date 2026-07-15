@@ -131,12 +131,12 @@ export const ChatCommandMetadata: {
     description_localizations: Lang.getRefLocalizationMap('commandDescs.census'),
     default_member_permissions: undefined,
   },
-  ATTENDANCE: {
+  STOP_ATTENDANCE_TRACK: {
     type: ApplicationCommandType.ChatInput,
-    name: Lang.getRef('chatCommands.attendance', Language.Default),
-    name_localizations: Lang.getRefLocalizationMap('chatCommands.attendance'),
-    description: Lang.getRef('commandDescs.attendance', Language.Default),
-    description_localizations: Lang.getRefLocalizationMap('commandDescs.attendance'),
+    name: Lang.getRef('chatCommands.stopAttendanceTrack', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.stopAttendanceTrack'),
+    description: Lang.getRef('commandDescs.stopAttendanceTrack', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.stopAttendanceTrack'),
     default_member_permissions: undefined,
   },
   ATTENDANCE_TRACK: {
