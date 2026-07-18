@@ -1,4 +1,4 @@
-# Local command control socket
+# Local bot control API
 
 The manager exposes command administration through `/tmp/dggac-bot/control.sock`. It never opens a TCP port and the socket is mode `0600`, so only the account running the Docker container (and root) can use it.
 
