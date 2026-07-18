@@ -1,6 +1,9 @@
 export { AttendanceService } from './attendance-service.js'
 export { CommandRegistrationService } from './command-registration-service.js'
-export { CalendarSyncControlService, CalendarSyncInProgressError } from './calendar-sync-control-service.js'
+export {
+  CalendarSyncControlService,
+  CalendarSyncInProgressError,
+} from './calendar-sync-control-service.js'
 export {
   CommandRegistrationControlService,
   CommandRegistrationInProgressError,

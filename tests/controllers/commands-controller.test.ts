@@ -64,9 +64,7 @@ describe('CommandsController', () => {
     const app = buildApp(calls)
 
     const clearRes = await request(app).delete('/commands').send({ confirm: true })
-    const renameRes = await request(app)
-      .patch('/commands/old-name')
-      .send({ name: 'new-name' })
+    const renameRes = await request(app).patch('/commands/old-name').send({ name: 'new-name' })
 
     expect(clearRes.status).toBe(200)
     expect(renameRes.status).toBe(200)

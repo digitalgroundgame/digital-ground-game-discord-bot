@@ -60,7 +60,9 @@ export class CommandRegistrationControlService {
         id: request.requestId,
         timeout: setTimeout(() => {
           this.activeRequest = undefined
-          reject(new Error('Timed out while waiting for the shard to complete command registration.'))
+          reject(
+            new Error('Timed out while waiting for the shard to complete command registration.'),
+          )
         }, commandRegistrationTimeoutMs),
         resolve,
         reject,

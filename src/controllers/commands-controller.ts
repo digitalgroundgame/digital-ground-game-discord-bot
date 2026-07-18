@@ -9,14 +9,19 @@ import { CommandRegistrationInProgressError } from '../services/command-registra
 import { type Controller } from './index.js'
 
 export interface CommandRegistrationControllerService {
-  request(action: CommandRegistrationAction, args?: string[]): Promise<CommandRegistrationSummary | undefined>
+  request(
+    action: CommandRegistrationAction,
+    args?: string[],
+  ): Promise<CommandRegistrationSummary | undefined>
 }
 
 export class CommandsController implements Controller {
   public path = '/commands'
   public router: Router = Router()
 
-  public constructor(private commandRegistrationControlService: CommandRegistrationControllerService) {}
+  public constructor(
+    private commandRegistrationControlService: CommandRegistrationControllerService,
+  ) {}
 
   public register(): void {
     this.router.get('/', (req, res) => this.run(req, res, 'view'))
