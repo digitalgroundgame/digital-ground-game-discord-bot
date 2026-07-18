@@ -3,6 +3,7 @@ import { createRequire } from 'node:module'
 import 'reflect-metadata'
 
 import {
+  CommandsController,
   type Controller,
   GuildsController,
   IntegrationsController,
@@ -13,7 +14,13 @@ import { type Integration, PragmaticPapersIntegration } from './integrations/ind
 import { type Job } from './jobs/index.js'
 import { Api } from './models/api.js'
 import { Manager } from './models/manager.js'
-import { HttpService, JobService, Logger, MasterApiService } from './services/index.js'
+import {
+  CommandRegistrationControlService,
+  HttpService,
+  JobService,
+  Logger,
+  MasterApiService,
+} from './services/index.js'
 import { MathUtils, ShardUtils } from './utils/index.js'
 
 const require = createRequire(import.meta.url)
@@ -93,6 +100,9 @@ async function start(): Promise<void> {
   // Start
   await manager.start()
   await api.start()
+  const commandRegistrationControlService = new CommandRegistrationControlService(shardManager)
+  const localControlApi = new Api([new CommandsController(commandRegistrationControlService)])
+  await localControlApi.startUnixSocket()
   if (Config.clustering.enabled) {
     await masterApiService.ready()
   }

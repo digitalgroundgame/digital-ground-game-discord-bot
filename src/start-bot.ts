@@ -1,9 +1,15 @@
 import { REST } from '@discordjs/rest'
-import { Options, Partials } from 'discord.js'
+import { Options, Partials, type RESTPostAPIApplicationCommandsJSONBody } from 'discord.js'
 import { createRequire } from 'node:module'
+import { parentPort } from 'node:worker_threads'
 
 import { type Button } from './buttons/index.js'
 import { runCalendarSyncCli } from './calendar-sync-cli.js'
+import {
+  isCommandRegistrationRequest,
+  type CommandRegistrationResult,
+  type CommandRegistrationSummary,
+} from './command-registration-control.js'
 import {
   AttendanceTrackCommand,
   CensusCommand,
@@ -63,6 +69,20 @@ const require = createRequire(import.meta.url)
 const Config = require('../config/config.json')
 const Logs = require('../lang/logs.json')
 
+function getLocalCommands(): RESTPostAPIApplicationCommandsJSONBody[] {
+  return [
+    ...Object.values(ChatCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
+    ...Object.values(MessageCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
+    ...Object.values(UserCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
+  ]
+}
+
+async function registerCommands(args: string[]): Promise<CommandRegistrationSummary> {
+  const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN)
+  const commandRegistrationService = new CommandRegistrationService(rest)
+  return await commandRegistrationService.process(getLocalCommands(), args)
+}
+
 async function start(): Promise<void> {
   if (process.argv[2] === 'calendar' && process.argv[3] === 'sync') {
     try {
@@ -78,14 +98,7 @@ async function start(): Promise<void> {
   // Register
   if (process.argv[2] == 'commands') {
     try {
-      const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN)
-      const commandRegistrationService = new CommandRegistrationService(rest)
-      const localCmds = [
-        ...Object.values(ChatCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
-        ...Object.values(MessageCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
-        ...Object.values(UserCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
-      ]
-      await commandRegistrationService.process(localCmds, process.argv)
+      await registerCommands(process.argv)
     } catch (error) {
       Logger.error(Logs.error.commandAction, error)
     }
@@ -110,6 +123,74 @@ async function start(): Promise<void> {
       ...Config.client.caches,
     }),
     enforceNonce: true,
+  })
+
+  let commandRegistrationInProgress = false
+  const handleCommandRegistrationRequest = async (message: unknown): Promise<void> => {
+    if (!isCommandRegistrationRequest(message)) {
+      return
+    }
+
+    const sendResult = async (result: CommandRegistrationResult): Promise<void> => {
+      if (!client.shard) {
+        return
+      }
+
+      try {
+        await client.shard.send(result)
+      } catch (error) {
+        await Logger.error('Unable to report command registration result to the manager.', error)
+      }
+    }
+
+    if (commandRegistrationInProgress) {
+      Logger.warn('Ignoring command registration request because one is already in progress.')
+      await sendResult({
+        type: message.type,
+        kind: 'result',
+        requestId: message.requestId,
+        success: false,
+        error: 'A command registration is already in progress.',
+      })
+      return
+    }
+
+    commandRegistrationInProgress = true
+    Logger.info('Received command registration request from the shard manager.')
+    try {
+      const commands = await registerCommands([
+        'node',
+        'start-bot',
+        'commands',
+        message.action,
+        ...message.args,
+      ])
+      Logger.info('Command registration request completed successfully.')
+      await sendResult({
+        type: message.type,
+        kind: 'result',
+        requestId: message.requestId,
+        success: true,
+        ...(message.action === 'view' ? { commands } : {}),
+      })
+    } catch (error) {
+      await Logger.error('Command registration request failed.', error)
+      await sendResult({
+        type: message.type,
+        kind: 'result',
+        requestId: message.requestId,
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    } finally {
+      commandRegistrationInProgress = false
+    }
+  }
+  process.on('message', (message) => {
+    void handleCommandRegistrationRequest(message)
+  })
+  parentPort?.on('message', (message) => {
+    void handleCommandRegistrationRequest(message)
   })
 
   // Service account used by /grant-access to manage Google Group membership.

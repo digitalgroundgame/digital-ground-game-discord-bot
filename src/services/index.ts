@@ -1,5 +1,9 @@
 export { AttendanceService } from './attendance-service.js'
 export { CommandRegistrationService } from './command-registration-service.js'
+export {
+  CommandRegistrationControlService,
+  CommandRegistrationInProgressError,
+} from './command-registration-control-service.js'
 export { ContentService } from './content-service.js'
 export { CrmService } from './crm-service.js'
 export { EventDataService } from './event-data-service.js'
