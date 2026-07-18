@@ -37,12 +37,6 @@ export const ChatCommandMetadata: {
         description: Lang.getRef('commandDescs.contentEdit', Language.Default),
         options: [{ ...Args.CONTENT_KEY, required: true }],
       },
-      {
-        type: ApplicationCommandOptionType.Subcommand,
-        name: ContentSubcommand.RESET,
-        description: Lang.getRef('commandDescs.contentReset', Language.Default),
-        options: [{ ...Args.CONTENT_KEY, required: true }],
-      },
     ],
   },
   DEV: {
