@@ -153,7 +153,7 @@ function onboardingEntry(team: string, title: string, message: string): ManagedC
 
 /**
  * Registry of all runtime-editable content. The single source of truth for
- * what `/content` can show/edit/reset; hardcoded defaults live here and are
+ * what `/content` can show/edit; hardcoded defaults live here and are
  * used whenever no database override exists.
  */
 export const ManagedContent: Record<string, ManagedContentEntry> = {
