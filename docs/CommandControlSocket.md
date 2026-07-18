@@ -46,3 +46,12 @@ curl --unix-socket /tmp/dggac-bot/control.sock \
   -H 'Content-Type: application/json' \
   -d '{"confirm":true}'
 ```
+
+## Sync Google Calendar
+
+```sh
+curl --unix-socket /tmp/dggac-bot/control.sock \
+  -X POST http://localhost/calendar/sync
+```
+
+The manager routes this request to the shard that owns `DISCORD_GUILD_ID`, then the running bot reconciles that guild's scheduled events with Google Calendar.
