@@ -21,7 +21,6 @@
     "build": "tsc --project tsconfig.json",
     "docker:build": "docker build .",
     "preinstall": "node scripts/check-node-version.mjs",
-    "calendar:sync": "npm run build && node --enable-source-maps dist/start-bot.js calendar sync",
     "backup:sqlite": "node --enable-source-maps dist/backup-sqlite.js",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",

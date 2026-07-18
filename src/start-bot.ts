@@ -4,9 +4,10 @@ import { createRequire } from 'node:module'
 import { parentPort } from 'node:worker_threads'
 
 import { type Button } from './buttons/index.js'
-import { runCalendarSyncCli } from './calendar-sync-cli.js'
 import {
+  isCalendarSyncRequest,
   isCommandRegistrationRequest,
+  type CalendarSyncResult,
   type CommandRegistrationResult,
   type CommandRegistrationSummary,
 } from './command-registration-control.js'
@@ -84,17 +85,6 @@ async function registerCommands(args: string[]): Promise<CommandRegistrationSumm
 }
 
 async function start(): Promise<void> {
-  if (process.argv[2] === 'calendar' && process.argv[3] === 'sync') {
-    try {
-      await runCalendarSyncCli()
-    } catch (error) {
-      Logger.error(Logs.error.unspecified, error)
-      process.exit(1)
-    }
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    process.exit(0)
-  }
-
   // Services
   const eventDataService = new EventDataService()
   const attendanceService = new AttendanceService()
@@ -253,6 +243,64 @@ async function start(): Promise<void> {
     process.env.GOOGLE_CALENDAR_CREDENTIALS ?? process.env.GOOGLE_APPLICATION_CREDENTIALS,
     process.env.GOOGLE_CALENDAR_IMPERSONATION_SUBJECT,
   )
+  let calendarSyncInProgress = false
+  const handleCalendarSyncRequest = async (message: unknown): Promise<void> => {
+    if (!isCalendarSyncRequest(message)) {
+      return
+    }
+
+    const sendResult = async (result: CalendarSyncResult): Promise<void> => {
+      if (!client.shard) {
+        return
+      }
+
+      try {
+        await client.shard.send(result)
+      } catch (error) {
+        await Logger.error('Unable to report calendar sync result to the manager.', error)
+      }
+    }
+
+    if (calendarSyncInProgress) {
+      await sendResult({
+        type: message.type,
+        kind: 'result',
+        requestId: message.requestId,
+        success: false,
+        error: 'A calendar sync is already in progress.',
+      })
+      return
+    }
+
+    calendarSyncInProgress = true
+    Logger.info('Received calendar sync request from the shard manager.')
+    try {
+      await syncDggpScheduledEventsToGoogle(client, googleCalendarService)
+      await sendResult({
+        type: message.type,
+        kind: 'result',
+        requestId: message.requestId,
+        success: true,
+      })
+    } catch (error) {
+      await Logger.error('Calendar sync request failed.', error)
+      await sendResult({
+        type: message.type,
+        kind: 'result',
+        requestId: message.requestId,
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    } finally {
+      calendarSyncInProgress = false
+    }
+  }
+  process.on('message', (message) => {
+    void handleCalendarSyncRequest(message)
+  })
+  parentPort?.on('message', (message) => {
+    void handleCalendarSyncRequest(message)
+  })
   // Event handlers
   const guildJoinHandler = new GuildJoinHandler(eventDataService)
   const guildLeaveHandler = new GuildLeaveHandler()

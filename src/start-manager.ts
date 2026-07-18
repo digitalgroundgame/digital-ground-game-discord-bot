@@ -3,6 +3,7 @@ import { createRequire } from 'node:module'
 import 'reflect-metadata'
 
 import {
+  CalendarController,
   CommandsController,
   type Controller,
   GuildsController,
@@ -15,6 +16,7 @@ import { type Job } from './jobs/index.js'
 import { Api } from './models/api.js'
 import { Manager } from './models/manager.js'
 import {
+  CalendarSyncControlService,
   CommandRegistrationControlService,
   HttpService,
   JobService,
@@ -101,7 +103,11 @@ async function start(): Promise<void> {
   await manager.start()
   await api.start()
   const commandRegistrationControlService = new CommandRegistrationControlService(shardManager)
-  const localControlApi = new Api([new CommandsController(commandRegistrationControlService)])
+  const calendarSyncControlService = new CalendarSyncControlService(shardManager)
+  const localControlApi = new Api([
+    new CommandsController(commandRegistrationControlService),
+    new CalendarController(calendarSyncControlService),
+  ])
   await localControlApi.startUnixSocket()
   if (Config.clustering.enabled) {
     await masterApiService.ready()
