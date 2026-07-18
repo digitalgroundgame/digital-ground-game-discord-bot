@@ -17,7 +17,7 @@ import { ContentSubcommand } from '../../enums/index.js'
 import { Language } from '../../models/enum-helpers/index.js'
 import { type EventData } from '../../models/internal-models.js'
 import { type ContentService, Lang, Logger } from '../../services/index.js'
-import { ConfirmUtils, InteractionUtils, ModalUtils, StringUtils } from '../../utils/index.js'
+import { InteractionUtils, ModalUtils, StringUtils } from '../../utils/index.js'
 import { type Command, CommandDeferType } from '../index.js'
 
 /** Discord embed field value cap, for display truncation in `/content show`. */
@@ -27,9 +27,8 @@ const EMBED_FIELD_VALUE_MAX = 1024
 const ALLOWED_ROLE_IDS = ManagedContentAllowedRoleKeys.map((key) => ServerRoles[key].id)
 
 /**
- * Show, edit, or reset managed content (welcome/onboarding/rules text) at
- * runtime. Edits open a modal pre-filled with the current values and apply
- * immediately; reset reverts to the hardcoded registry defaults.
+ * Show or edit managed content (welcome/onboarding/rules text) at runtime.
+ * Edits open a modal pre-filled with the current values and apply immediately.
  */
 export class ContentCommand implements Command {
   public names = [Lang.getRef('chatCommands.content', Language.Default)]
@@ -84,10 +83,6 @@ export class ContentCommand implements Command {
       }
       case ContentSubcommand.EDIT: {
         await this.edit(intr, data, key, entry)
-        break
-      }
-      case ContentSubcommand.RESET: {
-        await this.reset(intr, data, key, entry)
         break
       }
     }
@@ -178,46 +173,5 @@ export class ContentCommand implements Command {
       Lang.getEmbed('displayEmbeds.contentUpdated', data.lang, { LABEL: entry.label }),
       true,
     )
-  }
-
-  private async reset(
-    intr: ChatInputCommandInteraction,
-    data: EventData,
-    key: string,
-    entry: ManagedContentEntry,
-  ): Promise<void> {
-    await InteractionUtils.deferReply(intr, true)
-
-    const { meta } = await this.contentService.getOverride(key)
-    if (!meta) {
-      await InteractionUtils.send(
-        intr,
-        Lang.getEmbed('displayEmbeds.contentNoOverride', data.lang, { LABEL: entry.label }),
-        true,
-      )
-      return
-    }
-
-    const button = await ConfirmUtils.confirm(
-      intr,
-      {
-        confirm: Lang.getEmbed('displayEmbeds.contentResetConfirm', data.lang, {
-          LABEL: entry.label,
-        }),
-        cancelled: Lang.getEmbed('displayEmbeds.contentResetCancelled', data.lang, {
-          LABEL: entry.label,
-        }),
-        timedOut: Lang.getEmbed('displayEmbeds.contentResetTimedOut', data.lang),
-      },
-      'Reset',
-    )
-    if (!button) return
-
-    await this.contentService.resetContent(key)
-    Logger.info(`${intr.user.tag} reset managed content "${key}" to defaults`)
-    await InteractionUtils.update(button, {
-      embeds: [Lang.getEmbed('displayEmbeds.contentReset', data.lang, { LABEL: entry.label })],
-      components: [],
-    })
   }
 }
