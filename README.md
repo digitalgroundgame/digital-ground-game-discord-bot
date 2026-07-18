@@ -36,13 +36,18 @@ This template for a Discord bot was based upon this public template. https://git
    - Use `npm ci` for normal development and CI (preferred).
    - Use `npm install` only when you intentionally add/update/remove dependencies.
 
-4. Register commands.
+4. Start the manager and register commands.
    - In order to use slash commands, they first [have to be registered](https://discordjs.guide/creating-your-bot/command-deployment.html).
-   - Type `npm run commands:register` to register the bot's commands.
-     - Run this script any time you change a command name, structure, or add/remove commands.
+   - Start the manager with `npm run start:manager`, then use the local command-control socket:
+
+     ```sh
+     curl --unix-socket /tmp/dggac-bot/control.sock \
+       -X POST http://localhost/commands/register
+     ```
+
+     - Run this after deploying a command name, structure, or add/remove command change.
      - This is so Discord knows what your commands look like.
      - It may take up to an hour for command changes to appear.
-5. `npm start`
 
 Docker builds use the cached Node major-version image and verify that it matches
 the major version pinned in `.nvmrc`:
@@ -136,7 +141,7 @@ This section lists slash and context-menu commands, which Discord events the bot
 
 ### Commands
 
-All commands below are registered with Discord via `npm run commands:register` (see [Setup](#setup)). Slash names shown are the default English values from the lang file.
+All commands below are registered with Discord through the [local command-control socket](docs/CommandControlSocket.md) (see [Setup](#setup)). Slash names shown are the default English values from the lang file.
 
 | Command               | Type      | What it does                                                                                                                                                                                                                                                                                                      | Code                                                                                                                                                                         |
 | --------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

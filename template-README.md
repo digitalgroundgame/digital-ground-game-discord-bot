@@ -95,10 +95,16 @@ A welcome message is sent to the server and owner when the bot is added.
      - `client.token` - Your discord bot's token.
 4. Install packages.
    - Navigate into the downloaded source files and type `npm install`.
-5. Register commands.
+5. Start the manager and register commands.
    - In order to use slash commands, they first [have to be registered](https://discordjs.guide/creating-your-bot/command-deployment.html).
-   - Type `npm run commands:register` to register the bot's commands.
-     - Run this script any time you change a command name, structure, or add/remove commands.
+   - Start the manager with `npm run start:manager`, then use the local command-control socket:
+
+     ```sh
+     curl --unix-socket /tmp/dggac-bot/control.sock \
+       -X POST http://localhost/commands/register
+     ```
+
+     - Run this after deploying a command name, structure, or add/remove command change.
      - This is so Discord knows what your commands look like.
      - It may take up to an hour for command changes to appear.
 

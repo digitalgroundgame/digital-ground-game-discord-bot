@@ -95,18 +95,6 @@ async function start(): Promise<void> {
     process.exit(0)
   }
 
-  // Register
-  if (process.argv[2] == 'commands') {
-    try {
-      await registerCommands(process.argv)
-    } catch (error) {
-      Logger.error(Logs.error.commandAction, error)
-    }
-    // Wait for any final logs to be written.
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    process.exit()
-  }
-
   // Services
   const eventDataService = new EventDataService()
   const attendanceService = new AttendanceService()
