@@ -1,9 +1,16 @@
 import { REST } from '@discordjs/rest'
-import { Options, Partials } from 'discord.js'
+import { Options, Partials, type RESTPostAPIApplicationCommandsJSONBody } from 'discord.js'
 import { createRequire } from 'node:module'
+import { parentPort } from 'node:worker_threads'
 
 import { type Button } from './buttons/index.js'
-import { runCalendarSyncCli } from './calendar-sync-cli.js'
+import {
+  isCalendarSyncRequest,
+  isCommandRegistrationRequest,
+  type CalendarSyncResult,
+  type CommandRegistrationResult,
+  type CommandRegistrationSummary,
+} from './command-registration-control.js'
 import {
   AttendanceTrackCommand,
   CensusCommand,
@@ -46,6 +53,8 @@ import { type Reaction } from './reactions/index.js'
 import { syncDggpScheduledEventsToGoogle } from './services/sync-dggp-google-calendar.js'
 import {
   AttendanceService,
+  CalendarSyncInProgressError,
+  CalendarSyncRunner,
   CommandRegistrationService,
   ContentService,
   CrmService,
@@ -63,37 +72,21 @@ const require = createRequire(import.meta.url)
 const Config = require('../config/config.json')
 const Logs = require('../lang/logs.json')
 
+function getLocalCommands(): RESTPostAPIApplicationCommandsJSONBody[] {
+  return [
+    ...Object.values(ChatCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
+    ...Object.values(MessageCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
+    ...Object.values(UserCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
+  ]
+}
+
+async function registerCommands(args: string[]): Promise<CommandRegistrationSummary> {
+  const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN)
+  const commandRegistrationService = new CommandRegistrationService(rest)
+  return await commandRegistrationService.process(getLocalCommands(), args)
+}
+
 async function start(): Promise<void> {
-  if (process.argv[2] === 'calendar' && process.argv[3] === 'sync') {
-    try {
-      await runCalendarSyncCli()
-    } catch (error) {
-      Logger.error(Logs.error.unspecified, error)
-      process.exit(1)
-    }
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    process.exit(0)
-  }
-
-  // Register
-  if (process.argv[2] == 'commands') {
-    try {
-      const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN)
-      const commandRegistrationService = new CommandRegistrationService(rest)
-      const localCmds = [
-        ...Object.values(ChatCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
-        ...Object.values(MessageCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
-        ...Object.values(UserCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
-      ]
-      await commandRegistrationService.process(localCmds, process.argv)
-    } catch (error) {
-      Logger.error(Logs.error.commandAction, error)
-    }
-    // Wait for any final logs to be written.
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    process.exit()
-  }
-
   // Services
   const eventDataService = new EventDataService()
   const attendanceService = new AttendanceService()
@@ -110,6 +103,74 @@ async function start(): Promise<void> {
       ...Config.client.caches,
     }),
     enforceNonce: true,
+  })
+
+  let commandRegistrationInProgress = false
+  const handleCommandRegistrationRequest = async (message: unknown): Promise<void> => {
+    if (!isCommandRegistrationRequest(message)) {
+      return
+    }
+
+    const sendResult = async (result: CommandRegistrationResult): Promise<void> => {
+      if (!client.shard) {
+        return
+      }
+
+      try {
+        await client.shard.send(result)
+      } catch (error) {
+        await Logger.error('Unable to report command registration result to the manager.', error)
+      }
+    }
+
+    if (commandRegistrationInProgress) {
+      Logger.warn('Ignoring command registration request because one is already in progress.')
+      await sendResult({
+        type: message.type,
+        kind: 'result',
+        requestId: message.requestId,
+        success: false,
+        error: 'A command registration is already in progress.',
+      })
+      return
+    }
+
+    commandRegistrationInProgress = true
+    Logger.info('Received command registration request from the shard manager.')
+    try {
+      const commands = await registerCommands([
+        'node',
+        'start-bot',
+        'commands',
+        message.action,
+        ...message.args,
+      ])
+      Logger.info('Command registration request completed successfully.')
+      await sendResult({
+        type: message.type,
+        kind: 'result',
+        requestId: message.requestId,
+        success: true,
+        ...(message.action === 'view' ? { commands } : {}),
+      })
+    } catch (error) {
+      await Logger.error('Command registration request failed.', error)
+      await sendResult({
+        type: message.type,
+        kind: 'result',
+        requestId: message.requestId,
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    } finally {
+      commandRegistrationInProgress = false
+    }
+  }
+  process.on('message', (message) => {
+    void handleCommandRegistrationRequest(message)
+  })
+  parentPort?.on('message', (message) => {
+    void handleCommandRegistrationRequest(message)
   })
 
   // Service account used by /grant-access to manage Google Group membership.
@@ -184,6 +245,53 @@ async function start(): Promise<void> {
     process.env.GOOGLE_CALENDAR_CREDENTIALS ?? process.env.GOOGLE_APPLICATION_CREDENTIALS,
     process.env.GOOGLE_CALENDAR_IMPERSONATION_SUBJECT,
   )
+  const calendarSyncRunner = new CalendarSyncRunner(async (): Promise<void> => {
+    await syncDggpScheduledEventsToGoogle(client, googleCalendarService)
+  })
+  const handleCalendarSyncRequest = async (message: unknown): Promise<void> => {
+    if (!isCalendarSyncRequest(message)) {
+      return
+    }
+
+    const sendResult = async (result: CalendarSyncResult): Promise<void> => {
+      if (!client.shard) {
+        return
+      }
+
+      try {
+        await client.shard.send(result)
+      } catch (error) {
+        await Logger.error('Unable to report calendar sync result to the manager.', error)
+      }
+    }
+
+    Logger.info('Received calendar sync request from the shard manager.')
+    try {
+      await calendarSyncRunner.run()
+      await sendResult({
+        type: message.type,
+        kind: 'result',
+        requestId: message.requestId,
+        success: true,
+      })
+    } catch (error) {
+      await Logger.error('Calendar sync request failed.', error)
+      await sendResult({
+        type: message.type,
+        kind: 'result',
+        requestId: message.requestId,
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        busy: error instanceof CalendarSyncInProgressError,
+      })
+    }
+  }
+  process.on('message', (message) => {
+    void handleCalendarSyncRequest(message)
+  })
+  parentPort?.on('message', (message) => {
+    void handleCalendarSyncRequest(message)
+  })
   // Event handlers
   const guildJoinHandler = new GuildJoinHandler(eventDataService)
   const guildLeaveHandler = new GuildLeaveHandler()
@@ -199,7 +307,7 @@ async function start(): Promise<void> {
   // Jobs
   const jobs: Job[] = [
     new AutoCloseWelcomeThreadsJob(client),
-    new SyncDggpGoogleCalendarJob(client, googleCalendarService),
+    new SyncDggpGoogleCalendarJob(calendarSyncRunner),
   ]
 
   // Bot
@@ -220,8 +328,15 @@ async function start(): Promise<void> {
     // onBotReady callback: run immediate Google Calendar sync once after bot is ready
     async () => {
       try {
-        await syncDggpScheduledEventsToGoogle(client, googleCalendarService)
+        await calendarSyncRunner.run()
       } catch (error) {
+        if (error instanceof CalendarSyncInProgressError) {
+          Logger.info(
+            'Calendar sync: startup sync skipped because another sync is already in progress.',
+          )
+          return
+        }
+
         Logger.error(
           Logs.error.calendarSync.replace('{EVENT_NAME}', 'immediate startup sync'),
           error,
