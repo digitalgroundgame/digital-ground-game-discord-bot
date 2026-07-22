@@ -29,6 +29,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY_CODE_REVIEW }}
+          allowed_bots: "autofix-ci[bot]"
           track_progress: true
           show_full_output: true
           prompt: |
