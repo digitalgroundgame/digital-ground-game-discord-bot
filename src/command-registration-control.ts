@@ -45,6 +45,7 @@ export interface CalendarSyncResult {
   requestId: string
   success: boolean
   error?: string
+  busy?: boolean
 }
 
 export function isCommandRegistrationRequest(
@@ -128,6 +129,7 @@ export function isCalendarSyncResult(message: unknown): message is CalendarSyncR
     typeof message.requestId === 'string' &&
     'success' in message &&
     typeof message.success === 'boolean' &&
-    (!('error' in message) || typeof message.error === 'string')
+    (!('error' in message) || typeof message.error === 'string') &&
+    (!('busy' in message) || typeof message.busy === 'boolean')
   )
 }

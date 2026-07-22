@@ -40,6 +40,7 @@ describe('command registration control messages', () => {
         kind: 'result',
         requestId: 'request-1',
         success: true,
+        busy: false,
       }),
     ).toBe(true)
     expect(

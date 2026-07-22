@@ -53,6 +53,8 @@ import { type Reaction } from './reactions/index.js'
 import { syncDggpScheduledEventsToGoogle } from './services/sync-dggp-google-calendar.js'
 import {
   AttendanceService,
+  CalendarSyncInProgressError,
+  CalendarSyncRunner,
   CommandRegistrationService,
   ContentService,
   CrmService,
@@ -243,7 +245,9 @@ async function start(): Promise<void> {
     process.env.GOOGLE_CALENDAR_CREDENTIALS ?? process.env.GOOGLE_APPLICATION_CREDENTIALS,
     process.env.GOOGLE_CALENDAR_IMPERSONATION_SUBJECT,
   )
-  let calendarSyncInProgress = false
+  const calendarSyncRunner = new CalendarSyncRunner(async (): Promise<void> => {
+    await syncDggpScheduledEventsToGoogle(client, googleCalendarService)
+  })
   const handleCalendarSyncRequest = async (message: unknown): Promise<void> => {
     if (!isCalendarSyncRequest(message)) {
       return
@@ -261,21 +265,9 @@ async function start(): Promise<void> {
       }
     }
 
-    if (calendarSyncInProgress) {
-      await sendResult({
-        type: message.type,
-        kind: 'result',
-        requestId: message.requestId,
-        success: false,
-        error: 'A calendar sync is already in progress.',
-      })
-      return
-    }
-
-    calendarSyncInProgress = true
     Logger.info('Received calendar sync request from the shard manager.')
     try {
-      await syncDggpScheduledEventsToGoogle(client, googleCalendarService)
+      await calendarSyncRunner.run()
       await sendResult({
         type: message.type,
         kind: 'result',
@@ -290,9 +282,8 @@ async function start(): Promise<void> {
         requestId: message.requestId,
         success: false,
         error: error instanceof Error ? error.message : String(error),
+        busy: error instanceof CalendarSyncInProgressError,
       })
-    } finally {
-      calendarSyncInProgress = false
     }
   }
   process.on('message', (message) => {
@@ -316,7 +307,7 @@ async function start(): Promise<void> {
   // Jobs
   const jobs: Job[] = [
     new AutoCloseWelcomeThreadsJob(client),
-    new SyncDggpGoogleCalendarJob(client, googleCalendarService),
+    new SyncDggpGoogleCalendarJob(calendarSyncRunner),
   ]
 
   // Bot
@@ -337,8 +328,13 @@ async function start(): Promise<void> {
     // onBotReady callback: run immediate Google Calendar sync once after bot is ready
     async () => {
       try {
-        await syncDggpScheduledEventsToGoogle(client, googleCalendarService)
+        await calendarSyncRunner.run()
       } catch (error) {
+        if (error instanceof CalendarSyncInProgressError) {
+          Logger.info('Calendar sync: startup sync skipped because another sync is already in progress.')
+          return
+        }
+
         Logger.error(
           Logs.error.calendarSync.replace('{EVENT_NAME}', 'immediate startup sync'),
           error,
