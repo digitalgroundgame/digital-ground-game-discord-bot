@@ -7,14 +7,9 @@ import {
   isCalendarSyncResult,
   type CalendarSyncRequest,
 } from '../command-registration-control.js'
+import { CalendarSyncInProgressError } from './calendar-sync-runner.js'
 
 const calendarSyncTimeoutMs = 5 * 60 * 1000
-
-export class CalendarSyncInProgressError extends Error {
-  public constructor() {
-    super('A calendar sync is already in progress.')
-  }
-}
 
 export class CalendarSyncControlService {
   private activeRequest:
@@ -88,6 +83,8 @@ export class CalendarSyncControlService {
 
     if (message.success) {
       this.resolveActiveRequest()
+    } else if (message.busy) {
+      this.rejectActiveRequest(new CalendarSyncInProgressError())
     } else {
       this.rejectActiveRequest(new Error(message.error ?? 'Calendar sync failed.'))
     }
