@@ -331,7 +331,9 @@ async function start(): Promise<void> {
         await calendarSyncRunner.run()
       } catch (error) {
         if (error instanceof CalendarSyncInProgressError) {
-          Logger.info('Calendar sync: startup sync skipped because another sync is already in progress.')
+          Logger.info(
+            'Calendar sync: startup sync skipped because another sync is already in progress.',
+          )
           return
         }
 
