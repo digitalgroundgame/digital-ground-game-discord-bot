@@ -8,6 +8,7 @@ import {
   IntegrationsController,
   RootController,
   ShardsController,
+  UsersController,
 } from './controllers/index.js'
 import { type Integration, PragmaticPapersIntegration } from './integrations/index.js'
 import { type Job } from './jobs/index.js'
@@ -77,6 +78,7 @@ async function start(): Promise<void> {
   // API
   const guildsController = new GuildsController(shardManager)
   const shardsController = new ShardsController(shardManager)
+  const usersController = new UsersController(shardManager)
   const rootController = new RootController()
   const integrations: Integration[] = [new PragmaticPapersIntegration()]
   const integrationsController = new IntegrationsController(integrations, shardManager)
@@ -84,6 +86,7 @@ async function start(): Promise<void> {
   const controllers: Controller[] = [
     guildsController,
     shardsController,
+    usersController,
     integrationsController,
     rootController,
   ]
