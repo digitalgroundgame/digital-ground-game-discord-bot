@@ -252,6 +252,10 @@ General-purpose informational commands.
 
 - **[Pragmatic Papers Integration](../src/integrations/pragmatic-papers-integration.ts)**: Webhook receiver listening at `/pp-event`; on a publish event, posts the new article to the designated Discord channel
 
+#### DM Proxy
+
+- **[DM Proxy Integration](../src/integrations/dm-proxy-integration.ts)**: Auth-keyed DM relay listening at `/send-dm`; the CRM (and future callers) POST a user ID and message, and the bot delivers it as a direct message ([details](./DmProxyIntegration.md))
+
 #### Infrastructure
 
 - **[Master API Service](../src/services/master-api-service.ts)**: Communicates with the master cluster API for shard registration, login, and ready-status coordination
@@ -275,6 +279,6 @@ General-purpose informational commands.
 - **Primitives** implement the extensible template pattern — the most common place for new bot functionality
 - **Framework Services** provide cross-cutting concerns (logging, HTTP, data access) to any Primitive
 - **Jobs** run independently on a schedule, using Services for their logic
-- **Integrations** are plugins that extend bot capabilities (Pragmatic Papers)
+- **Integrations** are plugins that extend bot capabilities (Pragmatic Papers, DM Proxy)
 - **Controllers** expose bot state and management via API
 - **Middleware** provides consistent request/response handling across all entry points
