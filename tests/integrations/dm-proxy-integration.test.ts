@@ -13,14 +13,15 @@ vi.mock('../../src/services/index.js', () => ({
 const API_KEY = 'test-api-key'
 const USER_ID = '123456789012345678'
 
-const DELIVERED = { ok: true, code: null, message: '' }
+const DELIVERED = { ok: true }
 
 async function buildApp(
   broadcastEval: (...args: unknown[]) => unknown = vi.fn().mockResolvedValue(DELIVERED),
 ): Promise<{ app: Express; broadcastEval: ReturnType<typeof vi.fn> }> {
   const { IntegrationsController } =
     await import('../../src/controllers/integrations-controller.js')
-  const { DmProxyIntegration } = await import('../../src/integrations/dm-proxy-integration.js')
+  const { DmProxyIntegration } =
+    await import('../../src/integrations/dm-proxy-integration/index.js')
   const { Api } = await import('../../src/models/api.js')
 
   const shardManager = { broadcastEval } as unknown as import('discord.js').ShardingManager
@@ -64,14 +65,36 @@ describe('DmProxyIntegration', () => {
     expect(options.context).toEqual({ userId: USER_ID, message: 'Reminder: canvass at noon.' })
   })
 
-  it('unwraps an array eval result (unpinned broadcastEval shape)', async () => {
-    const broadcastEval = vi.fn().mockResolvedValue([DELIVERED])
+  it('passes a callback that survives being stringified for the shard process', async () => {
+    // discord.js evaluates `(${script})(this, context)` in the shard process, so
+    // the callback has to stringify into a valid expression. A class method does
+    // not (`async name() {}` is only legal inside a class body), and a mocked
+    // broadcastEval never stringifies anything — so nothing else here would
+    // catch that.
+    const broadcastEval = vi.fn().mockResolvedValue(DELIVERED)
+    const { app } = await buildApp(broadcastEval)
+
+    await post(app, { userId: USER_ID, message: 'hello' })
+
+    const script = broadcastEval.mock.calls[0]![0] as (...args: unknown[]) => unknown
+    expect(() => new Function(`return (${script})`)).not.toThrow()
+  })
+
+  it('returns 502 when the shard reports a failure with no Discord error code', async () => {
+    const broadcastEval = vi
+      .fn()
+      .mockResolvedValue({ ok: false, message: 'user.send is not a function' })
     const { app } = await buildApp(broadcastEval)
 
     const res = await post(app, { userId: USER_ID, message: 'hello' })
 
-    expect(res.status).toBe(200)
-    expect(res.body).toEqual({ error: false, delivered: true })
+    expect(res.status).toBe(502)
+    expect(res.body).toEqual({
+      error: true,
+      delivered: false,
+      reason: 'discord_error',
+      message: 'user.send is not a function',
+    })
   })
 
   it('returns 200 delivered:false when the user has DMs closed (50007)', async () => {
