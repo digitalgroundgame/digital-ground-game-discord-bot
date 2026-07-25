@@ -14,14 +14,6 @@ Authenticated via `Authorization` header. The API key is read from the `INTEGRAT
 environment variable. If the env var is unset, the route is skipped at startup and a warning is
 logged — the integration is effectively disabled.
 
-## Config
-
-`config/config.json` → `integrations.dmProxy`:
-
-| Field | Purpose |
-| --- | --- |
-| `name` | Human-readable name. Drives the env var lookup (`INTEGRATION_<UPPER_SNAKE>`). |
-
 ## Request shape
 
 ```json

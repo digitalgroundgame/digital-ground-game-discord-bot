@@ -1,6 +1,5 @@
 import { Client, RESTJSONErrorCodes, type ShardingManager } from 'discord.js'
 import { type Request, type Response } from 'express'
-import { createRequire } from 'node:module'
 
 import { type Integration } from '../integration.js'
 import {
@@ -13,27 +12,23 @@ import {
   SendDmPayload,
 } from './constants.js'
 
-const require = createRequire(import.meta.url)
-const Config = require('../../../config/config.json')
-
 const sendDmOnShard = async (client: Client, ctx: SendDmPayload): Promise<DmEvalResult> => {
   try {
     const user = await client.users.fetch(ctx.userId)
     await user.send(ctx.message)
     return { ok: true }
   } catch (error) {
-    const e = error as { code?: unknown; message?: unknown }
     return {
       ok: false,
-      code: typeof e.code === 'number' ? e.code : undefined,
-      message: typeof e.message === 'string' ? e.message : String(error),
+      code: typeof error.code === 'number' ? error.code : undefined,
+      message: typeof error.message === 'string' ? error.message : String(error),
     }
   }
 }
 
 export class DmProxyIntegration implements Integration {
-  public name: string = Config.integrations.dmProxy.name
-  public endpoint: string = '/send-dm'
+  public name = 'DM Proxy'
+  public endpoint = '/send-dm'
 
   public async run(req: Request, res: Response, shardManager: ShardingManager): Promise<void> {
     try {
