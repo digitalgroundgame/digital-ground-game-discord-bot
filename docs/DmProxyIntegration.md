@@ -36,7 +36,7 @@ succeeds on every shard, so an unpinned broadcast would deliver one DM per shard
 | Status | Body | Meaning |
 | --- | --- | --- |
 | `200` | `{ "error": false, "delivered": true }` | DM delivered. |
-| `200` | `{ "error": false, "delivered": false, "reason": "dms_closed" }` | User has DMs disabled or blocked the bot (Discord `50007`). Terminal — do not retry. |
+| `200` | `{ "error": false, "delivered": false, "reason": "dms_closed" }` | The bot cannot DM this user: they have DMs disabled or blocked it (Discord `50007`), or they share no server with it (Discord `50278` — e.g. they left). Terminal — do not retry. |
 | `404` | `{ "error": true, "delivered": false, "reason": "unknown_user" }` | No Discord user with that ID (Discord `10013`). Terminal — do not retry. |
 | `400` | `{ "error": true, "message": "..." }` | Invalid `userId` or `message`. |
 | `401` | (empty) | Missing or incorrect `Authorization` header. |

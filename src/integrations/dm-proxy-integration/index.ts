@@ -60,6 +60,7 @@ export class DmProxyIntegration implements Integration {
   } {
     switch (code) {
       case RESTJSONErrorCodes.CannotSendMessagesToThisUser:
+      case RESTJSONErrorCodes.CannotSendMessagesToThisUserDueToHavingNoMutualGuilds:
         return { status: 200, body: { error: false, delivered: false, reason: 'dms_closed' } }
       case RESTJSONErrorCodes.UnknownUser:
         return { status: 404, body: { error: true, delivered: false, reason: 'unknown_user' } }

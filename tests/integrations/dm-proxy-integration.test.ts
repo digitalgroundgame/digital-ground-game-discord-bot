@@ -109,6 +109,22 @@ describe('DmProxyIntegration', () => {
     expect(res.body).toEqual({ error: false, delivered: false, reason: 'dms_closed' })
   })
 
+  it('returns 200 delivered:false when there is no mutual guild (50278)', async () => {
+    const broadcastEval = vi.fn().mockResolvedValue({
+      ok: false,
+      code: 50278,
+      message: 'Cannot send messages to this user due to having no mutual guilds',
+    })
+    const { app } = await buildApp(broadcastEval)
+
+    const res = await post(app, { userId: USER_ID, message: 'hello' })
+
+    // Terminal, not a transport failure: the caller must not retry a volunteer
+    // who has left the server.
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ error: false, delivered: false, reason: 'dms_closed' })
+  })
+
   it('returns 404 for an unknown user (10013)', async () => {
     const broadcastEval = vi
       .fn()
