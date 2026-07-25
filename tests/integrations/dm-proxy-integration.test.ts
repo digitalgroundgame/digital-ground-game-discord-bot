@@ -1,3 +1,4 @@
+import { Collection } from 'discord.js'
 import { type Express } from 'express'
 import request from 'supertest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -17,6 +18,7 @@ const DELIVERED = { ok: true }
 
 async function buildApp(
   broadcastEval: (...args: unknown[]) => unknown = vi.fn().mockResolvedValue(DELIVERED),
+  shards: Collection<number, never> = new Collection([[0, {} as never]]),
 ): Promise<{ app: Express; broadcastEval: ReturnType<typeof vi.fn> }> {
   const { IntegrationsController } =
     await import('../../src/controllers/integrations-controller.js')
@@ -24,7 +26,7 @@ async function buildApp(
     await import('../../src/integrations/dm-proxy-integration/index.js')
   const { Api } = await import('../../src/models/api.js')
 
-  const shardManager = { broadcastEval } as unknown as import('discord.js').ShardingManager
+  const shardManager = { broadcastEval, shards } as unknown as import('discord.js').ShardingManager
   const integration = new DmProxyIntegration()
   const controller = new IntegrationsController([integration], shardManager)
   const api = new Api([controller])
@@ -153,6 +155,19 @@ describe('DmProxyIntegration', () => {
       code: 40003,
       message: 'rate limited',
     })
+  })
+
+  it('returns 500 when the manager owns no running shards', async () => {
+    // Startup, or every shard respawning: transient, so the caller should
+    // retry rather than treat it as a rejected request.
+    const broadcastEval = vi.fn()
+    const { app } = await buildApp(broadcastEval, new Collection())
+
+    const res = await post(app, { userId: USER_ID, message: 'hello' })
+
+    expect(res.status).toBe(500)
+    expect(res.body.message).toMatch(/no local shard/i)
+    expect(broadcastEval).not.toHaveBeenCalled()
   })
 
   it('returns 500 when broadcastEval itself rejects (controller catchall)', async () => {

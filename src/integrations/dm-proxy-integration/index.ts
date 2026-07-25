@@ -3,7 +3,6 @@ import { type Request, type Response } from 'express'
 
 import { type Integration } from '../integration.js'
 import {
-  CORE_SHARD_ID,
   DISCORD_ID_REGEX,
   DmEvalFailure,
   DmEvalResult,
@@ -34,8 +33,13 @@ export class DmProxyIntegration implements Integration {
     try {
       const { userId, message } = this.validatePayload(req.body)
 
+      const shard = shardManager.shards.firstKey()
+      if (shard == null) {
+        throw new Error('Cannot send DM: no local shard is running.')
+      }
+
       const result: DmEvalResult = await shardManager.broadcastEval(sendDmOnShard, {
-        shard: CORE_SHARD_ID,
+        shard,
         context: { userId, message },
       })
 

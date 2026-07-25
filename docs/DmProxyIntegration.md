@@ -28,8 +28,10 @@ logged — the integration is effectively disabled.
 | `userId` | string | yes | Discord user ID (snowflake, 17–20 digits). Must be a string — JSON numbers lose snowflake precision. |
 | `message` | string | yes | 1–2000 characters, sent verbatim as the DM content. Discord timestamp markup (`<t:unixseconds:F>`) renders in the recipient's local timezone. |
 
-The DM is dispatched through a `broadcastEval` pinned to shard 0 — `client.users.fetch()`
-succeeds on every shard, so an unpinned broadcast would deliver one DM per shard.
+The DM is dispatched through a `broadcastEval` pinned to a single shard — the first one this
+manager owns. `client.users.fetch()` succeeds on every shard, so an unpinned broadcast would
+deliver one DM per shard. If no shard is running yet (startup, or all shards respawning) the
+request fails with `500` so the caller retries.
 
 ## Responses
 
