@@ -50,6 +50,37 @@ describe('DmProxyIntegration', () => {
     vi.restoreAllMocks()
   })
 
+  it('returns 200 with the API key', async () => {
+    const broadcastEval = vi.fn().mockResolvedValue(DELIVERED)
+    const { app } = await buildApp(broadcastEval)
+
+    const allowed = await post(app, { userId: USER_ID, message: 'hello' }, API_KEY)
+    expect(allowed.status).toBe(200)
+
+    expect(broadcastEval).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns 401 without the API key, and 404 when the key is unset', async () => {
+    const broadcastEval = vi.fn().mockResolvedValue(DELIVERED)
+    const { app } = await buildApp(broadcastEval)
+
+    const missing = await post(app, { userId: USER_ID, message: 'hello' }, null)
+    expect(missing.status).toBe(401)
+
+    const wrong = await post(app, { userId: USER_ID, message: 'hello' }, 'not-the-key')
+    expect(wrong.status).toBe(401)
+
+    const prefixed = await post(app, { userId: USER_ID, message: 'hello' }, `Bearer ${API_KEY}`)
+    expect(prefixed.status).toBe(401)
+
+    delete process.env.INTEGRATION_DM_PROXY
+    const { app: unconfigured } = await buildApp(broadcastEval)
+    const disabled = await post(unconfigured, { userId: USER_ID, message: 'hello' })
+    expect(disabled.status).toBe(404)
+
+    expect(broadcastEval).not.toHaveBeenCalled()
+  })
+
   it('delivers a DM and pins the eval to shard 0', async () => {
     const broadcastEval = vi.fn().mockResolvedValue(DELIVERED)
     const { app } = await buildApp(broadcastEval)
