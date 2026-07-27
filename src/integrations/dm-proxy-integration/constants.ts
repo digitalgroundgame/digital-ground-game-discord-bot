@@ -3,6 +3,13 @@ import { type RESTJSONErrorCodes } from 'discord.js'
 export const DISCORD_ID_REGEX = /^\d{17,20}$/
 export const MESSAGE_MAX_LENGTH = 2000
 
+export class ValidationError extends Error {
+  public constructor(message: string) {
+    super(message)
+    this.name = 'ValidationError'
+  }
+}
+
 export interface SendDmPayload {
   userId: string
   message: string

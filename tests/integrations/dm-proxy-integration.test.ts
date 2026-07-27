@@ -281,6 +281,19 @@ describe('DmProxyIntegration', () => {
     expect(res.body).toEqual({ error: true, message: 'discord exploded' })
   })
 
+  it('returns 500, not 400, when a TypeError escapes from below the validation', async () => {
+    // Only a ValidationError means the caller sent something wrong. A runtime fault that
+    // happens to be a TypeError is ours, and reporting it as 400 would tell the CRM its
+    // payload was rejected and must not be retried.
+    const broadcastEval = vi.fn().mockRejectedValue(new TypeError('client.users is undefined'))
+    const { app } = await buildApp(broadcastEval)
+
+    const res = await post(app, { userId: USER_ID, message: 'hello' })
+
+    expect(res.status).toBe(500)
+    expect(res.body).toEqual({ error: true, message: 'client.users is undefined' })
+  })
+
   it('returns 400 for a malformed body and 413 for an oversized one', async () => {
     // express.json() rejects both before the controller runs. Neither can ever succeed on
     // retry, so they must not reach the caller as a 5xx — the documented retry signal.

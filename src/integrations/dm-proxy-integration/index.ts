@@ -9,6 +9,7 @@ import {
   ErrorResponse,
   MESSAGE_MAX_LENGTH,
   SendDmPayload,
+  ValidationError,
 } from './constants.js'
 
 const sendDmOnShard = async (client: Client, ctx: SendDmPayload): Promise<DmEvalResult> => {
@@ -53,7 +54,7 @@ export class DmProxyIntegration implements Integration {
       res.status(200).json({ error: false, delivered: true })
       return
     } catch (error) {
-      if (!(error instanceof TypeError)) throw error
+      if (!(error instanceof ValidationError)) throw error
 
       res.status(400).json({ error: true, message: error.message })
       return
@@ -88,22 +89,24 @@ export class DmProxyIntegration implements Integration {
     const payload = body as Partial<SendDmPayload> | null | undefined
 
     if (!payload || typeof payload !== 'object') {
-      throw new TypeError('Request body must be a JSON object.')
+      throw new ValidationError('Request body must be a JSON object.')
     }
     if (typeof payload.userId !== 'string') {
-      throw new TypeError(`userId must be a string Discord user ID, got: ${typeof payload.userId}`)
+      throw new ValidationError(
+        `userId must be a string Discord user ID, got: ${typeof payload.userId}`,
+      )
     }
     if (!DISCORD_ID_REGEX.test(payload.userId)) {
-      throw new TypeError('userId must be a Discord snowflake (17-20 digits).')
+      throw new ValidationError('userId must be a Discord snowflake (17-20 digits).')
     }
     if (typeof payload.message !== 'string') {
-      throw new TypeError(`message must be a string, got: ${typeof payload.message}`)
+      throw new ValidationError(`message must be a string, got: ${typeof payload.message}`)
     }
     if (payload.message.length === 0) {
-      throw new TypeError('message must not be empty.')
+      throw new ValidationError('message must not be empty.')
     }
     if (payload.message.length > MESSAGE_MAX_LENGTH) {
-      throw new TypeError(
+      throw new ValidationError(
         `message must be at most ${MESSAGE_MAX_LENGTH} characters, got: ${payload.message.length}`,
       )
     }
