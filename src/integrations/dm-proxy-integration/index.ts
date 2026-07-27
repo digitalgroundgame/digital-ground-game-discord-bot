@@ -33,7 +33,9 @@ export class DmProxyIntegration implements Integration {
     try {
       const { userId, message } = this.validatePayload(req.body)
 
-      const shard = shardManager.shards.firstKey()
+      const shard =
+        shardManager.shards.find(({ ready }) => ready)?.id ?? shardManager.shards.firstKey()
+
       if (shard == null) {
         throw new Error('Cannot send DM: no local shard is running.')
       }

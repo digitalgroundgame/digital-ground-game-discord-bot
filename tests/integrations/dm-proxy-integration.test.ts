@@ -18,7 +18,9 @@ const DELIVERED = { ok: true }
 
 async function buildApp(
   broadcastEval: (...args: unknown[]) => unknown = vi.fn().mockResolvedValue(DELIVERED),
-  shards: Collection<number, never> = new Collection([[0, {} as never]]),
+  shards: Collection<number, { ready: boolean; id: number }> = new Collection([
+    [0, { ready: true, id: 0 }],
+  ]),
 ): Promise<{ app: Express; broadcastEval: ReturnType<typeof vi.fn> }> {
   const { IntegrationsController } =
     await import('../../src/controllers/integrations-controller.js')
@@ -81,7 +83,7 @@ describe('DmProxyIntegration', () => {
     expect(broadcastEval).not.toHaveBeenCalled()
   })
 
-  it('delivers a DM and pins the eval to shard 0', async () => {
+  it('delivers a DM with the expected message', async () => {
     const broadcastEval = vi.fn().mockResolvedValue(DELIVERED)
     const { app } = await buildApp(broadcastEval)
 
@@ -94,8 +96,76 @@ describe('DmProxyIntegration', () => {
       shard: number
       context: { userId: string; message: string }
     }
-    expect(options.shard).toBe(0)
     expect(options.context).toEqual({ userId: USER_ID, message: 'Reminder: canvass at noon.' })
+  })
+
+  it("delivers a DM and pins the eval to the first ready shard's id", async () => {
+    const broadcastEval = vi.fn().mockResolvedValue(DELIVERED)
+    const { app } = await buildApp(
+      broadcastEval,
+      new Collection([
+        [0, { ready: false, id: 0 }],
+        [1, { ready: true, id: 1 }],
+      ]),
+    )
+
+    const res = await post(app, { userId: USER_ID, message: 'Reminder: canvass at noon.' })
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ error: false, delivered: true })
+    expect(broadcastEval).toHaveBeenCalledTimes(1)
+    const options = broadcastEval.mock.calls[0]![1] as {
+      shard: number
+      context: { userId: string; message: string }
+    }
+    expect(options.shard).toBe(1)
+  })
+
+  it("delivers a DM and pins the eval to the first ready shard's id when it's zero", async () => {
+    // A clustering shardList of [3, 0, ...] puts shard 0 behind an unready shard 3, so
+    // firstKey() is 3 while the ready shard's id is 0. Selecting on a falsy-but-valid id
+    // has to keep the 0 rather than fall back.
+    const broadcastEval = vi.fn().mockResolvedValue(DELIVERED)
+    const { app } = await buildApp(
+      broadcastEval,
+      new Collection([
+        [3, { ready: false, id: 3 }],
+        [0, { ready: true, id: 0 }],
+      ]),
+    )
+
+    const res = await post(app, { userId: USER_ID, message: 'Reminder: canvass at noon.' })
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ error: false, delivered: true })
+    expect(broadcastEval).toHaveBeenCalledTimes(1)
+    const options = broadcastEval.mock.calls[0]![1] as {
+      shard: number
+      context: { userId: string; message: string }
+    }
+    expect(options.shard).toBe(0)
+  })
+
+  it('delivers a DM and pins the eval to the first key when no shard is ready', async () => {
+    const broadcastEval = vi.fn().mockResolvedValue(DELIVERED)
+    const { app } = await buildApp(
+      broadcastEval,
+      new Collection([
+        [2, { ready: false, id: 2 }],
+        [1, { ready: false, id: 1 }],
+      ]),
+    )
+
+    const res = await post(app, { userId: USER_ID, message: 'Reminder: canvass at noon.' })
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ error: false, delivered: true })
+    expect(broadcastEval).toHaveBeenCalledTimes(1)
+    const options = broadcastEval.mock.calls[0]![1] as {
+      shard: number
+      context: { userId: string; message: string }
+    }
+    expect(options.shard).toBe(2)
   })
 
   it('passes a callback that survives being stringified for the shard process', async () => {
