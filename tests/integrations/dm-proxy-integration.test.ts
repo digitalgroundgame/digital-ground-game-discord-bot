@@ -211,6 +211,29 @@ describe('DmProxyIntegration', () => {
     expect(res.body).toEqual({ error: true, message: 'discord exploded' })
   })
 
+  it('returns 400 for a malformed body and 413 for an oversized one', async () => {
+    // express.json() rejects both before the controller runs. Neither can ever succeed on
+    // retry, so they must not reach the caller as a 5xx — the documented retry signal.
+    const broadcastEval = vi.fn()
+    const { app } = await buildApp(broadcastEval)
+
+    const malformed = await request(app)
+      .post('/integrations/send-dm')
+      .set('Authorization', API_KEY)
+      .set('Content-Type', 'application/json')
+      .send(`{"userId": "${USER_ID}", "message": "unterminated`)
+    expect(malformed.status).toBe(400)
+
+    const oversized = await request(app)
+      .post('/integrations/send-dm')
+      .set('Authorization', API_KEY)
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ userId: USER_ID, message: 'x'.repeat(200_000) }))
+    expect(oversized.status).toBe(413)
+
+    expect(broadcastEval).not.toHaveBeenCalled()
+  })
+
   it('rejects a missing userId', async () => {
     const broadcastEval = vi.fn()
     const { app } = await buildApp(broadcastEval)

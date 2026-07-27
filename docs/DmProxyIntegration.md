@@ -40,8 +40,9 @@ request fails with `500` so the caller retries.
 | `200` | `{ "error": false, "delivered": true }` | DM delivered. |
 | `200` | `{ "error": false, "delivered": false, "reason": "dms_closed" }` | The bot cannot DM this user: they have DMs disabled or blocked it (Discord `50007`), or they share no server with it (Discord `50278` — e.g. they left). Terminal — do not retry. |
 | `404` | `{ "error": true, "delivered": false, "reason": "unknown_user" }` | No Discord user with that ID (Discord `10013`). Terminal — do not retry. |
-| `400` | `{ "error": true, "message": "..." }` | Invalid `userId` or `message`. |
+| `400` | `{ "error": true, "message": "..." }` | Invalid `userId` or `message`, or a body that is not parseable JSON. |
 | `401` | (empty) | Missing or incorrect `Authorization` header. |
+| `413` | `{ "error": true, "message": "..." }` | Request body over 100 kb. |
 | `502` | `{ "error": true, "delivered": false, "reason": "discord_error", "code": n, "message": "..." }` | Discord rejected the send for another reason. |
 | `500` | `{ "error": true, "message": "..." }` | Unexpected error. |
 
