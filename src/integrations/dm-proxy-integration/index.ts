@@ -7,6 +7,7 @@ import {
   DmEvalFailure,
   DmEvalResult,
   ErrorResponse,
+  EVAL_TIMEOUT_MS,
   MESSAGE_MAX_LENGTH,
   SendDmPayload,
   ValidationError,
@@ -41,10 +42,16 @@ export class DmProxyIntegration implements Integration {
         throw new Error('Cannot send DM: no local shard is running.')
       }
 
-      const result: DmEvalResult = await shardManager.broadcastEval(sendDmOnShard, {
-        shard,
-        context: { userId, message },
-      })
+      let timer: NodeJS.Timeout | undefined
+      const result: DmEvalResult = await Promise.race([
+        shardManager.broadcastEval(sendDmOnShard, { shard, context: { userId, message } }),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(
+            () => reject(new Error(`Shard ${shard} did not answer within ${EVAL_TIMEOUT_MS}ms.`)),
+            EVAL_TIMEOUT_MS,
+          )
+        }),
+      ]).finally(() => clearTimeout(timer))
 
       if (!result.ok) {
         const { status, body } = this.httpErrorResponse(result)

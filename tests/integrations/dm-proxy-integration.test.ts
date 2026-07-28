@@ -13,6 +13,7 @@ vi.mock('../../src/services/index.js', () => ({
 
 const API_KEY = 'test-api-key'
 const USER_ID = '123456789012345678'
+const CONSTANTS_MODULE = '../../src/integrations/dm-proxy-integration/constants.js'
 
 const DELIVERED = { ok: true }
 
@@ -49,6 +50,7 @@ describe('DmProxyIntegration', () => {
 
   afterEach(() => {
     delete process.env.INTEGRATION_DM_PROXY
+    vi.doUnmock(CONSTANTS_MODULE)
     vi.restoreAllMocks()
   })
 
@@ -269,6 +271,48 @@ describe('DmProxyIntegration', () => {
     expect(res.status).toBe(500)
     expect(res.body.message).toMatch(/no local shard/i)
     expect(broadcastEval).not.toHaveBeenCalled()
+  })
+
+  it('returns 500 when the shard never answers', async () => {
+    // `Shard#eval` never settles if the child dies mid-eval, blocks its event loop, or is still
+    // spawning when the `_eval` message lands. Without the timer this request would hang open
+    // instead of producing any status at all, which the caller cannot act on.
+    const actual =
+      await vi.importActual<
+        typeof import('../../src/integrations/dm-proxy-integration/constants.js')
+      >(CONSTANTS_MODULE)
+    vi.doMock(CONSTANTS_MODULE, () => ({ ...actual, EVAL_TIMEOUT_MS: 20 }))
+
+    const broadcastEval = vi.fn().mockReturnValue(new Promise(() => {}))
+    const { app } = await buildApp(broadcastEval)
+
+    const res = await post(app, { userId: USER_ID, message: 'hello' })
+
+    expect(res.status).toBe(500)
+    expect(res.body).toEqual({ error: true, message: 'Shard 0 did not answer within 20ms.' })
+  })
+
+  it('clears the timeout once the shard answers', async () => {
+    // A per-request timer left armed would keep firing after the response is sent.
+    const actual =
+      await vi.importActual<
+        typeof import('../../src/integrations/dm-proxy-integration/constants.js')
+      >(CONSTANTS_MODULE)
+    vi.doMock(CONSTANTS_MODULE, () => ({ ...actual, EVAL_TIMEOUT_MS: 20 }))
+
+    const broadcastEval = vi.fn().mockResolvedValue(DELIVERED)
+    const { app } = await buildApp(broadcastEval)
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout')
+
+    const res = await post(app, { userId: USER_ID, message: 'hello' })
+
+    expect(res.status).toBe(200)
+    // Node's http internals arm their own timers, so match the handle by its delay rather
+    // than asserting clearTimeout was called at all.
+    const armed = setTimeoutSpy.mock.calls.findIndex(([, delay]) => delay === 20)
+    expect(armed).toBeGreaterThanOrEqual(0)
+    expect(clearTimeoutSpy).toHaveBeenCalledWith(setTimeoutSpy.mock.results[armed]!.value)
   })
 
   it('returns 500 when broadcastEval itself rejects (controller catchall)', async () => {

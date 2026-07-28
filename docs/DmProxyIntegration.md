@@ -34,6 +34,10 @@ this manager owns, falling back to the first it owns when none has reported read
 per shard. If no shard is running at all (startup, or all shards respawning) the request fails
 with `500` so the caller retries.
 
+The eval is capped at 30 seconds. discord.js puts no timer on a shard eval — it settles only when
+the shard process answers — so a shard that dies mid-send, blocks its event loop, or is still
+spawning would otherwise leave the request open indefinitely. The cap turns that into a `500`.
+
 ## Responses
 
 | Status | Body | Meaning |
@@ -45,14 +49,17 @@ with `500` so the caller retries.
 | `401` | (empty) | Missing or incorrect `Authorization` header. |
 | `413` | `{ "error": true, "message": "..." }` | Request body over 100 kb. |
 | `502` | `{ "error": true, "delivered": false, "reason": "discord_error", "code": n, "message": "..." }` | Discord rejected the send for another reason. |
-| `500` | `{ "error": true, "message": "..." }` | Unexpected error. |
+| `500` | `{ "error": true, "message": "..." }` | Unexpected error, or the shard did not answer within 30 seconds. |
 
 ## Retry guidance for callers
 
 - **Never retry** a `200` (`delivered: false` means the user opted out at the Discord level) or a `404` — both are terminal.
 - Retry only on `5xx`/network failures, and prefer retrying on your next scheduled run over
   immediate retries: a request that failed after Discord accepted the send would deliver a
-  duplicate DM.
+  duplicate DM. This applies most of all to the 30-second timeout, which cannot tell whether
+  Discord accepted the send before the shard stopped answering.
+- Set a client-side request timeout above 30 seconds so the server's own cap is what ends a
+  stalled request, and you get a status code instead of a dropped connection.
 
 ## Example
 
