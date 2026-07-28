@@ -9,7 +9,11 @@ import {
   RootController,
   ShardsController,
 } from './controllers/index.js'
-import { type Integration, PragmaticPapersIntegration } from './integrations/index.js'
+import {
+  DmProxyIntegration,
+  type Integration,
+  PragmaticPapersIntegration,
+} from './integrations/index.js'
 import { type Job } from './jobs/index.js'
 import { Api } from './models/api.js'
 import { Manager } from './models/manager.js'
@@ -78,7 +82,7 @@ async function start(): Promise<void> {
   const guildsController = new GuildsController(shardManager)
   const shardsController = new ShardsController(shardManager)
   const rootController = new RootController()
-  const integrations: Integration[] = [new PragmaticPapersIntegration()]
+  const integrations: Integration[] = [new PragmaticPapersIntegration(), new DmProxyIntegration()]
   const integrationsController = new IntegrationsController(integrations, shardManager)
 
   const controllers: Controller[] = [
