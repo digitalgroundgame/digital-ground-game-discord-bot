@@ -24,6 +24,9 @@ export class CalendarSyncControlService {
   public constructor(private shardManager: ShardingManager) {
     for (const shard of this.shardManager.shards.values()) {
       shard.on('message', (message) => this.handleShardMessage(message))
+      shard.on('death', () => {
+        this.rejectActiveRequest(new Error('Discord shard died during calendar sync.'))
+      })
     }
   }
 

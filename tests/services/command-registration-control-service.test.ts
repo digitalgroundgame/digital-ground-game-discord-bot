@@ -11,18 +11,24 @@ import {
 import { CommandRegistrationControlService } from '../../src/services/command-registration-control-service.js'
 
 interface ControlServiceHarness {
-  listener: (message: CommandRegistrationResult) => void
+  deathListener: () => void
+  messageListener: (message: CommandRegistrationResult) => void
   send: ReturnType<typeof vi.fn>
   service: CommandRegistrationControlService
 }
 
 function buildHarness(): ControlServiceHarness {
+  let deathListener: (() => void) | undefined
   let messageListener: ((message: CommandRegistrationResult) => void) | undefined
   const send = vi.fn().mockResolvedValue(undefined)
   const shard = {
     ready: true,
-    on: vi.fn((_event: string, listener: (message: CommandRegistrationResult) => void) => {
-      messageListener = listener
+    on: vi.fn((event: string, listener: (message: CommandRegistrationResult) => void) => {
+      if (event === 'message') {
+        messageListener = listener
+      } else if (event === 'death') {
+        deathListener = listener
+      }
     }),
     send,
   }
@@ -31,11 +37,11 @@ function buildHarness(): ControlServiceHarness {
   } as unknown as ShardingManager
   const service = new CommandRegistrationControlService(shardManager)
 
-  if (!messageListener) {
-    throw new Error('Expected the control service to register a shard message listener.')
+  if (!(deathListener && messageListener)) {
+    throw new Error('Expected the control service to register shard listeners.')
   }
 
-  return { listener: messageListener, send, service }
+  return { deathListener, messageListener, send, service }
 }
 
 describe('CommandRegistrationControlService', () => {
@@ -43,12 +49,12 @@ describe('CommandRegistrationControlService', () => {
     ['not-found', CommandRegistrationNotFoundError],
     ['invalid-argument', CommandRegistrationInvalidArgumentError],
   ] as const)('reconstructs a %s shard error', async (errorCode, ErrorType) => {
-    const { listener, send, service } = buildHarness()
+    const { messageListener, send, service } = buildHarness()
     const request = service.request('delete', ['missing'])
 
     await vi.waitFor(() => expect(send).toHaveBeenCalledOnce())
     const sentRequest = send.mock.calls[0]?.[0] as CommandRegistrationRequest
-    listener({
+    messageListener({
       type: COMMAND_REGISTRATION_MESSAGE_TYPE,
       kind: 'result',
       requestId: sentRequest.requestId,
@@ -58,5 +64,20 @@ describe('CommandRegistrationControlService', () => {
     })
 
     await expect(request).rejects.toBeInstanceOf(ErrorType)
+  })
+
+  it('rejects the active request and permits another request when the shard dies', async () => {
+    const { deathListener, send, service } = buildHarness()
+    const request = service.request('register')
+
+    await vi.waitFor(() => expect(send).toHaveBeenCalledOnce())
+    deathListener()
+
+    await expect(request).rejects.toThrow('Discord shard died during command registration.')
+
+    const nextRequest = service.request('register')
+    await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(2))
+    deathListener()
+    await expect(nextRequest).rejects.toThrow('Discord shard died during command registration.')
   })
 })
