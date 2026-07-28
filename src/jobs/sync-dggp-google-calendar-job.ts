@@ -1,7 +1,11 @@
 import { createRequire } from 'node:module'
 
 import { Job } from './job.js'
-import { CalendarSyncInProgressError, type CalendarSyncRunner, Logger } from '../services/index.js'
+import {
+  CalendarSyncInProgressError,
+  type CalendarSyncRunner,
+} from '../services/calendar-sync-runner.js'
+import { Logger } from '../services/logger.js'
 
 const require = createRequire(import.meta.url)
 const Config = require('../../config/config.json')

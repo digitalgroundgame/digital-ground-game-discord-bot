@@ -49,6 +49,12 @@ This template for a Discord bot was based upon this public template. https://git
      - This is so Discord knows what your commands look like.
      - It may take up to an hour for command changes to appear.
 
+5. Start the bot.
+
+   ```sh
+   npm start
+   ```
+
 Docker builds use the cached Node major-version image and verify that it matches
 the major version pinned in `.nvmrc`:
 
