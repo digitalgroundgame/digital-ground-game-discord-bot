@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest'
 
 import { CommandsController } from '../../src/controllers/commands-controller.js'
 import {
+  CommandRegistrationInvalidArgumentError,
+  CommandRegistrationNotFoundError,
   type CommandRegistrationAction,
   type CommandRegistrationSummary,
 } from '../../src/command-registration-control.js'
@@ -14,13 +16,19 @@ const commandSummary = {
   remoteOnly: [],
 }
 
-function buildApp(calls: Array<{ action: CommandRegistrationAction; args: string[] }>): Express {
+function buildApp(
+  calls: Array<{ action: CommandRegistrationAction; args: string[] }>,
+  requestError?: Error,
+): Express {
   const controller = new CommandsController({
     async request(
       action: CommandRegistrationAction,
       args: string[] = [],
     ): Promise<CommandRegistrationSummary | undefined> {
       calls.push({ action, args })
+      if (requestError) {
+        throw requestError
+      }
       return action === 'view' ? commandSummary : undefined
     },
   })
@@ -72,5 +80,28 @@ describe('CommandsController', () => {
       { action: 'clear', args: [] },
       { action: 'rename', args: ['old-name', 'new-name'] },
     ])
+  })
+
+  it('reports a missing remote command as not found', async () => {
+    const calls: Array<{ action: CommandRegistrationAction; args: string[] }> = []
+    const error = new CommandRegistrationNotFoundError(
+      "Could not find a command with the name 'missing'.",
+    )
+
+    const res = await request(buildApp(calls, error)).delete('/commands/missing')
+
+    expect(res.status).toBe(404)
+    expect(res.body).toEqual({ error: error.message })
+    expect(calls).toEqual([{ action: 'delete', args: ['missing'] }])
+  })
+
+  it('reports a shard-side argument error as a bad request', async () => {
+    const calls: Array<{ action: CommandRegistrationAction; args: string[] }> = []
+    const error = new CommandRegistrationInvalidArgumentError('Missing command name.')
+
+    const res = await request(buildApp(calls, error)).post('/commands/register')
+
+    expect(res.status).toBe(400)
+    expect(res.body).toEqual({ error: error.message })
   })
 })

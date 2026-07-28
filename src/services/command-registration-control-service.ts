@@ -4,6 +4,8 @@ import { type ShardingManager } from 'discord.js'
 
 import {
   COMMAND_REGISTRATION_MESSAGE_TYPE,
+  CommandRegistrationInvalidArgumentError,
+  CommandRegistrationNotFoundError,
   isCommandRegistrationResult,
   type CommandRegistrationAction,
   type CommandRegistrationRequest,
@@ -82,7 +84,17 @@ export class CommandRegistrationControlService {
     if (message.success) {
       this.resolveActiveRequest(message.commands)
     } else {
-      this.rejectActiveRequest(new Error(message.error ?? 'Command registration failed.'))
+      const errorMessage = message.error ?? 'Command registration failed.'
+      switch (message.errorCode) {
+        case 'invalid-argument':
+          this.rejectActiveRequest(new CommandRegistrationInvalidArgumentError(errorMessage))
+          break
+        case 'not-found':
+          this.rejectActiveRequest(new CommandRegistrationNotFoundError(errorMessage))
+          break
+        default:
+          this.rejectActiveRequest(new Error(errorMessage))
+      }
     }
   }
 

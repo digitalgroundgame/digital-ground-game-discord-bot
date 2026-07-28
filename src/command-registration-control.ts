@@ -10,6 +10,18 @@ export const COMMAND_REGISTRATION_ACTIONS = [
 
 export type CommandRegistrationAction = (typeof COMMAND_REGISTRATION_ACTIONS)[number]
 
+export const COMMAND_REGISTRATION_ERROR_CODES = ['invalid-argument', 'not-found'] as const
+
+export type CommandRegistrationErrorCode = (typeof COMMAND_REGISTRATION_ERROR_CODES)[number]
+
+export class CommandRegistrationInvalidArgumentError extends Error {
+  public override readonly name = 'CommandRegistrationInvalidArgumentError'
+}
+
+export class CommandRegistrationNotFoundError extends Error {
+  public override readonly name = 'CommandRegistrationNotFoundError'
+}
+
 export interface CommandRegistrationSummary {
   localAndRemote: string[]
   localOnly: string[]
@@ -30,6 +42,7 @@ export interface CommandRegistrationResult {
   requestId: string
   success: boolean
   error?: string
+  errorCode?: CommandRegistrationErrorCode
   commands?: CommandRegistrationSummary
 }
 
@@ -113,6 +126,11 @@ export function isCommandRegistrationResult(
     'success' in message &&
     typeof message.success === 'boolean' &&
     (!('error' in message) || typeof message.error === 'string') &&
+    (!('errorCode' in message) ||
+      (typeof message.errorCode === 'string' &&
+        COMMAND_REGISTRATION_ERROR_CODES.includes(
+          message.errorCode as CommandRegistrationErrorCode,
+        ))) &&
     (!('commands' in message) || isCommandRegistrationSummary(message.commands))
   )
 }

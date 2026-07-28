@@ -1,6 +1,8 @@
 import { type Request, type Response, Router } from 'express'
 
 import {
+  CommandRegistrationInvalidArgumentError,
+  CommandRegistrationNotFoundError,
   type CommandRegistrationAction,
   type CommandRegistrationSummary,
 } from '../command-registration-control.js'
@@ -76,6 +78,16 @@ export class CommandsController implements Controller {
       const commands = await this.commandRegistrationControlService.request(action, args)
       res.status(200).json({ action, success: true, ...(commands ? { commands } : {}) })
     } catch (error) {
+      if (error instanceof CommandRegistrationInvalidArgumentError) {
+        res.status(400).json({ error: error.message })
+        return
+      }
+
+      if (error instanceof CommandRegistrationNotFoundError) {
+        res.status(404).json({ error: error.message })
+        return
+      }
+
       if (error instanceof CommandRegistrationInProgressError) {
         res.status(409).json({ error: error.message })
         return

@@ -50,8 +50,19 @@ describe('command registration control messages', () => {
         requestId: 'request-1',
         success: false,
         error: 'Request failed',
+        errorCode: 'not-found',
       }),
     ).toBe(true)
+    expect(
+      isCommandRegistrationResult({
+        type: COMMAND_REGISTRATION_MESSAGE_TYPE,
+        kind: 'result',
+        requestId: 'request-1',
+        success: false,
+        error: 'Request failed',
+        errorCode: 'unknown',
+      }),
+    ).toBe(false)
   })
 
   it('recognizes calendar sync control messages', () => {

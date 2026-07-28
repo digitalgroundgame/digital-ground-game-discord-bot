@@ -8,7 +8,11 @@ import {
 } from 'discord.js'
 
 import '../config/environment.js'
-import { type CommandRegistrationSummary } from '../command-registration-control.js'
+import {
+  CommandRegistrationInvalidArgumentError,
+  CommandRegistrationNotFoundError,
+  type CommandRegistrationSummary,
+} from '../command-registration-control.js'
 import { Logger } from './logger.js'
 
 import Logs from '../../lang/logs.json' with { type: 'json' }
@@ -86,14 +90,16 @@ export class CommandRegistrationService {
         const oldName = args[4]
         const newName = args[5]
         if (!(oldName && newName)) {
-          Logger.error(Logs.error.commandActionRenameMissingArg)
-          return commands
+          throw new CommandRegistrationInvalidArgumentError(
+            Logs.error.commandActionRenameMissingArg,
+          )
         }
 
         const remoteCmd = remoteCmds.find((cmd) => cmd.name == oldName)
         if (!remoteCmd) {
-          Logger.error(Logs.error.commandActionNotFound.replaceAll('{COMMAND_NAME}', oldName))
-          return commands
+          throw new CommandRegistrationNotFoundError(
+            Logs.error.commandActionNotFound.replaceAll('{COMMAND_NAME}', oldName),
+          )
         }
 
         Logger.info(
@@ -116,14 +122,16 @@ export class CommandRegistrationService {
       case 'delete': {
         const name = args[4]
         if (!name) {
-          Logger.error(Logs.error.commandActionDeleteMissingArg)
-          return commands
+          throw new CommandRegistrationInvalidArgumentError(
+            Logs.error.commandActionDeleteMissingArg,
+          )
         }
 
         const remoteCmd = remoteCmds.find((cmd) => cmd.name == name)
         if (!remoteCmd) {
-          Logger.error(Logs.error.commandActionNotFound.replaceAll('{COMMAND_NAME}', name))
-          return commands
+          throw new CommandRegistrationNotFoundError(
+            Logs.error.commandActionNotFound.replaceAll('{COMMAND_NAME}', name),
+          )
         }
 
         Logger.info(Logs.info.commandActionDeleting.replaceAll('{COMMAND_NAME}', remoteCmd.name))

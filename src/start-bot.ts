@@ -5,6 +5,8 @@ import { parentPort } from 'node:worker_threads'
 
 import { type Button } from './buttons/index.js'
 import {
+  CommandRegistrationInvalidArgumentError,
+  CommandRegistrationNotFoundError,
   isCalendarSyncRequest,
   isCommandRegistrationRequest,
   type CalendarSyncResult,
@@ -161,6 +163,11 @@ async function start(): Promise<void> {
         requestId: message.requestId,
         success: false,
         error: error instanceof Error ? error.message : String(error),
+        ...(error instanceof CommandRegistrationNotFoundError
+          ? { errorCode: 'not-found' as const }
+          : error instanceof CommandRegistrationInvalidArgumentError
+            ? { errorCode: 'invalid-argument' as const }
+            : {}),
       })
     } finally {
       commandRegistrationInProgress = false
