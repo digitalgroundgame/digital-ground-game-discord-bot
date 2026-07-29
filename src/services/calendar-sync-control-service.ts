@@ -25,6 +25,12 @@ export class CalendarSyncControlService {
     for (const shard of this.shardManager.shards.values()) {
       shard.on('message', (message) => this.handleShardMessage(message))
       shard.on('death', () => {
+        if (this.activeRequest?.shardId !== shard.id) {
+          return
+        }
+
+        this.rejectActiveRequest(new Error(`Discord shard ${shard.id} died during calendar sync.`))
+      })
         this.rejectActiveRequest(new Error('Discord shard died during calendar sync.'))
       })
     }
