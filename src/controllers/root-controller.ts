@@ -12,7 +12,7 @@ export class RootController implements Controller {
   }
 
   private async get(req: Request, res: Response): Promise<void> {
-    res.status(200).json({ name: 'Discord Bot Cluster API', author: 'DGGPA' })
+    res.status(200).json({ name: 'Digital Ground Game Discord Bot API', author: 'DGGPA' })
   }
 
   private getHealth(res: Response): void {

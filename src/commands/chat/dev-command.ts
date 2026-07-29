@@ -12,7 +12,7 @@ import { DevCommandName } from '../../enums/index.js'
 import { Language } from '../../models/enum-helpers/index.js'
 import { type EventData } from '../../models/internal-models.js'
 import { Lang } from '../../services/index.js'
-import { FormatUtils, InteractionUtils, ShardUtils } from '../../utils/index.js'
+import { FormatUtils, InteractionUtils } from '../../utils/index.js'
 import { type Command, CommandDeferType } from '../index.js'
 
 const require = createRequire(import.meta.url)
@@ -36,25 +36,7 @@ export class DevCommand implements Command {
 
     switch (args.command) {
       case DevCommandName.INFO: {
-        const shardCount = intr.client.shard?.count ?? 1
-        let serverCount: number
-        if (intr.client.shard) {
-          try {
-            serverCount = await ShardUtils.serverCount(intr.client.shard)
-          } catch (error) {
-            if (error.name.includes('ShardingInProcess')) {
-              await InteractionUtils.send(
-                intr,
-                Lang.getEmbed('errorEmbeds.startupInProcess', data.lang),
-              )
-              return
-            } else {
-              throw error
-            }
-          }
-        } else {
-          serverCount = intr.client.guilds.cache.size
-        }
+        const serverCount = intr.client.guilds.cache.size
 
         const memory = process.memoryUsage()
 
@@ -65,9 +47,7 @@ export class DevCommand implements Command {
             TS_VERSION: `v${typescript.version}`,
             ES_VERSION: TsConfig.compilerOptions.target,
             DJS_VERSION: `v${djsVersion}`,
-            SHARD_COUNT: shardCount.toLocaleString(data.lang),
             SERVER_COUNT: serverCount.toLocaleString(data.lang),
-            SERVER_COUNT_PER_SHARD: Math.round(serverCount / shardCount).toLocaleString(data.lang),
             RSS_SIZE: FormatUtils.fileSize(memory.rss),
             RSS_SIZE_PER_SERVER:
               serverCount > 0
@@ -84,7 +64,6 @@ export class DevCommand implements Command {
                 ? FormatUtils.fileSize(memory.heapUsed / serverCount)
                 : Lang.getRef('other.na', data.lang),
             HOSTNAME: os.hostname(),
-            SHARD_ID: (intr.guild?.shardId ?? 0).toString(),
             SERVER_ID: intr.guild?.id ?? Lang.getRef('other.na', data.lang),
             BOT_ID: intr.client.user?.id,
             USER_ID: intr.user.id,

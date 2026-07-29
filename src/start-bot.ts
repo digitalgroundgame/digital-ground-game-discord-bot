@@ -25,6 +25,13 @@ import {
   type Command,
 } from './commands/index.js'
 import { ONBOARDING_CONFIGS, SendOnboarding } from './commands/user/index.js'
+import {
+  type Controller,
+  GuildsController,
+  IntegrationsController,
+  PresenceController,
+  RootController,
+} from './controllers/index.js'
 import { createDatabase, type Database } from './database/index.js'
 import {
   ButtonHandler,
@@ -40,7 +47,13 @@ import {
   VoiceStateUpdateHandler,
 } from './events/index.js'
 import { CustomClient } from './extensions/index.js'
+import {
+  DmProxyIntegration,
+  type Integration,
+  PragmaticPapersIntegration,
+} from './integrations/index.js'
 import { AutoCloseWelcomeThreadsJob, SyncDggpGoogleCalendarJob, type Job } from './jobs/index.js'
+import { Api } from './models/api.js'
 import { Bot } from './models/bot.js'
 import { type Reaction } from './reactions/index.js'
 import { syncDggpScheduledEventsToGoogle } from './services/sync-dggp-google-calendar.js'
@@ -230,7 +243,22 @@ async function start(): Promise<void> {
     },
   )
 
-  await bot.start()
+  const integrations: Integration[] = [new PragmaticPapersIntegration(), new DmProxyIntegration()]
+  const controllers: Controller[] = [
+    new GuildsController(client),
+    new PresenceController(client),
+    new IntegrationsController(integrations, client),
+    new RootController(),
+  ]
+  const api = new Api(controllers)
+
+  try {
+    await bot.start()
+    await api.start()
+  } catch (error) {
+    client.destroy()
+    throw error
+  }
 }
 
 process.on('unhandledRejection', (reason, _promise) => {
@@ -239,4 +267,5 @@ process.on('unhandledRejection', (reason, _promise) => {
 
 start().catch((error) => {
   Logger.error(Logs.error.unspecified, error)
+  process.exitCode = 1
 })

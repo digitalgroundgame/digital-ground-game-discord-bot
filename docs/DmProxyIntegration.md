@@ -28,15 +28,8 @@ logged — the integration is effectively disabled.
 | `userId` | string | yes | Discord user ID (snowflake, 17–20 digits). Must be a string — JSON numbers lose snowflake precision. |
 | `message` | string | yes | 1–2000 characters, sent verbatim as the DM content. Discord timestamp markup (`<t:unixseconds:F>`) renders in the recipient's local timezone. |
 
-The DM is dispatched through a `broadcastEval` pinned to a single shard — the first ready one
-this manager owns, falling back to the first it owns when none has reported ready yet.
-`client.users.fetch()` succeeds on every shard, so an unpinned broadcast would deliver one DM
-per shard. If no shard is running at all (startup, or all shards respawning) the request fails
-with `500` so the caller retries.
-
-The eval is capped at 30 seconds. discord.js puts no timer on a shard eval — it settles only when
-the shard process answers — so a shard that dies mid-send, blocks its event loop, or is still
-spawning would otherwise leave the request open indefinitely. The cap turns that into a `500`.
+The single Discord client fetches the user and sends the DM directly. The operation is capped at
+30 seconds so a stalled Discord request does not leave the HTTP request open indefinitely.
 
 ## Responses
 
@@ -49,15 +42,15 @@ spawning would otherwise leave the request open indefinitely. The cap turns that
 | `401` | (empty) | Missing or incorrect `Authorization` header. |
 | `413` | `{ "error": true, "message": "..." }` | Request body over 100 kb. |
 | `502` | `{ "error": true, "delivered": false, "reason": "discord_error", "code": n, "message": "..." }` | Discord rejected the send for another reason. |
-| `500` | `{ "error": true, "message": "..." }` | Unexpected error, or the shard did not answer within 30 seconds. |
+| `500` | `{ "error": true, "message": "..." }` | Unexpected error, or Discord did not answer within 30 seconds. |
 
 ## Retry guidance for callers
 
 - **Never retry** a `200` (`delivered: false` means the user opted out at the Discord level) or a `404` — both are terminal.
 - Retry only on `5xx`/network failures, and prefer retrying on your next scheduled run over
   immediate retries: a request that failed after Discord accepted the send would deliver a
-  duplicate DM. This applies most of all to the 30-second timeout, which cannot tell whether
-  Discord accepted the send before the shard stopped answering.
+  duplicate DM. The 30-second timeout cannot tell whether Discord accepted the send before the
+  request stopped answering.
 - Set a client-side request timeout above 30 seconds so the server's own cap is what ends a
   stalled request, and you get a status code instead of a dropped connection.
 

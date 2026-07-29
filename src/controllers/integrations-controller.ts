@@ -1,4 +1,4 @@
-import { type ShardingManager } from 'discord.js'
+import { type Client } from 'discord.js'
 import { type Request, type Response, Router } from 'express'
 
 import { type Integration } from '../integrations/index.js'
@@ -12,7 +12,7 @@ export class IntegrationsController implements Controller {
 
   constructor(
     private integrations: Integration[],
-    private shardManager: ShardingManager,
+    private client: Client,
   ) {}
 
   public register(): void {
@@ -29,7 +29,7 @@ export class IntegrationsController implements Controller {
         integration.endpoint,
         checkAuth(apiKey),
         async (req: Request, res: Response) => {
-          await integration.run(req, res, this.shardManager)
+          await integration.run(req, res, this.client)
         },
       )
     }

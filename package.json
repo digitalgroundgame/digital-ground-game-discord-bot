@@ -6,10 +6,7 @@
   "license": "MIT",
   "private": true,
   "type": "module",
-  "exports": [
-    "./dist/start-bot.js",
-    "./dist/start-manager.js"
-  ],
+  "exports": "./dist/start-bot.js",
   "scripts": {
     "lint": "eslint . --cache --ext .js,.jsx,.ts,.tsx",
     "lint:fix": "eslint . --fix --cache --ext .js,.jsx,.ts,.tsx",
@@ -32,7 +29,6 @@
     "db:studio": "drizzle-kit studio",
     "start": "npm run start:bot",
     "start:bot": "npm run build && node --enable-source-maps dist/start-bot.js",
-    "start:manager": "npm run build && node --enable-source-maps dist/start-manager.js",
     "start:pm2": "npm run build && npm run pm2:start",
     "pm2:start": "pm2 start process.json",
     "pm2:stop": "pm2 stop process.json",
@@ -41,7 +37,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "check-types": "tsc --noEmit",
-    "copyconfig": "cp config/debug.example.json config/debug.json && cp config/bot-sites.example.json config/bot-sites.json  && cp .env.example .env"
+    "copyconfig": "cp config/debug.example.json config/debug.json && cp .env.example .env"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1082.0",
@@ -66,7 +62,6 @@
     "pino": "9.7.0",
     "pino-pretty": "13.0.0",
     "pm2": "^7.0.3",
-    "reflect-metadata": "^0.2.2",
     "remove-markdown": "0.6.2"
   },
   "devDependencies": {

@@ -33,9 +33,9 @@ async function buildApp(integrations: FakeIntegration[]): Promise<Express> {
   const { IntegrationsController } =
     await import('../../src/controllers/integrations-controller.js')
   const { Api } = await import('../../src/models/api.js')
-  const shardManager = {} as unknown as import('discord.js').ShardingManager
+  const client = {} as unknown as import('discord.js').Client
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const controller = new IntegrationsController(integrations as any, shardManager)
+  const controller = new IntegrationsController(integrations as any, client)
   const api = new Api([controller])
   return api.app
 }

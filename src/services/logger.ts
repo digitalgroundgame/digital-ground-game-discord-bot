@@ -27,8 +27,6 @@ const logger = pino(
 )
 
 export class Logger {
-  private static shardId: number
-
   public static info(message: string, obj?: unknown): void {
     if (obj) {
       logger.info(obj, message)
@@ -88,15 +86,6 @@ export class Logger {
         .error(message)
     } else {
       logger.error(obj, message)
-    }
-  }
-
-  public static setShardId(shardId: number): void {
-    if (this.shardId !== shardId) {
-      this.shardId = shardId
-      // Commenting this because we don't care about sharding rn
-      // AND its quite spammy as an additional line per log message
-      //logger = logger.child({ shardId })
     }
   }
 }

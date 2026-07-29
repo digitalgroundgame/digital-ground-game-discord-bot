@@ -1,4 +1,4 @@
-import { type ShardingManager } from 'discord.js'
+import { type Client } from 'discord.js'
 import { type Request, type Response } from 'express'
 import { createRequire } from 'node:module'
 
@@ -41,7 +41,7 @@ export class PragmaticPapersIntegration implements Integration {
   public publishChannelId: string = Config.integrations.pragmaticPapers.publishChannelId
   public endpoint: string = '/pp-event'
 
-  public async run(req: Request, res: Response, shardManager: ShardingManager): Promise<void> {
+  public async run(req: Request, res: Response, client: Client): Promise<void> {
     const event = req.body as PPEvent
     if (!event || typeof event.event !== 'string') {
       res.status(400).json({ error: true, message: "Missing 'event' field." })
@@ -55,7 +55,7 @@ export class PragmaticPapersIntegration implements Integration {
         return
       }
 
-      await this.handlePublish(event.payload, shardManager)
+      await this.handlePublish(event.payload, client)
       res.status(200).json({ error: false, event })
       return
     }
@@ -118,10 +118,7 @@ export class PragmaticPapersIntegration implements Integration {
     return null
   }
 
-  private async handlePublish(
-    payload: PPPublishPayload,
-    shardManager: ShardingManager,
-  ): Promise<void> {
+  private async handlePublish(payload: PPPublishPayload, client: Client): Promise<void> {
     const ppAuthor = {
       name: 'The Pragmatic Papers',
       icon_url: 'https://pragmaticpapers.com/favicon-32x32.png',
@@ -159,16 +156,9 @@ export class PragmaticPapersIntegration implements Integration {
       }
     }
 
-    await shardManager.broadcastEval(
-      async (client, ctx) => {
-        const channel = client.channels.cache.get(ctx.channelId)
-        if (channel?.isTextBased() && !channel.isDMBased()) {
-          await channel.send({ embeds: [ctx.embed] })
-          return true
-        }
-        return false
-      },
-      { context: { channelId: this.publishChannelId, embed } },
-    )
+    const channel = client.channels.cache.get(this.publishChannelId)
+    if (channel?.isTextBased() && !channel.isDMBased()) {
+      await channel.send({ embeds: [embed] })
+    }
   }
 }

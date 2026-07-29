@@ -6,8 +6,7 @@ This is a TypeScript, ESM, Node 24 Discord bot built on `discord.js`. Runtime co
 
 Important entry points:
 
-- `src/start-bot.ts` wires the bot process, Discord handlers, commands, triggers, and bot-side jobs.
-- `src/start-manager.ts` wires the shard manager process.
+- `src/start-bot.ts` wires the single bot process, HTTP API, Discord handlers, commands, triggers, integrations, and jobs.
 - `src/commands/metadata.ts` defines Discord command registration metadata.
 - `src/models/bot.ts` owns Discord client event listener registration and interaction routing.
 - `src/database/schema.ts` defines the Drizzle schema.

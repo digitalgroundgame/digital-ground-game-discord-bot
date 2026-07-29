@@ -1,22 +1,22 @@
-import { Client, RESTJSONErrorCodes, type ShardingManager } from 'discord.js'
+import { type Client, RESTJSONErrorCodes } from 'discord.js'
 import { type Request, type Response } from 'express'
 
 import { type Integration } from '../integration.js'
 import {
   DISCORD_ID_REGEX,
-  DmEvalFailure,
-  DmEvalResult,
+  DmSendFailure,
+  DmSendResult,
   ErrorResponse,
-  EVAL_TIMEOUT_MS,
+  SEND_TIMEOUT_MS,
   MESSAGE_MAX_LENGTH,
   SendDmPayload,
   ValidationError,
 } from './constants.js'
 
-const sendDmOnShard = async (client: Client, ctx: SendDmPayload): Promise<DmEvalResult> => {
+const sendDm = async (client: Client, payload: SendDmPayload): Promise<DmSendResult> => {
   try {
-    const user = await client.users.fetch(ctx.userId)
-    await user.send(ctx.message)
+    const user = await client.users.fetch(payload.userId)
+    await user.send(payload.message)
     return { ok: true }
   } catch (error) {
     return {
@@ -31,24 +31,17 @@ export class DmProxyIntegration implements Integration {
   public name = 'DM Proxy'
   public endpoint = '/send-dm'
 
-  public async run(req: Request, res: Response, shardManager: ShardingManager): Promise<void> {
+  public async run(req: Request, res: Response, client: Client): Promise<void> {
     try {
-      const { userId, message } = this.validatePayload(req.body)
-
-      const shard =
-        shardManager.shards.find(({ ready }) => ready)?.id ?? shardManager.shards.firstKey()
-
-      if (shard == null) {
-        throw new Error('Cannot send DM: no local shard is running.')
-      }
+      const payload = this.validatePayload(req.body)
 
       let timer: NodeJS.Timeout | undefined
-      const result: DmEvalResult = await Promise.race([
-        shardManager.broadcastEval(sendDmOnShard, { shard, context: { userId, message } }),
+      const result: DmSendResult = await Promise.race([
+        sendDm(client, payload),
         new Promise<never>((_, reject) => {
           timer = setTimeout(
-            () => reject(new Error(`Shard ${shard} did not answer within ${EVAL_TIMEOUT_MS}ms.`)),
-            EVAL_TIMEOUT_MS,
+            () => reject(new Error(`Discord did not answer within ${SEND_TIMEOUT_MS}ms.`)),
+            SEND_TIMEOUT_MS,
           )
         }),
       ]).finally(() => clearTimeout(timer))
@@ -68,7 +61,7 @@ export class DmProxyIntegration implements Integration {
     }
   }
 
-  private httpErrorResponse({ code, message }: DmEvalFailure): {
+  private httpErrorResponse({ code, message }: DmSendFailure): {
     status: number
     body: ErrorResponse
   } {

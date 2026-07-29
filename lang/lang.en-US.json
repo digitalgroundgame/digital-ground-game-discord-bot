@@ -100,10 +100,7 @@
           },
           {
             "name": "Stats",
-            "value": [
-              "**Shards**: {{SHARD_COUNT}}",
-              "**Servers**: {{SERVER_COUNT}} ({{SERVER_COUNT_PER_SHARD}}/Shard)"
-            ]
+            "value": ["**Servers**: {{SERVER_COUNT}}"]
           },
           {
             "name": "Memory",
@@ -117,7 +114,6 @@
             "name": "IDs",
             "value": [
               "**Hostname**: {{HOSTNAME}}",
-              "**Shard ID**: {{SHARD_ID}}",
               "**Server ID**: {{SERVER_ID}}",
               "**Bot ID**: {{BOT_ID}}",
               "**User ID**: {{USER_ID}}"
@@ -297,19 +293,11 @@
             "value": "{{GUILD_ID}}"
           },
           {
-            "name": "Shard ID",
-            "value": "{{SHARD_ID}}"
-          },
-          {
             "name": "Contact support",
             "value": "{{COM:links.support}}"
           }
         ],
         "color": "{{COM:colors.error}}"
-      },
-      "startupInProcess": {
-        "description": "{{COM:bot.name}} is still starting up. Try again later.",
-        "color": "{{COM:colors.warning}}"
       },
       "notImplemented": {
         "description": "This feature has not been implemented yet!",

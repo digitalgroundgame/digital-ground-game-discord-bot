@@ -7,8 +7,7 @@ The following diagram shows the generic framework that any bot built on this tem
 ```mermaid
 graph TB
     subgraph Entry["Entry Points"]
-        Bot["start-bot.ts<br/>(Bot Client)"]
-        Manager["start-manager.ts<br/>(Cluster Manager)"]
+        Bot["start-bot.ts<br/>(Discord Client + HTTP API)"]
     end
 
     subgraph Middleware["Middleware Layer"]
@@ -47,7 +46,6 @@ graph TB
         direction TB
         LangService["Lang Service"]
         JobService["Job Service"]
-        HTTPService["HTTP Service"]
         CommandReg["Command Registration"]
         EventData["Event Data Service"]
         Logger["Logger"]
@@ -57,7 +55,7 @@ graph TB
         direction TB
         RootCtrl["Root Controller"]
         GuildsCtrl["Guilds Controller"]
-        ShardsCtrl["Shards Controller"]
+        PresenceCtrl["Presence Controller"]
         IntCtrl["Integrations Controller"]
     end
 
@@ -68,11 +66,11 @@ graph TB
     end
 
     Bot --> Middleware
+    Bot --> Controllers
     Middleware --> EventHandlers
     EventHandlers --> Primitives
     Primitives --> FrameworkSvc
     FrameworkSvc --> Controllers
-    Manager --> Controllers
     Config -.->|Loaded by| Bot
     Config -.->|Used by| FrameworkSvc
 ```
@@ -126,8 +124,6 @@ graph TB
     end
 
     subgraph Infrastructure["Infrastructure"]
-        Infra_MasterAPI["Master API Service<br/>(Service)"]
-        Infra_Count["Update Server Count<br/>(Job)"]
         Infra_Dev["/dev<br/>(Chat Command)"]
     end
 ```
@@ -138,8 +134,7 @@ graph TB
 
 #### Entry Points
 
-- **[start-bot.ts](../src/start-bot.ts)**: Main Discord bot client that handles real-time events
-- **[start-manager.ts](../src/start-manager.ts)**: Cluster manager for scaling and coordinating multiple bot instances
+- **[start-bot.ts](../src/start-bot.ts)**: Main process that runs the Discord client, HTTP API, integrations, and scheduled jobs
 
 #### Middleware Layer
 
@@ -184,18 +179,17 @@ Shared utilities available to all primitives:
 
 - **Lang Service**: i18n service for language strings
 - **Job Service**: Manages scheduled jobs (CRON)
-- **HTTP Service**: HTTP client wrapper
 - **Command Registration**: Registers commands with the Discord API
 - **Event Data Service**: Creates `EventData` objects for handlers; resolves guild preferred locale
 - **Logger**: Structured logging
 
 #### API Controllers
 
-API layer for cluster management and cross-shard coordination:
+API layer for health checks, single-client management, and inbound integrations:
 
 - **[Root Controller](../src/controllers/root-controller.ts)**: Base API controller
 - **[Guilds Controller](../src/controllers/guilds-controller.ts)**: Guild-related API endpoints
-- **[Shards Controller](../src/controllers/shards-controller.ts)**: Shard/cluster status and management
+- **[Presence Controller](../src/controllers/presence-controller.ts)**: Updates the bot's Discord presence
 - **[Integrations Controller](../src/controllers/integrations-controller.ts)**: Integration-related endpoints
 
 #### Configuration
@@ -258,9 +252,7 @@ General-purpose informational commands.
 
 #### Infrastructure
 
-- **[Master API Service](../src/services/master-api-service.ts)**: Communicates with the master cluster API for shard registration, login, and ready-status coordination
-- **[Update Server Count Job](../src/jobs/update-server-count-job.ts)**: Updates bot presence and posts server count to bot listing sites on a configurable schedule
-- **[/dev](../src/commands/chat/dev-command.ts)**: Dev-only command that surfaces shard info, memory usage, and server count; restricted by role
+- **[/dev](../src/commands/chat/dev-command.ts)**: Dev-only command that surfaces runtime, memory, and server information; restricted by role
 
 ---
 

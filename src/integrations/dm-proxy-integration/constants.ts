@@ -3,11 +3,9 @@ import { type RESTJSONErrorCodes } from 'discord.js'
 export const DISCORD_ID_REGEX = /^\d{17,20}$/
 export const MESSAGE_MAX_LENGTH = 2000
 
-// `Shard#eval` has no timer of its own: it settles only when the child answers, so a shard that
-// dies mid-eval, blocks its event loop, or is still spawning leaves the request hanging forever.
 // The ceiling has to clear a cold send — `users.fetch` then `user.send`, each with its own 15s
 // @discordjs/rest timeout, plus any rate-limit wait — or it would abort sends that would land.
-export const EVAL_TIMEOUT_MS = 30_000
+export const SEND_TIMEOUT_MS = 30_000
 
 export class ValidationError extends Error {
   public constructor(message: string) {
@@ -29,14 +27,14 @@ export interface ErrorResponse {
   message?: string
 }
 
-export interface DmEvalFailure {
+export interface DmSendFailure {
   ok: false
   code?: number
   message: string
 }
 
-export interface DmEvalSuccess {
+export interface DmSendSuccess {
   ok: true
 }
 
-export type DmEvalResult = DmEvalSuccess | DmEvalFailure
+export type DmSendResult = DmSendSuccess | DmSendFailure

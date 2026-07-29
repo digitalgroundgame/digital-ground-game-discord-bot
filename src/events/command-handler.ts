@@ -175,7 +175,6 @@ export class CommandHandler implements EventHandler {
         Lang.getEmbed('errorEmbeds.command', data.lang, {
           ERROR_CODE: intr.id,
           GUILD_ID: intr.guild?.id ?? Lang.getRef('other.na', data.lang),
-          SHARD_ID: (intr.guild?.shardId ?? 0).toString(),
         }),
       )
     } catch {
