@@ -20,6 +20,11 @@ describe('MathUtils', () => {
       const result = MathUtils.sum(input)
       expect(result).toBe(4)
     })
+
+    it('should sum fractional numbers', () => {
+      const result = MathUtils.sum([1.5, 2.25, 0.25])
+      expect(result).toBe(4)
+    })
   })
 
   describe('clamp', () => {
