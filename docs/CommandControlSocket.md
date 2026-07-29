@@ -55,3 +55,5 @@ curl --unix-socket /tmp/dggac-bot/control.sock \
 ```
 
 The manager routes this request to the shard that owns `DISCORD_GUILD_ID`, then the running bot reconciles that guild's scheduled events with Google Calendar.
+
+In a clustered deployment only the manager container that owns that shard can service this endpoint; the others respond `503`.

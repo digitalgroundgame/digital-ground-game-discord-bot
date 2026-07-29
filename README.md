@@ -36,9 +36,13 @@ This template for a Discord bot was based upon this public template. https://git
    - Use `npm ci` for normal development and CI (preferred).
    - Use `npm install` only when you intentionally add/update/remove dependencies.
 
-4. Start the manager and register commands.
+4. Start the bot.
+   - `npm run start:manager` builds and runs the sharding manager, which spawns the bot shards and exposes the [local control socket](docs/CommandControlSocket.md).
+   - `npm start` runs a single unsharded bot instead. It has no control socket, so use the manager if you need to register commands.
+
+5. Register commands.
    - In order to use slash commands, they first [have to be registered](https://discordjs.guide/creating-your-bot/command-deployment.html).
-   - Start the manager with `npm run start:manager`, then use the local command-control socket:
+   - With the manager running, use the local command-control socket:
 
      ```sh
      curl --unix-socket /tmp/dggac-bot/control.sock \
@@ -48,12 +52,6 @@ This template for a Discord bot was based upon this public template. https://git
      - Run this after deploying a command name, structure, or add/remove command change.
      - This is so Discord knows what your commands look like.
      - It may take up to an hour for command changes to appear.
-
-5. Start the bot.
-
-   ```sh
-   npm start
-   ```
 
 Docker builds use the cached Node major-version image and verify that it matches
 the major version pinned in `.nvmrc`:
