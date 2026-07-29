@@ -30,7 +30,8 @@
     "calendarSyncDeleted": "Calendar sync: removed '{EVENT_NAME}' from Google Calendar."
   },
   "warn": {
-    "managerNoShards": "No shards to spawn."
+    "managerNoShards": "No shards to spawn.",
+    "jobSkipped": "Skipped job '{JOB}' because its previous run is still active."
   },
   "error": {
     "unspecified": "An unspecified error occurred.",
