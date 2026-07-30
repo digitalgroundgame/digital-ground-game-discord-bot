@@ -38,14 +38,19 @@ export interface CrmAttendancePermissionResponse {
 }
 
 export class CrmService {
-  private readonly baseUrl: URL
-  private readonly token: string
+  private readonly baseUrl?: URL
+  private readonly token?: string
+  public readonly isConfigured: boolean
 
   constructor() {
     const baseUrl = process.env.CRM_API_URL
     const token = process.env.CRM_API_TOKEN
     if (!baseUrl || !token) {
-      throw new Error('CRM_API_URL and CRM_API_TOKEN must be set')
+      if (baseUrl || token || process.env.NODE_ENV === 'production') {
+        throw new Error('CRM_API_URL and CRM_API_TOKEN must be set together')
+      }
+      this.isConfigured = false
+      return
     }
     try {
       this.baseUrl = new URL(baseUrl)
@@ -53,6 +58,7 @@ export class CrmService {
       throw new Error(`CRM_API_URL is not a valid URL: ${baseUrl}`)
     }
     this.token = token
+    this.isConfigured = true
   }
 
   public async recordAttendance(payload: CrmAttendancePayload): Promise<CrmAttendanceResponse> {
@@ -76,6 +82,9 @@ export class CrmService {
   }
 
   private async request<T>(label: string, pathAndQuery: string, init: RequestInit): Promise<T> {
+    if (!this.baseUrl || !this.token) {
+      throw new Error('CRM service is not configured')
+    }
     const url = new URL(pathAndQuery, this.baseUrl)
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)

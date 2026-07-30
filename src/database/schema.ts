@@ -69,8 +69,74 @@ export const contentOverride = sqliteTable(
   (t) => [uniqueIndex('content_override_key_field_uq').on(t.key, t.field)],
 )
 
+export const TRACKER_TASK_STATUSES = ['todo', 'doing', 'blocked', 'done'] as const
+export type TrackerTaskStatus = (typeof TRACKER_TASK_STATUSES)[number]
+export const TRACKER_PROJECT_STATUSES = ['active', 'archived'] as const
+export type TrackerProjectStatus = (typeof TRACKER_PROJECT_STATUSES)[number]
+
+/** Small, guild-scoped project tracker ported from ProgressTrackerFromJocular. */
+export const trackerProject = sqliteTable(
+  'tracker_project',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    guildId: text('guild_id').notNull(),
+    name: text('name').notNull(),
+    description: text('description').notNull().default(''),
+    ownerId: text('owner_id').notNull(),
+    status: text('status').notNull().default('active'),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => [uniqueIndex('tracker_project_guild_name_uq').on(t.guildId, t.name)],
+)
+
+export const trackerMilestone = sqliteTable(
+  'tracker_milestone',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    guildId: text('guild_id').notNull(),
+    projectId: integer('project_id')
+      .notNull()
+      .references(() => trackerProject.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    description: text('description').notNull().default(''),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => [uniqueIndex('tracker_milestone_project_name_uq').on(t.projectId, t.name)],
+)
+
+export const trackerTask = sqliteTable('tracker_task', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  guildId: text('guild_id').notNull(),
+  projectId: integer('project_id')
+    .notNull()
+    .references(() => trackerProject.id, { onDelete: 'cascade' }),
+  milestoneId: integer('milestone_id')
+    .notNull()
+    .references(() => trackerMilestone.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  status: text('status', { enum: TRACKER_TASK_STATUSES }).notNull().default('todo'),
+  assigneeId: text('assignee_id'),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  completedAt: integer('completed_at', { mode: 'timestamp' }),
+})
+
 export type User = typeof user.$inferSelect
 export type NewUser = typeof user.$inferInsert
 export type LinkedAccount = typeof linkedAccount.$inferSelect
 export type NewLinkedAccount = typeof linkedAccount.$inferInsert
 export type ContentOverride = typeof contentOverride.$inferSelect
+export type TrackerProject = typeof trackerProject.$inferSelect
+export type TrackerMilestone = typeof trackerMilestone.$inferSelect
+export type TrackerTask = typeof trackerTask.$inferSelect

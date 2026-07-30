@@ -10,3 +10,18 @@ export { AttendanceTrackCommand } from './attendance-track-command.js'
 export { StopAttendanceTrackCommand } from './stop-attendance-track-command.js'
 export { GrantAccessCommand } from './grant-access-command.js'
 export { LinkAccountCommand } from './link-account-command.js'
+export {
+  MilestoneAddCommand,
+  MilestoneListCommand,
+  ProgressCommand,
+  ProjectListCommand,
+  ProjectNewCommand,
+  ProjectViewCommand,
+  TaskAddCommand,
+  TaskAssignCommand,
+  TaskDoneCommand,
+  TaskListCommand,
+  TaskStatusCommand,
+} from './project-tracker-commands.js'
+export { ProjectTrackerPanelCommand } from './project-tracker-panel-command.js'
+export { RolesCommand } from './roles-command.js'

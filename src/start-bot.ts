@@ -3,6 +3,9 @@ import { Options, Partials } from 'discord.js'
 import { createRequire } from 'node:module'
 
 import { type Button } from './buttons/index.js'
+import { ProjectTrackerPanelButtons } from './buttons/project-tracker-panel-buttons.js'
+import { type SelectMenu } from './select-menus/index.js'
+import { ProjectTrackerPanelMenus } from './select-menus/project-tracker-panel-menus.js'
 import { runCalendarSyncCli } from './calendar-sync-cli.js'
 import {
   AttendanceTrackCommand,
@@ -13,9 +16,22 @@ import {
   HelpCommand,
   InfoCommand,
   LinkAccountCommand,
+  MilestoneAddCommand,
+  MilestoneListCommand,
   PragPapersCommand,
+  ProgressCommand,
+  ProjectListCommand,
+  ProjectNewCommand,
+  ProjectViewCommand,
+  ProjectTrackerPanelCommand,
+  RolesCommand,
   RulesCommand,
   StopAttendanceTrackCommand,
+  TaskAddCommand,
+  TaskAssignCommand,
+  TaskDoneCommand,
+  TaskListCommand,
+  TaskStatusCommand,
   TestCommand,
 } from './commands/chat/index.js'
 import {
@@ -36,6 +52,7 @@ import {
   GuildScheduledEventHandler,
   MessageHandler,
   ReactionHandler,
+  SelectMenuHandler,
   TriggerHandler,
   VoiceStateUpdateHandler,
 } from './events/index.js'
@@ -54,6 +71,7 @@ import {
   GoogleGroupsService,
   JobService,
   Logger,
+  ProjectTrackerService,
   UserService,
 } from './services/index.js'
 import { CTAPostTrigger } from './triggers/cta-post.js'
@@ -80,8 +98,17 @@ async function start(): Promise<void> {
     try {
       const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN)
       const commandRegistrationService = new CommandRegistrationService(rest)
+      const crmConfigured = Boolean(process.env.CRM_API_URL && process.env.CRM_API_TOKEN)
+      const crmCommandNames = new Set(
+        [
+          ChatCommandMetadata.ATTENDANCE_TRACK?.name,
+          ChatCommandMetadata.STOP_ATTENDANCE_TRACK?.name,
+        ].filter((name): name is string => name !== undefined),
+      )
       const localCmds = [
-        ...Object.values(ChatCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
+        ...Object.values(ChatCommandMetadata)
+          .filter((command) => crmConfigured || !crmCommandNames.has(command.name))
+          .sort((a, b) => (a.name > b.name ? 1 : -1)),
         ...Object.values(MessageCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
         ...Object.values(UserCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
       ]
@@ -98,6 +125,9 @@ async function start(): Promise<void> {
   const eventDataService = new EventDataService()
   const attendanceService = new AttendanceService()
   const crmService = new CrmService()
+  if (!crmService.isConfigured) {
+    Logger.warn('CRM-backed attendance features are disabled outside production.')
+  }
 
   // Client
   const client = new CustomClient({
@@ -139,8 +169,11 @@ async function start(): Promise<void> {
   // Resolves runtime-editable content. Always available — without a database
   // it serves the registry defaults and rejects edits.
   const contentService = new ContentService(database)
+  const projectTrackerService = database ? new ProjectTrackerService(database) : undefined
 
-  const voiceStateUpdateHandler = new VoiceStateUpdateHandler(attendanceService, crmService, client)
+  const voiceStateUpdateHandler = crmService.isConfigured
+    ? new VoiceStateUpdateHandler(attendanceService, crmService, client)
+    : undefined
 
   // Commands
   const commands: Command[] = [
@@ -152,11 +185,32 @@ async function start(): Promise<void> {
     new RulesCommand(),
     new PragPapersCommand(),
     new CensusCommand(),
-    new AttendanceTrackCommand(attendanceService, crmService),
-    new StopAttendanceTrackCommand(attendanceService, voiceStateUpdateHandler),
+    ...(voiceStateUpdateHandler
+      ? [
+          new AttendanceTrackCommand(attendanceService, crmService),
+          new StopAttendanceTrackCommand(attendanceService, voiceStateUpdateHandler),
+        ]
+      : []),
     new GrantAccessCommand(googleGroupsService, userService),
     new LinkAccountCommand(userService),
     new ContentCommand(contentService),
+    new RolesCommand(),
+    ...(projectTrackerService
+      ? [
+          new ProjectNewCommand(projectTrackerService),
+          new ProjectListCommand(projectTrackerService),
+          new ProjectViewCommand(projectTrackerService),
+          new MilestoneAddCommand(projectTrackerService),
+          new MilestoneListCommand(projectTrackerService),
+          new TaskAddCommand(projectTrackerService),
+          new TaskListCommand(projectTrackerService),
+          new TaskStatusCommand(projectTrackerService),
+          new TaskAssignCommand(projectTrackerService),
+          new TaskDoneCommand(projectTrackerService),
+          new ProgressCommand(projectTrackerService),
+          new ProjectTrackerPanelCommand(projectTrackerService),
+        ]
+      : []),
 
     // User Context Commands
     ...ONBOARDING_CONFIGS.map((config) => new SendOnboarding(config, contentService)),
@@ -164,12 +218,16 @@ async function start(): Promise<void> {
 
   // Buttons
   const buttons: Button[] = [
-    // TODO: Add new buttons here
+    ...(projectTrackerService ? [new ProjectTrackerPanelButtons(projectTrackerService)] : []),
   ]
 
   // Reactions
   const reactions: Reaction[] = [
     // TODO: Add new reactions here
+  ]
+
+  const selectMenus: SelectMenu[] = [
+    ...(projectTrackerService ? [new ProjectTrackerPanelMenus(projectTrackerService)] : []),
   ]
 
   // Triggers
@@ -194,6 +252,7 @@ async function start(): Promise<void> {
   const triggerHandler = new TriggerHandler(triggers, eventDataService)
   const messageHandler = new MessageHandler(triggerHandler)
   const reactionHandler = new ReactionHandler(reactions, eventDataService)
+  const selectMenuHandler = new SelectMenuHandler(selectMenus, eventDataService)
   const guildScheduledEventHandler = new GuildScheduledEventHandler(googleCalendarService)
 
   // Jobs
@@ -214,6 +273,7 @@ async function start(): Promise<void> {
     commandHandler,
     buttonHandler,
     reactionHandler,
+    selectMenuHandler,
     guildScheduledEventHandler,
     new JobService(jobs),
     voiceStateUpdateHandler,

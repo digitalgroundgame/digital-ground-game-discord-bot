@@ -1,6 +1,7 @@
 import {
   AutocompleteInteraction,
   ButtonInteraction,
+  StringSelectMenuInteraction,
   type Client,
   CommandInteraction,
   Events,
@@ -30,6 +31,7 @@ import {
   type GuildScheduledEventHandler,
   type MessageHandler,
   type ReactionHandler,
+  type SelectMenuHandler,
   type VoiceStateUpdateHandler,
 } from '../events/index.js'
 import { type JobService, Logger } from '../services/index.js'
@@ -54,6 +56,7 @@ export class Bot {
     private commandHandler: CommandHandler,
     private buttonHandler: ButtonHandler,
     private reactionHandler: ReactionHandler,
+    private selectMenuHandler: SelectMenuHandler,
     private guildScheduledEventHandler: GuildScheduledEventHandler,
     private jobService: JobService,
     private voiceStateUpdateHandler?: VoiceStateUpdateHandler,
@@ -240,6 +243,12 @@ export class Bot {
     } else if (intr instanceof ButtonInteraction) {
       try {
         await this.buttonHandler.process(intr)
+      } catch (error) {
+        Logger.error(Logs.error.button, error)
+      }
+    } else if (intr instanceof StringSelectMenuInteraction) {
+      try {
+        await this.selectMenuHandler.process(intr)
       } catch (error) {
         Logger.error(Logs.error.button, error)
       }

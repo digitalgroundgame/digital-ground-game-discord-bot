@@ -6,6 +6,10 @@
 /misc
 /node_modules
 /temp
+/.env
+/serviceKey*.json
+/config/bot-sites.json
+/config/debug.json
 
 # Files
 /npm-debug.log

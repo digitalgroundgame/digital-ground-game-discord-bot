@@ -1,0 +1,9 @@
+{
+  "createProject": ["Above All", "King Froggo"],
+  "archiveProject": ["Above All"],
+  "addMilestone": ["Above All", "King Froggo"],
+  "addTask": ["Above All", "King Froggo", "Below All"],
+  "assignTask": ["Above All", "King Froggo"],
+  "changeTaskStatus": ["Above All", "King Froggo", "Below All"],
+  "view": []
+}

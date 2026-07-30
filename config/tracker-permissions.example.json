@@ -1,0 +1,9 @@
+{
+  "createProject": ["Project Admin", "Project Editor"],
+  "archiveProject": ["Project Admin"],
+  "addMilestone": ["Project Admin", "Project Editor"],
+  "addTask": ["Project Admin", "Project Editor", "Project Contributor"],
+  "assignTask": ["Project Admin", "Project Editor"],
+  "changeTaskStatus": ["Project Admin", "Project Editor", "Project Contributor"],
+  "view": []
+}

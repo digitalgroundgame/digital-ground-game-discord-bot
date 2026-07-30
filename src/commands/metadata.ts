@@ -188,6 +188,271 @@ export const ChatCommandMetadata: {
       },
     ],
   },
+  PROJECT: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.project', Language.Default),
+    description: Lang.getRef('commandDescs.project', Language.Default),
+    dm_permission: false,
+    options: [
+      {
+        type: ApplicationCommandOptionType.Subcommand,
+        name: 'new',
+        description: Lang.getRef('commandDescs.projectNew', Language.Default),
+        options: [
+          {
+            type: ApplicationCommandOptionType.String,
+            name: 'name',
+            description: Lang.getRef('argDescs.projectName', Language.Default),
+            required: true,
+            max_length: 100,
+          },
+          {
+            type: ApplicationCommandOptionType.String,
+            name: 'description',
+            description: Lang.getRef('argDescs.description', Language.Default),
+            required: false,
+            max_length: 1000,
+          },
+        ],
+      },
+      {
+        type: ApplicationCommandOptionType.Subcommand,
+        name: 'list',
+        description: Lang.getRef('commandDescs.projectList', Language.Default),
+        options: [
+          {
+            type: ApplicationCommandOptionType.Boolean,
+            name: 'include_archived',
+            description: Lang.getRef('argDescs.includeArchived', Language.Default),
+            required: false,
+          },
+        ],
+      },
+      {
+        type: ApplicationCommandOptionType.Subcommand,
+        name: 'view',
+        description: Lang.getRef('commandDescs.projectView', Language.Default),
+        options: [
+          {
+            type: ApplicationCommandOptionType.String,
+            name: 'name',
+            description: Lang.getRef('argDescs.projectName', Language.Default),
+            required: true,
+            autocomplete: true,
+          },
+        ],
+      },
+    ],
+  },
+  MILESTONE: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.milestone', Language.Default),
+    description: Lang.getRef('commandDescs.milestone', Language.Default),
+    dm_permission: false,
+    options: [
+      {
+        type: ApplicationCommandOptionType.Subcommand,
+        name: 'add',
+        description: Lang.getRef('commandDescs.milestoneAdd', Language.Default),
+        options: [
+          {
+            type: ApplicationCommandOptionType.String,
+            name: 'project',
+            description: Lang.getRef('argDescs.projectName', Language.Default),
+            required: true,
+            autocomplete: true,
+          },
+          {
+            type: ApplicationCommandOptionType.String,
+            name: 'name',
+            description: Lang.getRef('argDescs.milestoneName', Language.Default),
+            required: true,
+            max_length: 100,
+          },
+          {
+            type: ApplicationCommandOptionType.String,
+            name: 'description',
+            description: Lang.getRef('argDescs.description', Language.Default),
+            required: false,
+            max_length: 1000,
+          },
+        ],
+      },
+      {
+        type: ApplicationCommandOptionType.Subcommand,
+        name: 'list',
+        description: Lang.getRef('commandDescs.milestoneList', Language.Default),
+        options: [
+          {
+            type: ApplicationCommandOptionType.String,
+            name: 'project',
+            description: Lang.getRef('argDescs.projectName', Language.Default),
+            required: true,
+            autocomplete: true,
+          },
+        ],
+      },
+    ],
+  },
+  TASK: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.task', Language.Default),
+    description: Lang.getRef('commandDescs.task', Language.Default),
+    dm_permission: false,
+    options: [
+      {
+        type: ApplicationCommandOptionType.Subcommand,
+        name: 'add',
+        description: Lang.getRef('commandDescs.taskAdd', Language.Default),
+        options: [
+          {
+            type: ApplicationCommandOptionType.String,
+            name: 'project',
+            description: Lang.getRef('argDescs.projectName', Language.Default),
+            required: true,
+            autocomplete: true,
+          },
+          {
+            type: ApplicationCommandOptionType.String,
+            name: 'milestone',
+            description: Lang.getRef('argDescs.milestoneName', Language.Default),
+            required: true,
+          },
+          {
+            type: ApplicationCommandOptionType.String,
+            name: 'title',
+            description: Lang.getRef('argDescs.taskTitle', Language.Default),
+            required: true,
+            max_length: 200,
+          },
+          {
+            type: ApplicationCommandOptionType.User,
+            name: 'assignee',
+            description: Lang.getRef('argDescs.assignee', Language.Default),
+            required: false,
+          },
+        ],
+      },
+      {
+        type: ApplicationCommandOptionType.Subcommand,
+        name: 'list',
+        description: Lang.getRef('commandDescs.taskList', Language.Default),
+        options: [
+          {
+            type: ApplicationCommandOptionType.String,
+            name: 'project',
+            description: Lang.getRef('argDescs.projectName', Language.Default),
+            required: true,
+            autocomplete: true,
+          },
+          {
+            type: ApplicationCommandOptionType.String,
+            name: 'status',
+            description: Lang.getRef('argDescs.taskStatus', Language.Default),
+            required: false,
+            choices: ['todo', 'doing', 'blocked', 'done'].map((value) => ({ name: value, value })),
+          },
+        ],
+      },
+      {
+        type: ApplicationCommandOptionType.Subcommand,
+        name: 'status',
+        description: Lang.getRef('commandDescs.taskStatus', Language.Default),
+        options: [
+          {
+            type: ApplicationCommandOptionType.Integer,
+            name: 'task_id',
+            description: Lang.getRef('argDescs.taskId', Language.Default),
+            required: true,
+            min_value: 1,
+          },
+          {
+            type: ApplicationCommandOptionType.String,
+            name: 'status',
+            description: Lang.getRef('argDescs.taskStatus', Language.Default),
+            required: true,
+            choices: ['todo', 'doing', 'blocked', 'done'].map((value) => ({ name: value, value })),
+          },
+        ],
+      },
+      {
+        type: ApplicationCommandOptionType.Subcommand,
+        name: 'assign',
+        description: Lang.getRef('commandDescs.taskAssign', Language.Default),
+        options: [
+          {
+            type: ApplicationCommandOptionType.Integer,
+            name: 'task_id',
+            description: Lang.getRef('argDescs.taskId', Language.Default),
+            required: true,
+            min_value: 1,
+          },
+          {
+            type: ApplicationCommandOptionType.User,
+            name: 'assignee',
+            description: Lang.getRef('argDescs.assignee', Language.Default),
+            required: false,
+          },
+        ],
+      },
+      {
+        type: ApplicationCommandOptionType.Subcommand,
+        name: 'done',
+        description: Lang.getRef('commandDescs.taskDone', Language.Default),
+        options: [
+          {
+            type: ApplicationCommandOptionType.Integer,
+            name: 'task_id',
+            description: Lang.getRef('argDescs.taskId', Language.Default),
+            required: true,
+            min_value: 1,
+          },
+        ],
+      },
+    ],
+  },
+  PROGRESS: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.progress', Language.Default),
+    description: Lang.getRef('commandDescs.progress', Language.Default),
+    dm_permission: false,
+    options: [
+      {
+        type: ApplicationCommandOptionType.String,
+        name: 'project',
+        description: Lang.getRef('argDescs.projectName', Language.Default),
+        required: true,
+        autocomplete: true,
+      },
+    ],
+  },
+  TRACKER_PANEL: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.trackerPanel', Language.Default),
+    description: Lang.getRef('commandDescs.trackerPanel', Language.Default),
+    dm_permission: false,
+    options: [
+      {
+        type: ApplicationCommandOptionType.String,
+        name: 'visibility',
+        description: Lang.getRef('argDescs.panelVisibility', Language.Default),
+        required: false,
+        choices: [
+          { name: 'public', value: 'public' },
+          { name: 'hidden', value: 'hidden' },
+        ],
+      },
+    ],
+  },
+  ROLES: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.roles', Language.Default),
+    description: Lang.getRef('commandDescs.roles', Language.Default),
+    dm_permission: false,
+    default_member_permissions: PermissionsBitField.resolve([
+      PermissionFlagsBits.ManageRoles,
+    ]).toString(),
+  },
 }
 
 export const MessageCommandMetadata: {

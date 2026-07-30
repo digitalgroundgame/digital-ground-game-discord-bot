@@ -1,6 +1,7 @@
 import {
   ActionRowBuilder,
   type ChatInputCommandInteraction,
+  type MessageComponentInteraction,
   ModalBuilder,
   type ModalSubmitInteraction,
   TextInputBuilder,
@@ -33,7 +34,7 @@ export class ModalUtils {
    * so there is nothing to clean up.
    */
   public static async collect(
-    intr: ChatInputCommandInteraction,
+    intr: ChatInputCommandInteraction | MessageComponentInteraction,
     title: string,
     fields: ModalTextField[],
     timeMs: number = DEFAULT_TIMEOUT_MS,

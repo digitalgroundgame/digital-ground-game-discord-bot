@@ -1,0 +1,16 @@
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      NODE_ENV: development
+      SQLITE_PATH: /app/db/dggbot.sqlite
+    ports:
+      - '3001:3001'
+    volumes:
+      - ./data:/app/db
+    init: true

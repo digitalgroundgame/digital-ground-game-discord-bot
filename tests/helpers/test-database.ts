@@ -8,6 +8,7 @@ export type TestDatabase = ReturnType<typeof drizzle<typeof schema>>
 /** In-memory database mirroring the schema created by `npm run db:push`. */
 export function createTestDatabase(): TestDatabase {
   const sqlite = new Sqlite(':memory:')
+  sqlite.pragma('foreign_keys = ON')
   sqlite.exec(`
     CREATE TABLE "user" (
       "discord_user_id" text PRIMARY KEY,
@@ -41,6 +42,46 @@ export function createTestDatabase(): TestDatabase {
     );
     CREATE UNIQUE INDEX "content_override_key_field_uq"
       ON "content_override" ("key", "field");
+
+    CREATE TABLE "tracker_project" (
+      "id" integer PRIMARY KEY AUTOINCREMENT,
+      "guild_id" text NOT NULL,
+      "name" text NOT NULL,
+      "description" text NOT NULL DEFAULT '',
+      "owner_id" text NOT NULL,
+      "status" text NOT NULL DEFAULT 'active',
+      "created_at" integer NOT NULL DEFAULT (unixepoch()),
+      "updated_at" integer NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE UNIQUE INDEX "tracker_project_guild_name_uq"
+      ON "tracker_project" ("guild_id", "name");
+
+    CREATE TABLE "tracker_milestone" (
+      "id" integer PRIMARY KEY AUTOINCREMENT,
+      "guild_id" text NOT NULL,
+      "project_id" integer NOT NULL,
+      "name" text NOT NULL,
+      "description" text NOT NULL DEFAULT '',
+      "created_at" integer NOT NULL DEFAULT (unixepoch()),
+      FOREIGN KEY ("project_id") REFERENCES "tracker_project" ("id") ON DELETE cascade
+    );
+    CREATE UNIQUE INDEX "tracker_milestone_project_name_uq"
+      ON "tracker_milestone" ("project_id", "name");
+
+    CREATE TABLE "tracker_task" (
+      "id" integer PRIMARY KEY AUTOINCREMENT,
+      "guild_id" text NOT NULL,
+      "project_id" integer NOT NULL,
+      "milestone_id" integer NOT NULL,
+      "title" text NOT NULL,
+      "status" text NOT NULL DEFAULT 'todo',
+      "assignee_id" text,
+      "created_at" integer NOT NULL DEFAULT (unixepoch()),
+      "updated_at" integer NOT NULL DEFAULT (unixepoch()),
+      "completed_at" integer,
+      FOREIGN KEY ("project_id") REFERENCES "tracker_project" ("id") ON DELETE cascade,
+      FOREIGN KEY ("milestone_id") REFERENCES "tracker_milestone" ("id") ON DELETE cascade
+    );
   `)
   return drizzle(sqlite, { schema })
 }

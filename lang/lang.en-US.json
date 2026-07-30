@@ -339,7 +339,13 @@
       "attendanceTrack": "attendance-track",
       "stopAttendanceTrack": "stop-attendance-track",
       "grantAccess": "grant-access",
-      "linkAccount": "link-account"
+      "linkAccount": "link-account",
+      "project": "project",
+      "milestone": "milestone",
+      "task": "task",
+      "progress": "progress",
+      "trackerPanel": "tracker-panel",
+      "roles": "roles"
     },
     "userCommands": {
       "sendDevOnboarding": "Send Dev Onboarding",
@@ -374,7 +380,23 @@
       "attendanceTrack": "Tracks voice-channel attendance until you leave or stop tracking.",
       "stopAttendanceTrack": "Stops your active attendance tracker and sends the results immediately.",
       "grantAccess": "Grant a member access to a team's service (e.g. a Google Group).",
-      "linkAccount": "Link an external account (e.g. your Google email) to a Discord profile."
+      "linkAccount": "Link an external account (e.g. your Google email) to a Discord profile.",
+      "project": "Manage projects and their progress.",
+      "projectNew": "Create a project.",
+      "projectList": "List projects.",
+      "projectView": "View a project and its progress.",
+      "milestone": "Manage project milestones.",
+      "milestoneAdd": "Add a milestone to a project.",
+      "milestoneList": "List a project's milestones.",
+      "task": "Manage project tasks.",
+      "taskAdd": "Add a task to a milestone.",
+      "taskList": "List project tasks.",
+      "taskStatus": "Change a task's status.",
+      "taskAssign": "Assign a task to a Discord member.",
+      "taskDone": "Mark a task complete.",
+      "progress": "Show project progress.",
+      "trackerPanel": "Post an interactive project tracker panel.",
+      "roles": "List this server's roles and IDs for bot configuration."
     },
     "argDescs": {
       "contentKey": "The content entry to manage.",
@@ -388,7 +410,16 @@
       "grantAccessUser": "The member to grant access to.",
       "linkAccountService": "The service to link an account for.",
       "linkAccountIdentifier": "The account identifier (e.g. a Google email address).",
-      "linkAccountUser": "Coordinators only: the member to link an account for (defaults to you)."
+      "linkAccountUser": "Coordinators only: the member to link an account for (defaults to you).",
+      "projectName": "The project name.",
+      "milestoneName": "The milestone name.",
+      "description": "Optional description.",
+      "includeArchived": "Include archived projects.",
+      "taskTitle": "The task title.",
+      "taskId": "The task number.",
+      "taskStatus": "todo, doing, blocked, or done.",
+      "assignee": "The Discord member responsible for the task.",
+      "panelVisibility": "Show the panel publicly or only to you."
     },
     "fields": {
       "commands": "Commands",
