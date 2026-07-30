@@ -31,6 +31,18 @@ export function createTestDatabase(): TestDatabase {
     CREATE UNIQUE INDEX "linked_account_provider_external_uq"
       ON "linked_account" ("provider", "external_id");
 
+    CREATE TABLE "access_grant" (
+      "id" integer PRIMARY KEY AUTOINCREMENT,
+      "linked_account_id" integer NOT NULL,
+      "team" text NOT NULL,
+      "group_address" text NOT NULL,
+      "granted_at" integer NOT NULL DEFAULT (unixepoch()),
+      "updated_at" integer NOT NULL DEFAULT (unixepoch()),
+      FOREIGN KEY ("linked_account_id") REFERENCES "linked_account" ("id") ON DELETE cascade
+    );
+    CREATE UNIQUE INDEX "access_grant_account_team_uq"
+      ON "access_grant" ("linked_account_id", "team");
+
     CREATE TABLE "content_override" (
       "id" integer PRIMARY KEY AUTOINCREMENT,
       "key" text NOT NULL,

@@ -111,6 +111,16 @@ export class GrantAccessCommand implements Command {
         addResult.status === 'added'
           ? 'displayEmbeds.grantAccessAdded'
           : 'displayEmbeds.grantAccessAlreadyMember'
+      // Record the grant so the users API can report it. Best-effort: a failure
+      // here must not mask the successful Group add the user was just told about.
+      try {
+        await userService.recordAccessGrant(linked.id, teamShortname, groupAddress)
+      } catch (err: unknown) {
+        Logger.error(
+          `/grant-access: added ${targetUser.tag} to team '${teamShortname}' but failed to record the grant`,
+          err,
+        )
+      }
       Logger.info(
         `${intr.user.tag} granted ${targetUser.tag} access to team '${teamShortname}' — ${addResult.status}`,
       )

@@ -18,6 +18,7 @@ const sampleUser = {
   userId: USER_ID,
   username: 'testuser',
   displayName: 'Test User',
+  avatarUrl: 'https://cdn.discordapp.com/avatars/123456789012345678/abc.png',
   joinedAt: '2024-01-01T00:00:00.000Z',
   roles: [{ key: 'ADMIN', id: 'admin-id', name: 'Admin' }],
   access: [
@@ -26,6 +27,13 @@ const sampleUser = {
       username: 'test@example.com',
       displayName: 'Test User',
       linkedAt: '2024-02-01T00:00:00.000Z',
+      grants: [
+        {
+          team: 'welcome',
+          groupAddress: 'welcome@example.com',
+          grantedAt: '2024-03-01T00:00:00.000Z',
+        },
+      ],
     },
   ],
 }

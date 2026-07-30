@@ -1,19 +1,15 @@
 import { type ShardingManager } from 'discord.js'
 import { type Request, type Response, Router } from 'express'
-import { createRequire } from 'node:module'
 
 import { type Controller } from './index.js'
 import { type CustomClient } from '../extensions/index.js'
 import { type GetUserResponse } from '../models/cluster-api/index.js'
 import { Logger } from '../services/index.js'
 
-const require = createRequire(import.meta.url)
-const Config = require('../../config/config.json')
-
 export class UsersController implements Controller {
   public path = '/users'
   public router: Router = Router()
-  public authToken: string = Config.api.secret
+  public authToken: string = process.env.DISCORD_BOT_API_SECRET
 
   constructor(private shardManager: ShardingManager) {}
 
