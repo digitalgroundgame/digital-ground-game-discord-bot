@@ -1,26 +1,32 @@
-# Configuring `/link-account` and `/grant-access`
+# Configuring `/link-account`, `/grant-access` and `/backfill-grants`
 
-These two commands work together to let team leads add Discord members to
-Google Workspace groups:
+These commands work together to let team leads add Discord members to
+Google Workspace groups, and to keep a record of who has access:
 
 - **`/link-account`** — a member runs this to record their Google email
   against their Discord ID in the bot's database. Read by `/grant-access` to
-  resolve which Google email to add to a group.
+  resolve which Google email to add to a group. Also materializes any grants
+  `/backfill-grants` discovered for that address (see below).
 - **`/grant-access`** — a role-gated command that looks up the target user's
   linked Google email and calls the Admin SDK Directory API to add them to a
   team's Google Group.
+- **`/backfill-grants`** — a role-gated command that reads the *real* membership
+  of the configured team Google Groups and records it, so the bot's grant
+  records aren't limited to the adds it happened to make itself.
 
 ## What needs to be configured
 
 | Piece | Required by |
 | --- | --- |
-| SQLite database (`SQLITE_PATH`) | `/link-account`, `/grant-access` |
-| Service account JSON key with Domain-Wide Delegation | `/grant-access` |
-| A Workspace admin to impersonate | `/grant-access` |
-| Admin SDK API + Groups Settings API enabled on the project | `/grant-access` |
+| SQLite database (`SQLITE_PATH`) | `/link-account`, `/grant-access`, `/backfill-grants` |
+| Service account JSON key with Domain-Wide Delegation | `/grant-access`, `/backfill-grants` |
+| A Workspace admin to impersonate | `/grant-access`, `/backfill-grants` |
+| Admin SDK API + Groups Settings API enabled on the project | `/grant-access`, `/backfill-grants` |
 
 `/link-account` only needs the database. Everything below is for
-`/grant-access`.
+`/grant-access` and `/backfill-grants`, which share the same credentials and
+the same `admin.directory.group.member` scope — reading a group's membership
+needs no extra scope beyond writing it, so nothing extra to set up.
 
 ## 1. Create (or reuse) a Google Cloud service account
 
@@ -87,8 +93,9 @@ GOOGLE_APPLICATION_CREDENTIALS=/secrets/dggp-service-account.json
 # role, you can leave this unset.
 GOOGLE_WORKSPACE_ADMIN_SUBJECT=admin@your-domain.org
 
-# SQLite database file — required for /link-account to store linked accounts
-# and for /grant-access to read them back.
+# SQLite database file — required for /link-account to store linked accounts,
+# for /grant-access to read them back, and for /backfill-grants to record what
+# it finds in the groups.
 SQLITE_PATH=./data/dggac.sqlite
 ```
 
@@ -114,15 +121,71 @@ Start the bot and watch the logs:
 
 - If credentials or the impersonation subject are missing, you'll see:
   > `/grant-access: disabled — set GOOGLE_APPLICATION_CREDENTIALS (or GOOGLE_CALENDAR_CREDENTIALS) and GOOGLE_WORKSPACE_ADMIN_SUBJECT (or GOOGLE_CALENDAR_IMPERSONATION_SUBJECT) …`
-- If the call to `members.insert` fails at runtime, the error is logged with
-  the HTTP status. The two most common causes:
+- If the call to `members.insert` (or `members.list`, for `/backfill-grants`)
+  fails at runtime, the error is logged with the HTTP status. The most common
+  causes:
   - **403 / `unauthorized_client`** — Domain-Wide Delegation isn't set up,
     or the `admin.directory.group.member` scope wasn't added to the client
     ID in the Admin console.
   - **403 / `Not Authorized to access this resource/api`** — the
     impersonated user isn't a Workspace admin (or lacks the Groups Admin
     role).
+  - **404 / `Resource Not Found: groupKey`** — the address in
+    `config.grantAccess.groups` doesn't name a group in this domain (a typo, or
+    a group that was renamed or deleted). `/backfill-grants` reports the team as
+    failed and keeps going.
 
 Once configured, a member runs `/link-account service:google email:…`,
 and an authorized lead runs `/grant-access service:google team:<shortname>
 user:@member` to add them to the team's Google Group.
+
+## 6. Backfilling membership that predates the bot
+
+`/grant-access` records each add it makes, but most team membership was created
+by hand in the Workspace admin console — or before the bot existed. Those
+memberships are real but invisible to `/users/:id`.
+
+`/backfill-grants` closes that gap. It reads each configured team group with the
+Directory API and records what it finds:
+
+```
+/backfill-grants service:google                       # every configured team
+/backfill-grants service:google team:Event Team       # just one
+/backfill-grants service:google dry-run:True          # read and report, write nothing
+```
+
+Same coordinator role gate as `/grant-access`. The reply is ephemeral and is
+edited as each team finishes, so you can watch a full sweep progress.
+
+For each member of a group:
+
+- If their address is **already linked** to a Discord user, a normal access
+  grant is recorded — exactly as if `/grant-access` had done it.
+- If **nobody has linked** that address, the grant is recorded as *pending*,
+  keyed on the address itself. When someone eventually runs `/link-account`
+  with it, the pending grants become real grants in the same transaction, so
+  their existing access shows up immediately rather than looking absent.
+
+The distinction is internal bookkeeping. The users API reports both the same
+way — nothing downstream can tell a backfilled grant from a granted one.
+
+Re-running is safe: every write is an upsert, so a second run over the same
+groups refreshes timestamps rather than duplicating rows.
+
+### Known limitations
+
+- **A full sweep must finish inside Discord's 15-minute interaction window.**
+  Progress edits keep the reply alive but don't extend that ceiling. If the
+  sweep ever gets too slow, run it a team at a time with `team:`.
+- **Alias addresses don't match.** The Directory API reports the address a
+  member was added with. Someone added as `alias@your-domain.org` who links
+  `primary@your-domain.org` gets a pending grant that never matches, so their
+  access still won't appear. Add people to groups by their primary address.
+- **Pending grants don't expire.** They're kept and refreshed on each run, so
+  someone removed from a group months ago can still have a stale pending grant
+  materialized when they finally link. Re-run the backfill periodically so
+  recorded state tracks the groups.
+- **Re-linking a different address carries grants over.** `/link-account`
+  keeps the same linked-account row when you swap the address on it, so grants
+  recorded for the old address remain attached. Pre-existing behavior, tracked
+  separately from the backfill.
