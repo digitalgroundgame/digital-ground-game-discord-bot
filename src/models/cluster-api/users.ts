@@ -1,7 +1,11 @@
 import { type AccountProvider } from '../../database/schema.js'
 import { type DiscoveredRole } from '../../services/index.js'
 
-/** An access grant (from `/grant-access`) recorded against a linked account. */
+/**
+ * An access grant recorded against a linked account — whether by `/grant-access`
+ * or discovered from the provider by `/backfill-grants`. The two are deliberately
+ * indistinguishable here.
+ */
 export interface AccessGrantInfo {
   /** `/grant-access` team shortname. */
   team: string

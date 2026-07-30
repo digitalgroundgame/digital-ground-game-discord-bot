@@ -6,6 +6,7 @@ import { type Button } from './buttons/index.js'
 import { runCalendarSyncCli } from './calendar-sync-cli.js'
 import {
   AttendanceTrackCommand,
+  BackfillGrantsCommand,
   CensusCommand,
   ContentCommand,
   DevCommand,
@@ -157,6 +158,7 @@ async function start(): Promise<void> {
     new AttendanceTrackCommand(attendanceService, crmService),
     new StopAttendanceTrackCommand(attendanceService, voiceStateUpdateHandler),
     new GrantAccessCommand(googleGroupsService, userService),
+    new BackfillGrantsCommand(googleGroupsService, userService),
     new LinkAccountCommand(userService),
     new ContentCommand(contentService),
 

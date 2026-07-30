@@ -165,6 +165,29 @@ export const ChatCommandMetadata: {
       },
     ],
   },
+  BACKFILL_GRANTS: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.backfillGrants', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.backfillGrants'),
+    description: Lang.getRef('commandDescs.backfillGrants', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.backfillGrants'),
+    dm_permission: false,
+    default_member_permissions: undefined,
+    options: [
+      {
+        ...Args.BACKFILL_GRANTS_SERVICE,
+        required: true,
+      },
+      {
+        ...Args.BACKFILL_GRANTS_TEAM,
+        required: false,
+      },
+      {
+        ...Args.BACKFILL_GRANTS_DRY_RUN,
+        required: false,
+      },
+    ],
+  },
   LINK_ACCOUNT: {
     type: ApplicationCommandType.ChatInput,
     name: Lang.getRef('chatCommands.linkAccount', Language.Default),
