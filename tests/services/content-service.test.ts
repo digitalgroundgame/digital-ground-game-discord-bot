@@ -44,15 +44,6 @@ describe('ContentService', () => {
     expect(meta?.updatedBy).toBe('user-2')
   })
 
-  it('reverts to defaults after reset', async () => {
-    await service.setContent(KEY, { message: 'Custom welcome!' }, 'user-1')
-    await service.resetContent(KEY)
-
-    const { values, meta } = await service.getOverride(KEY)
-    expect(values).toEqual(await getDefaults(KEY))
-    expect(meta).toBeUndefined()
-  })
-
   it('serves defaults read-only without a database', async () => {
     const detached = new ContentService()
 
@@ -62,7 +53,6 @@ describe('ContentService', () => {
     await expect(detached.setContent(KEY, { message: 'x' }, 'user-1')).rejects.toThrow(
       'not configured',
     )
-    await expect(detached.resetContent(KEY)).rejects.toThrow('not configured')
   })
 
   it('merges overrides with defaults per field', async () => {

@@ -134,29 +134,29 @@
       "census": {
         "title": "{{REF:links.censusEmbed}}"
       },
-      "attendanceSnapshotSent": {
-        "description": "Check your DMs — I sent a formatted attendance list for **{{CHANNEL_NAME}}** (code block with copy button)."
-      },
-      "attendanceDmFailed": {
-        "description": "I couldn't DM you (DMs may be closed or you may have blocked the bot). Open DMs from server members and try again."
-      },
       "attendanceTrackStarted": {
-        "description": "Tracking **{{CHANNEL_NAME}}**. Everyone in the call right now is on the list; anyone who joins later is added too and stays listed if they leave. You'll get a DM when you leave the channel."
+        "description": "Tracking **{{CHANNEL_NAME}}**. Everyone in the call right now is on the list; anyone who joins later is added too and stays listed if they leave. Leave the channel or run `/stop-attendance-track` to get the results."
+      },
+      "attendanceTrackStopped": {
+        "description": "Stopped tracking **{{CHANNEL_NAME}}**. Check your DMs for the attendance results."
+      },
+      "attendanceNotTracking": {
+        "description": "You don't have an active attendance tracking session."
       },
       "attendanceNotInVC": {
         "description": "You must be in a voice channel to take attendance. Join a voice channel and run this command again."
       },
       "attendanceAlreadyTracking": {
-        "description": "You're already taking attendance in another channel. Leave that channel first to get your list, then run this again in a new channel if needed."
+        "description": "You're already taking attendance in another channel. Leave that channel or run `/stop-attendance-track` to get your list, then start tracking in a new channel if needed."
       },
       "attendanceNotAuthorized": {
-        "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ You don't have CRM permission to record attendance, so the roster won't be synced — I'll DM you the list when you leave. Ask an organizer to grant you the **events.record_attendance** permission in the CRM."
+        "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ You don't have CRM permission to record attendance, so the roster won't be synced. Leave the channel or run `/stop-attendance-track` to get the list. Ask an organizer to grant you the **events.record_attendance** permission in the CRM."
       },
       "attendanceUnlinkedDiscordId": {
-        "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ Your Discord account isn't linked to a CRM user, so attendance won't be synced — I'll DM you the list when you leave. Ask an organizer to link your Discord ID in the CRM."
+        "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ Your Discord account isn't linked to a CRM user, so attendance won't be synced. Leave the channel or run `/stop-attendance-track` to get the list. Ask an organizer to link your Discord ID in the CRM."
       },
       "attendancePermissionCheckFailed": {
-        "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ Couldn't reach the CRM to verify your permissions, so attendance won't be synced — I'll DM you the list when you leave."
+        "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ Couldn't reach the CRM to verify your permissions, so attendance won't be synced. Leave the channel or run `/stop-attendance-track` to get the list."
       },
       "grantAccessAdded": {
         "description": "{{USER}} was added to the **{{TEAM_LABEL}}** Google Group."
@@ -232,24 +232,6 @@
       "contentUpdated": {
         "description": "Updated **{{LABEL}}**. The change is live immediately.",
         "color": "{{COM:colors.success}}"
-      },
-      "contentReset": {
-        "description": "Reset **{{LABEL}}** to its built-in default.",
-        "color": "{{COM:colors.success}}"
-      },
-      "contentResetConfirm": {
-        "description": "Reset **{{LABEL}}** to its built-in default? This deletes the runtime override.",
-        "color": "{{COM:colors.warning}}"
-      },
-      "contentResetCancelled": {
-        "description": "Cancelled. **{{LABEL}}** is unchanged."
-      },
-      "contentResetTimedOut": {
-        "description": "Timed out waiting for confirmation. Nothing was changed.",
-        "color": "{{COM:colors.warning}}"
-      },
-      "contentNoOverride": {
-        "description": "**{{LABEL}}** has no override; it is already using the built-in default."
       },
       "contentUnknownKey": {
         "description": "Unknown content entry: `{{KEY}}`. Pick one from the autocomplete list.",
@@ -354,8 +336,8 @@
       "rules": "rules",
       "pragPapers": "prag-papers",
       "census": "census",
-      "attendance": "attendance",
       "attendanceTrack": "attendance-track",
+      "stopAttendanceTrack": "stop-attendance-track",
       "grantAccess": "grant-access",
       "linkAccount": "link-account"
     },
@@ -382,7 +364,6 @@
       "content": "View or edit bot-managed content (welcome, onboarding, rules text).",
       "contentShow": "Show the current value of a managed content entry.",
       "contentEdit": "Edit a managed content entry. Changes apply immediately.",
-      "contentReset": "Reset a managed content entry to its built-in default.",
       "dev": "Developer use only.",
       "help": "Find help or contact support.",
       "info": "View bot info.",
@@ -390,8 +371,8 @@
       "rules": "List the rules, or a specific one.",
       "pragPapers": "Gives a link to the Pragmatic Papers website.",
       "census": "Gives a link to the Census form.",
-      "attendance": "DMs you a snapshot list of everyone currently in your voice channel.",
-      "attendanceTrack": "Tracks who is in your voice channel and DMs you the same formatted list when you leave.",
+      "attendanceTrack": "Tracks voice-channel attendance until you leave or stop tracking.",
+      "stopAttendanceTrack": "Stops your active attendance tracker and sends the results immediately.",
       "grantAccess": "Grant a member access to a team's service (e.g. a Google Group).",
       "linkAccount": "Link an external account (e.g. your Google email) to a Discord profile."
     },

@@ -13,7 +13,7 @@ import { createTestDatabase } from '../helpers/test-database.js'
  * A ChatInputCommandInteraction stub for /content. The edit modal is
  * stubbed to never be submitted.
  */
-function createContentInteraction(subcommand: 'show' | 'edit' | 'reset', key: string): any {
+function createContentInteraction(subcommand: 'show' | 'edit', key: string): any {
   const member = createMockGuildMember()
   return {
     user: member.user,
@@ -83,18 +83,13 @@ describe('ContentCommand', () => {
     expect((await service.getOverride(ContentKeys.WelcomeThread)).meta).toBeUndefined()
   })
 
-  it('refuses edit and reset without persistence, but still shows defaults', async () => {
+  it('refuses edit without persistence, but still shows defaults', async () => {
     const detachedCommand = new ContentCommand(new ContentService())
 
     const edit = createContentInteraction('edit', ContentKeys.WelcomeThread)
     await detachedCommand.execute(edit, data)
     expect(edit.showModal).not.toHaveBeenCalled()
     expect(edit.reply).toHaveBeenCalledTimes(1)
-
-    const reset = createContentInteraction('reset', ContentKeys.WelcomeThread)
-    await detachedCommand.execute(reset, data)
-    expect(reset.deferReply).not.toHaveBeenCalled()
-    expect(reset.reply).toHaveBeenCalledTimes(1)
 
     const show = createContentInteraction('show', ContentKeys.WelcomeThread)
     await detachedCommand.execute(show, data)

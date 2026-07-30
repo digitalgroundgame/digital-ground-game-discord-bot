@@ -8,9 +8,14 @@ export class RootController implements Controller {
 
   public register(): void {
     this.router.get('/', (req, res) => this.get(req, res))
+    this.router.get('/health', (_req, res) => this.getHealth(res))
   }
 
   private async get(req: Request, res: Response): Promise<void> {
     res.status(200).json({ name: 'Discord Bot Cluster API', author: 'DGGPA' })
+  }
+
+  private getHealth(res: Response): void {
+    res.status(200).json({ status: 'ok' })
   }
 }

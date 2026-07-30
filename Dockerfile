@@ -21,6 +21,10 @@ RUN npm run build
 # Expose ports
 EXPOSE 3001
 
+# Let Coolify verify that the manager API is accepting requests.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5m --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:3001/health').then((response) => { if (!response.ok) process.exit(1) }).catch(() => process.exit(1))"
+
 # Push the database schema against the runtime-mounted SQLite file, then start the app.
 CMD if [ -n "$SQLITE_PATH" ]; then \
       mkdir -p "$(dirname "$SQLITE_PATH")" && \

@@ -5,7 +5,6 @@ import {
   MessageFlags,
   AttachmentBuilder,
   type Message,
-  type GuildBasedChannel,
 } from 'discord.js'
 import { type Trigger } from './trigger.js'
 import {
