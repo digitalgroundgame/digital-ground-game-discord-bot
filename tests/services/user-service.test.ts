@@ -220,3 +220,164 @@ describe('UserService access grants', () => {
     expect(grants[0].team).toBe('welcome')
   })
 })
+
+describe('UserService.findLinkedAccountByEmail', () => {
+  let service: UserService
+
+  beforeEach(() => {
+    service = new UserService(createTestDatabase())
+  })
+
+  it('finds the account holding an address', async () => {
+    await service.linkAccount('user-1', 'google', {
+      externalId: 'a@example.com',
+      email: 'a@example.com',
+    })
+
+    const found = await service.findLinkedAccountByEmail('google', 'a@example.com')
+
+    expect(found?.discordUserId).toBe('user-1')
+  })
+
+  it('matches regardless of the case or padding of the looked-up address', async () => {
+    await service.linkAccount('user-1', 'google', {
+      externalId: 'a@example.com',
+      email: 'a@example.com',
+    })
+
+    expect(await service.findLinkedAccountByEmail('google', '  A@Example.COM ')).toBeDefined()
+  })
+
+  it('returns undefined for an address nobody has linked', async () => {
+    expect(await service.findLinkedAccountByEmail('google', 'nobody@example.com')).toBeUndefined()
+  })
+
+  it('ignores accounts linked without an address', async () => {
+    await service.linkAccount('user-1', 'google', { externalId: 'a@example.com' })
+
+    expect(await service.findLinkedAccountByEmail('google', 'a@example.com')).toBeUndefined()
+  })
+})
+
+describe('UserService pending access grants', () => {
+  let service: UserService
+
+  beforeEach(() => {
+    service = new UserService(createTestDatabase())
+  })
+
+  it('records a pending grant for an address nobody has linked', async () => {
+    await service.recordPendingAccessGrant('google', 'a@example.com', 'welcome', 'welcome@x.org')
+
+    const pending = await service.listPendingAccessGrants('google', 'a@example.com')
+
+    expect(pending).toHaveLength(1)
+    expect(pending[0].team).toBe('welcome')
+    expect(pending[0].groupAddress).toBe('welcome@x.org')
+    expect(pending[0].discoveredAt).toBeInstanceOf(Date)
+  })
+
+  it('lowercases the stored address and normalizes lookups', async () => {
+    await service.recordPendingAccessGrant('google', ' A@Example.COM ', 'welcome', 'welcome@x.org')
+
+    expect(await service.listPendingAccessGrants('google', 'a@example.com')).toHaveLength(1)
+    expect(await service.listPendingAccessGrants('google', 'A@EXAMPLE.COM')).toHaveLength(1)
+  })
+
+  it('upserts on (provider, email, team) rather than duplicating', async () => {
+    await service.recordPendingAccessGrant('google', 'a@example.com', 'welcome', 'welcome@x.org')
+    await service.recordPendingAccessGrant('google', 'a@example.com', 'welcome', 'renamed@x.org')
+
+    const pending = await service.listPendingAccessGrants('google', 'a@example.com')
+
+    expect(pending).toHaveLength(1)
+    expect(pending[0].groupAddress).toBe('renamed@x.org')
+  })
+
+  it('scopes lookups to one address', async () => {
+    await service.recordPendingAccessGrant('google', 'a@example.com', 'welcome', 'welcome@x.org')
+    await service.recordPendingAccessGrant('google', 'b@example.com', 'organizers', 'org@x.org')
+
+    const pending = await service.listPendingAccessGrants('google', 'a@example.com')
+
+    expect(pending.map((grant) => grant.team)).toEqual(['welcome'])
+  })
+})
+
+describe('UserService.linkAccount materialization', () => {
+  let service: UserService
+
+  beforeEach(() => {
+    service = new UserService(createTestDatabase())
+  })
+
+  it('turns pending grants for the linked address into real grants', async () => {
+    await service.recordPendingAccessGrant('google', 'a@example.com', 'welcome', 'welcome@x.org')
+    await service.recordPendingAccessGrant('google', 'a@example.com', 'organizers', 'org@x.org')
+
+    await service.linkAccount('user-1', 'google', {
+      externalId: 'a@example.com',
+      email: 'a@example.com',
+    })
+
+    const grants = await service.listAccessGrants('user-1')
+
+    expect(grants.map((grant) => grant.team).sort()).toEqual(['organizers', 'welcome'])
+    expect(grants.find((grant) => grant.team === 'welcome')?.groupAddress).toBe('welcome@x.org')
+  })
+
+  it('materializes nothing for an address with no pending grants', async () => {
+    await service.recordPendingAccessGrant(
+      'google',
+      'other@example.com',
+      'welcome',
+      'welcome@x.org',
+    )
+
+    await service.linkAccount('user-1', 'google', {
+      externalId: 'a@example.com',
+      email: 'a@example.com',
+    })
+
+    expect(await service.listAccessGrants('user-1')).toEqual([])
+  })
+
+  it('materializes nothing when the account is linked without an address', async () => {
+    await service.recordPendingAccessGrant('google', 'a@example.com', 'welcome', 'welcome@x.org')
+
+    await service.linkAccount('user-1', 'google', { externalId: 'a@example.com' })
+
+    expect(await service.listAccessGrants('user-1')).toEqual([])
+  })
+
+  it('refreshes rather than duplicates a grant the user already had', async () => {
+    await service.linkAccount('user-1', 'google', {
+      externalId: 'a@example.com',
+      email: 'a@example.com',
+    })
+    const [account] = await service.listLinkedAccounts('user-1')
+    await service.recordAccessGrant(account.id, 'welcome', 'stale@x.org')
+    await service.recordPendingAccessGrant('google', 'a@example.com', 'welcome', 'welcome@x.org')
+
+    await service.linkAccount('user-1', 'google', {
+      externalId: 'a@example.com',
+      email: 'a@example.com',
+    })
+
+    const grants = await service.listAccessGrants('user-1')
+
+    expect(grants).toHaveLength(1)
+    expect(grants[0].groupAddress).toBe('welcome@x.org')
+  })
+
+  it('leaves the pending row in place so a later re-link still picks it up', async () => {
+    await service.recordPendingAccessGrant('google', 'a@example.com', 'welcome', 'welcome@x.org')
+
+    await service.linkAccount('user-1', 'google', {
+      externalId: 'a@example.com',
+      email: 'a@example.com',
+    })
+
+    expect(await service.listPendingAccessGrants('google', 'a@example.com')).toHaveLength(1)
+  })
+})

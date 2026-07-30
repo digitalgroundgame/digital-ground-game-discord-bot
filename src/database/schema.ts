@@ -50,12 +50,14 @@ export const linkedAccount = sqliteTable(
 )
 
 /**
- * An access grant recorded when `/grant-access` adds a linked account to a
- * team's resource (for Google, a Workspace Group). One row per (account, team);
- * re-granting the same team upserts. Cascades when the linked account is removed.
+ * A linked account's access to a team's resource (for Google, a Workspace Group).
+ * One row per (account, team); recording the same team again upserts, moving both
+ * timestamps. Cascades when the linked account is removed.
  *
- * This is the bot's own record of what it granted — it does not reflect
- * memberships created outside the bot or changed directly in the provider.
+ * Written by `/grant-access` when it adds someone, and by `/backfill-grants` for
+ * membership that already existed in the provider — so this is not limited to
+ * what the bot did itself. It is still a snapshot: a membership revoked directly
+ * in the provider stays recorded until the next backfill.
  */
 export const accessGrant = sqliteTable(
   'access_grant',
@@ -77,6 +79,41 @@ export const accessGrant = sqliteTable(
       .default(sql`(unixepoch())`),
   },
   (t) => [uniqueIndex('access_grant_account_team_uq').on(t.linkedAccountId, t.team)],
+)
+
+/**
+ * A grant discovered for an external account that no Discord user has linked yet
+ * — written by `/backfill-grants`, which reads the real membership of every known
+ * provider group. One row per (provider, email, team).
+ *
+ * These are pre-fills, not grants: when someone links an account whose email
+ * matches, {@link accessGrant} rows are materialized from the pending rows so
+ * their existing access shows up immediately (see `UserService.linkAccount`).
+ * Rows are kept after materialization so a later re-link, or a link by a
+ * different Discord user, still picks the membership up.
+ */
+export const pendingAccessGrant = sqliteTable(
+  'pending_access_grant',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    provider: text('provider', { enum: ACCOUNT_PROVIDERS }).notNull(),
+    // Provider account address, stored lowercase to match `linked_account.email`.
+    email: text('email').notNull(),
+    // `/grant-access` team shortname (see `config.grantAccess.groups`).
+    team: text('team').notNull(),
+    // Provider resource the member belongs to (for Google, the Group email address).
+    groupAddress: text('group_address').notNull(),
+    // When the backfill last saw this membership in the provider.
+    discoveredAt: integer('discovered_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => [
+    uniqueIndex('pending_access_grant_provider_email_team_uq').on(t.provider, t.email, t.team),
+  ],
 )
 
 /**
@@ -105,4 +142,6 @@ export type LinkedAccount = typeof linkedAccount.$inferSelect
 export type NewLinkedAccount = typeof linkedAccount.$inferInsert
 export type AccessGrant = typeof accessGrant.$inferSelect
 export type NewAccessGrant = typeof accessGrant.$inferInsert
+export type PendingAccessGrant = typeof pendingAccessGrant.$inferSelect
+export type NewPendingAccessGrant = typeof pendingAccessGrant.$inferInsert
 export type ContentOverride = typeof contentOverride.$inferSelect

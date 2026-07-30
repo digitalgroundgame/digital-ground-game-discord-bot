@@ -1,5 +1,5 @@
 import { type GuildMember } from 'discord.js'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 
 import { type RoleKey, type ServerRole, ServerRoles } from '../constants/index.js'
 import { type Database } from '../database/index.js'
@@ -9,6 +9,8 @@ import {
   type AccountProvider,
   type LinkedAccount,
   linkedAccount,
+  type PendingAccessGrant,
+  pendingAccessGrant,
   user,
 } from '../database/schema.js'
 import { RoleUtils } from '../utils/role-utils.js'
@@ -66,6 +68,10 @@ export class UserService {
    * against it would survive a re-link and be reported under the *new* address.
    * Linking a different external account therefore drops them: the grants
    * belong to the account that was actually added to the provider resource.
+   *
+   * Any pending grants recorded for the account's email by `/backfill-grants`
+   * are materialized into real access grants in the same transaction, so
+   * access the member already had in the provider is visible right away.
    */
   public async linkAccount(
     discordUserId: string,
@@ -73,6 +79,7 @@ export class UserService {
     account: LinkAccountInput,
   ): Promise<void> {
     const now = new Date()
+    let materialized = 0
     this.db.transaction((tx) => {
       const existing = tx
         .select({ id: linkedAccount.id, externalId: linkedAccount.externalId })
@@ -91,7 +98,8 @@ export class UserService {
         .onConflictDoUpdate({ target: user.discordUserId, set: { updatedAt: now } })
         .run()
 
-      tx.insert(linkedAccount)
+      const linked = tx
+        .insert(linkedAccount)
         .values({
           discordUserId,
           provider,
@@ -111,11 +119,63 @@ export class UserService {
             updatedAt: now,
           },
         })
-        .run()
+        .returning({ id: linkedAccount.id })
+        .get()
+
+      if (!linked) {
+        throw new Error(`Failed to upsert ${provider} linked account for ${discordUserId}`)
+      }
+
+      materialized = this.materializePendingGrants(tx, linked.id, provider, account.email, now)
     })
     Logger.info(
-      `User link: ${discordUserId} → ${provider} (${account.email ?? account.externalId})`,
+      `User link: ${discordUserId} → ${provider} (${account.email ?? account.externalId})` +
+        (materialized > 0 ? ` — pre-filled ${materialized} backfilled grant(s)` : ''),
     )
+  }
+
+  /**
+   * Copy every pending grant recorded for `email` into `access_grant` for the
+   * freshly linked account. Upserts with the same semantics as
+   * {@link recordAccessGrant} — both timestamps move to now — so a materialized
+   * grant is indistinguishable from one `/grant-access` recorded.
+   *
+   * @returns how many pending grants were found for the email.
+   */
+  private materializePendingGrants(
+    tx: Pick<Database, 'select' | 'insert'>,
+    linkedAccountId: number,
+    provider: AccountProvider,
+    email: string | undefined,
+    now: Date,
+  ): number {
+    const normalized = email?.trim().toLowerCase()
+    if (!normalized) return 0
+
+    const pending = tx
+      .select()
+      .from(pendingAccessGrant)
+      .where(
+        and(eq(pendingAccessGrant.provider, provider), eq(pendingAccessGrant.email, normalized)),
+      )
+      .all()
+
+    for (const grant of pending) {
+      tx.insert(accessGrant)
+        .values({
+          linkedAccountId,
+          team: grant.team,
+          groupAddress: grant.groupAddress,
+          grantedAt: now,
+          updatedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: [accessGrant.linkedAccountId, accessGrant.team],
+          set: { groupAddress: grant.groupAddress, grantedAt: now, updatedAt: now },
+        })
+        .run()
+    }
+    return pending.length
   }
 
   /** Look up a Discord user's linked account for a given provider, if any. */
@@ -159,6 +219,69 @@ export class UserService {
         set: { groupAddress, updatedAt: now },
       })
       .run()
+  }
+
+  /**
+   * Record that `email` already belongs to `team`'s provider resource, for an
+   * account nobody has linked yet. Upserts on (provider, email, team) so a
+   * re-run of the backfill refreshes the timestamp rather than duplicating.
+   */
+  public async recordPendingAccessGrant(
+    provider: AccountProvider,
+    email: string,
+    team: string,
+    groupAddress: string,
+  ): Promise<void> {
+    const now = new Date()
+    this.db
+      .insert(pendingAccessGrant)
+      .values({
+        provider,
+        email: email.trim().toLowerCase(),
+        team,
+        groupAddress,
+        discoveredAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [pendingAccessGrant.provider, pendingAccessGrant.email, pendingAccessGrant.team],
+        set: { groupAddress, discoveredAt: now, updatedAt: now },
+      })
+      .run()
+  }
+
+  /** Pending (not yet linked) grants recorded for a provider account address. */
+  public async listPendingAccessGrants(
+    provider: AccountProvider,
+    email: string,
+  ): Promise<PendingAccessGrant[]> {
+    return this.db.query.pendingAccessGrant.findMany({
+      where: and(
+        eq(pendingAccessGrant.provider, provider),
+        eq(pendingAccessGrant.email, email.trim().toLowerCase()),
+      ),
+    })
+  }
+
+  /**
+   * The linked account claiming `email` for `provider`, if any. Used by the
+   * backfill to decide between a real grant and a pending pre-fill.
+   *
+   * Compared case-insensitively in SQL rather than relying on stored addresses
+   * being lowercase: `linkable-accounts.ts` normalizes on the way in today, but
+   * SQLite's `=` is case-sensitive, so a provider that ever skipped that step
+   * would silently stop matching.
+   */
+  public async findLinkedAccountByEmail(
+    provider: AccountProvider,
+    email: string,
+  ): Promise<LinkedAccount | undefined> {
+    return this.db.query.linkedAccount.findFirst({
+      where: and(
+        eq(linkedAccount.provider, provider),
+        eq(sql`lower(${linkedAccount.email})`, email.trim().toLowerCase()),
+      ),
+    })
   }
 
   /**
