@@ -62,9 +62,9 @@ describe('UserService.getActiveRoles', () => {
     const director = createRole(ServerRoles.DIRECTOR.id, ServerRoles.DIRECTOR.name)
     const member = createMember([admin, director], [admin, director])
 
-    expect(
-      UserService.getActiveRoleKeys(member, catalog as unknown as typeof ServerRoles),
-    ).toEqual(['ADMIN'])
+    expect(UserService.getActiveRoleKeys(member, catalog as unknown as typeof ServerRoles)).toEqual(
+      ['ADMIN'],
+    )
   })
 })
 
@@ -122,7 +122,9 @@ describe('UserService access grants', () => {
   })
 
   async function linkGoogle(discordUserId: string): Promise<number> {
-    await service.linkAccount(discordUserId, 'google', { externalId: `${discordUserId}@example.com` })
+    await service.linkAccount(discordUserId, 'google', {
+      externalId: `${discordUserId}@example.com`,
+    })
     const [account] = await service.listLinkedAccounts(discordUserId)
     return account.id
   }
