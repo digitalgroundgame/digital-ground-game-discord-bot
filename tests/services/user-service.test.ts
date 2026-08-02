@@ -1,5 +1,5 @@
 import { Collection, type Guild, type GuildMember, type Role } from 'discord.js'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { type ServerRole, ServerRoles } from '../../src/constants/index.js'
 import { UserService } from '../../src/services/user-service.js'
@@ -47,6 +47,9 @@ describe('UserService.getActiveRoles', () => {
     const member = createMember([localAdmin], [localAdmin])
 
     expect(UserService.getActiveRoleKeys(member)).toEqual(['ADMIN'])
+    // The reported id must be the guild role the match was made on, not the
+    // configured id — that id does not exist in this guild.
+    expect(UserService.getActiveRoles(member)[0].id).toBe('local-admin-role')
   })
 
   it('returns an empty list when the member holds no configured roles', () => {
@@ -121,6 +124,10 @@ describe('UserService access grants', () => {
     service = new UserService(createTestDatabase())
   })
 
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   async function linkGoogle(discordUserId: string): Promise<number> {
     await service.linkAccount(discordUserId, 'google', {
       externalId: `${discordUserId}@example.com`,
@@ -156,6 +163,47 @@ describe('UserService access grants', () => {
 
     expect(grants).toHaveLength(1)
     expect(grants[0].groupAddress).toBe('welcome-renamed@example.com')
+  })
+
+  it('preserves grantedAt when the same team is re-granted', async () => {
+    const accountId = await linkGoogle('user-1')
+    await service.recordAccessGrant(accountId, 'welcome', 'welcome@example.com')
+    const [first] = await service.listAccessGrants('user-1')
+
+    // `/grant-access` records a grant even when the member is already in the
+    // Group, so re-running it must not rewrite the original grant date.
+    // Timestamps are second-resolution, so jump the clock rather than sleep.
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(Date.now() + 60_000))
+    await service.recordAccessGrant(accountId, 'welcome', 'welcome@example.com')
+    vi.useRealTimers()
+    const [second] = await service.listAccessGrants('user-1')
+
+    expect(second.grantedAt).toEqual(first.grantedAt)
+    expect(second.updatedAt.getTime()).toBeGreaterThan(first.updatedAt.getTime())
+  })
+
+  it('drops grants when the account is re-linked to a different address', async () => {
+    const accountId = await linkGoogle('user-1')
+    await service.recordAccessGrant(accountId, 'welcome', 'welcome@example.com')
+
+    await service.linkAccount('user-1', 'google', { externalId: 'new@example.com' })
+
+    // The grant belongs to the address that was actually added to the Group;
+    // reporting it under the new address would over-report access.
+    expect(await service.listAccessGrants('user-1')).toEqual([])
+  })
+
+  it('keeps grants when the same address is re-linked', async () => {
+    const accountId = await linkGoogle('user-1')
+    await service.recordAccessGrant(accountId, 'welcome', 'welcome@example.com')
+
+    await service.linkAccount('user-1', 'google', {
+      externalId: 'user-1@example.com',
+      displayName: 'Updated Name',
+    })
+
+    expect(await service.listAccessGrants('user-1')).toHaveLength(1)
   })
 
   it("does not leak another user's grants", async () => {

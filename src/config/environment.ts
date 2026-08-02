@@ -7,6 +7,7 @@ if (process.env.NODE_ENV !== 'production') {
 const requiredEnvVars = [
   'DISCORD_CLIENT_ID',
   'DISCORD_BOT_TOKEN',
+  'DISCORD_GUILD_ID',
   'DISCORD_BOT_API_SECRET',
   'DISCORD_BOT_MASTER_API_TOKEN',
   'DISCORD_BOT_DEVELOPER_IDS',

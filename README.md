@@ -118,16 +118,25 @@ that must live on persistent storage with the main database file. The Docker
 startup command runs `npm run db:push` when `SQLITE_PATH` is set, so schema
 changes are applied to the mounted runtime database before the bot starts.
 
+### Required: users API secret
+
+`GET /users/:userId` lets other internal services look up a member's roles,
+linked Google account and recorded access grants. It is guarded solely by this
+shared secret, checked against the request's `Authorization` header:
+
+```
+DISCORD_BOT_API_SECRET="generate-a-long-random-string"
+```
+
+Generate a real value per environment — a deployment that copies the example
+file verbatim serves member PII behind a publicly known string.
+
 ### Not used
 
 Clustering Configuration (only needed if clustering.enabled is true), we will likely never cluster because it's for bots that serve 2,500+ guilds.
 
 ```
 DISCORD_BOT_MASTER_API_TOKEN="token"
-```
-
-```
-DISCORD_BOT_API_SECRET="secret"
 ```
 
 ## Bot reference

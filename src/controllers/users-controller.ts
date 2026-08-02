@@ -6,9 +6,13 @@ import { type CustomClient } from '../extensions/index.js'
 import { type GetUserResponse } from '../models/cluster-api/index.js'
 import { Logger } from '../services/index.js'
 
+const SNOWFLAKE_PATTERN = /^\d{17,20}$/
+
 export class UsersController implements Controller {
   public path = '/users'
   public router: Router = Router()
+  // Sibling controllers read `Config.api.secret`, which config.json no longer
+  // defines; this endpoint serves member PII, so it takes the env var directly.
   public authToken: string = process.env.DISCORD_BOT_API_SECRET
 
   constructor(private shardManager: ShardingManager) {}
@@ -25,19 +29,36 @@ export class UsersController implements Controller {
       return
     }
 
+    // Must be a snowflake: `getUserInfo` resolves the id through
+    // `ClientUtils.findMember`, which falls back to a display-name search for
+    // non-id input and would otherwise return an arbitrary member's data.
     const userId = req.params.userId
-    if (typeof userId !== 'string' || userId.length === 0) {
+    if (typeof userId !== 'string' || !SNOWFLAKE_PATTERN.test(userId)) {
       res.sendStatus(400)
       return
     }
 
-    const results = await this.shardManager.broadcastEval(
-      (client, context) => (client as CustomClient).getUserInfo(context.guildId, context.userId),
-      { context: { guildId, userId } },
-    )
+    let results: (GetUserResponse | null)[]
+    try {
+      results = await this.shardManager.broadcastEval(
+        (client, context) => (client as CustomClient).getUserInfo(context.guildId, context.userId),
+        { context: { guildId, userId } },
+      )
+    } catch (err: unknown) {
+      // A shard being unready (respawn) or a DB error rejects the whole call.
+      // 503 tells the caller to retry and keeps internal error text off the wire.
+      Logger.error(`/users: failed to resolve ${userId} across shards`, err)
+      res.sendStatus(503)
+      return
+    }
 
     const user = results.find(Boolean) as GetUserResponse | undefined
     if (!user) {
+      if (results.length > 0 && results.every((result) => result === null)) {
+        // Also the shape of a misconfigured DISCORD_GUILD_ID: no shard has the
+        // guild, which is indistinguishable from "not a member" to the caller.
+        Logger.warn(`/users: no shard resolved ${userId} in guild ${guildId}`)
+      }
       res.sendStatus(404)
       return
     }

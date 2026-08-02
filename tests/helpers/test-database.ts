@@ -8,6 +8,9 @@ export type TestDatabase = ReturnType<typeof drizzle<typeof schema>>
 /** In-memory database mirroring the schema created by `npm run db:push`. */
 export function createTestDatabase(): TestDatabase {
   const sqlite = new Sqlite(':memory:')
+  // SQLite ignores foreign keys unless asked; `createDatabase` enables them, so
+  // without this the FKs and cascades below would be inert in tests only.
+  sqlite.pragma('foreign_keys = ON')
   sqlite.exec(`
     CREATE TABLE "user" (
       "discord_user_id" text PRIMARY KEY,

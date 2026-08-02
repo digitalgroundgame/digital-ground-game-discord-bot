@@ -2,7 +2,6 @@ import { type ActivityType, Client, type ClientOptions, type Presence } from 'di
 
 import { type GetUserResponse } from '../models/cluster-api/index.js'
 import { UserService } from '../services/index.js'
-import { ClientUtils } from '../utils/index.js'
 
 export class CustomClient extends Client {
   /** Set by the bot process (see `start-bot.ts`) to enable DB-backed lookups. */
@@ -22,7 +21,9 @@ export class CustomClient extends Client {
     const guild = this.guilds.cache.get(guildId)
     if (!guild) return null
 
-    const member = await ClientUtils.findMember(guild, userId)
+    // Fetch by id directly rather than via `ClientUtils.findMember`, whose
+    // display-name fallback is meant for human command input, not API ids.
+    const member = await guild.members.fetch(userId).catch(() => null)
     if (!member) return null
 
     const linkedAccounts = (await this.userService?.listLinkedAccounts(member.id)) ?? []
