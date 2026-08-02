@@ -39,11 +39,11 @@ function buildApp(manager?: ShardingManager): Express {
 
 describe('ShardsController', () => {
   beforeEach(() => {
-    process.env.DISCORD_BOT_API_SECRET = SECRET
+    vi.stubEnv('DISCORD_BOT_API_SECRET', SECRET)
   })
 
   afterEach(() => {
-    Reflect.deleteProperty(process.env, 'DISCORD_BOT_API_SECRET')
+    vi.unstubAllEnvs()
   })
 
   it('returns 401 for GET /shards without the Authorization header', async () => {
@@ -52,8 +52,23 @@ describe('ShardsController', () => {
     expect(res.status).toBe(401)
   })
 
+  it('returns 401 for GET /shards with a wrong token of the same length as the secret', async () => {
+    const res = await request(buildApp()).get('/shards').set('Authorization', 'nope-api-secret')
+
+    expect(res.status).toBe(401)
+  })
+
   it('returns 401 for PUT /shards/presence without the Authorization header', async () => {
     const res = await request(buildApp()).put('/shards/presence').send({})
+
+    expect(res.status).toBe(401)
+  })
+
+  it('returns 401 for PUT /shards/presence with a wrong token', async () => {
+    const res = await request(buildApp())
+      .put('/shards/presence')
+      .set('Authorization', 'nope-api-secret')
+      .send({ type: 'Playing', name: 'a test status', url: 'https://example.com/' })
 
     expect(res.status).toBe(401)
   })

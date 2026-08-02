@@ -21,11 +21,11 @@ function buildApp(): Express {
 
 describe('GuildsController', () => {
   beforeEach(() => {
-    process.env.DISCORD_BOT_API_SECRET = SECRET
+    vi.stubEnv('DISCORD_BOT_API_SECRET', SECRET)
   })
 
   afterEach(() => {
-    Reflect.deleteProperty(process.env, 'DISCORD_BOT_API_SECRET')
+    vi.unstubAllEnvs()
   })
 
   it('returns 401 when the Authorization header is missing', async () => {
@@ -34,7 +34,13 @@ describe('GuildsController', () => {
     expect(res.status).toBe(401)
   })
 
-  it('returns 401 when the Authorization header is wrong', async () => {
+  it('returns 401 when the token is wrong but the same length as the secret', async () => {
+    const res = await request(buildApp()).get('/guilds').set('Authorization', 'nope-api-secret')
+
+    expect(res.status).toBe(401)
+  })
+
+  it('returns 401 when the token is a different length from the secret', async () => {
     const res = await request(buildApp()).get('/guilds').set('Authorization', 'wrong-secret')
 
     expect(res.status).toBe(401)
@@ -48,7 +54,7 @@ describe('GuildsController', () => {
   })
 
   it('refuses to mount the controller when no secret is configured', () => {
-    process.env.DISCORD_BOT_API_SECRET = ''
+    vi.stubEnv('DISCORD_BOT_API_SECRET', '')
 
     expect(() => buildApp()).toThrow(/auth token/)
   })
