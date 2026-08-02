@@ -64,7 +64,7 @@ spawning would otherwise leave the request open indefinitely. The cap turns that
 ## Example
 
 ```bash
-curl -X POST http://localhost:3001/integrations/send-dm \
+curl -X POST http://localhost:3000/integrations/send-dm \
   -H "Content-Type: application/json" \
   -H "Authorization: abc123" \
   -d '{
