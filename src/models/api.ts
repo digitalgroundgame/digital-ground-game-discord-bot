@@ -22,8 +22,9 @@ export class Api {
 
   public async start(): Promise<void> {
     const listen = util.promisify(this.app.listen.bind(this.app))
-    await listen(Config.api.port)
-    Logger.info(Logs.info.apiStarted.replaceAll('{PORT}', Config.api.port))
+    const port = Number(process.env.PORT) || Config.api.port
+    await listen(port)
+    Logger.info(Logs.info.apiStarted.replaceAll('{PORT}', String(port)))
   }
 
   private setupControllers(): void {
