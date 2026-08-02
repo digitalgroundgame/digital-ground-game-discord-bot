@@ -7,6 +7,7 @@ import { type GetGuildsResponse } from '../models/cluster-api/index.js'
 export class GuildsController implements Controller {
   public path = '/guilds'
   public router: Router = Router()
+  public requiresAuth = true
   public authToken: string = process.env.DISCORD_BOT_API_SECRET
 
   constructor(private shardManager: ShardingManager) {}

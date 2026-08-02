@@ -29,7 +29,7 @@ export class Api {
 
   private setupControllers(): void {
     for (const controller of this.controllers) {
-      if ('authToken' in controller) {
+      if (controller.requiresAuth) {
         if (!controller.authToken) {
           throw new Error(
             `Controller '${controller.path}' requires an auth token but none is configured; refusing to mount it unauthenticated.`,

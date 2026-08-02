@@ -19,6 +19,7 @@ const Logs = require('../../lang/logs.json')
 export class ShardsController implements Controller {
   public path = '/shards'
   public router: Router = Router()
+  public requiresAuth = true
   public authToken: string = process.env.DISCORD_BOT_API_SECRET
 
   constructor(private shardManager: ShardingManager) {}
