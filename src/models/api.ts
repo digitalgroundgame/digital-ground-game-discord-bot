@@ -12,8 +12,15 @@ const Logs = require('../../lang/logs.json')
 
 export class Api {
   public app: Express
+  private readonly port: number
 
   constructor(public controllers: Controller[]) {
+    const portOverride = process.env.PORT
+    if (portOverride !== undefined && portOverride !== '' && !/^\d+$/.test(portOverride)) {
+      throw new Error(`Invalid PORT: '${portOverride}'`)
+    }
+
+    this.port = Number(portOverride) || Config.api.port
     this.app = express()
     this.app.use(express.json())
     this.setupControllers()
@@ -22,9 +29,9 @@ export class Api {
 
   public async start(): Promise<void> {
     const listen = util.promisify(this.app.listen.bind(this.app))
-    const port = Number(process.env.PORT) || Config.api.port
-    await listen(port)
-    Logger.info(Logs.info.apiStarted.replaceAll('{PORT}', String(port)))
+
+    await listen(this.port)
+    Logger.info(Logs.info.apiStarted.replaceAll('{PORT}', String(this.port)))
   }
 
   private setupControllers(): void {

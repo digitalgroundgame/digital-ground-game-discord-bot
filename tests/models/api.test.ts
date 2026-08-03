@@ -39,4 +39,10 @@ describe('Api', () => {
 
     expect(listen).toHaveBeenCalledWith(3000, expect.any(Function))
   })
+
+  it('rejects an invalid PORT during construction', () => {
+    vi.stubEnv('PORT', 'invalid')
+
+    expect(() => new Api([])).toThrow("Invalid PORT: 'invalid'")
+  })
 })
