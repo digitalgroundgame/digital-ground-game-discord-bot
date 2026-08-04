@@ -16,10 +16,11 @@ export class Api {
 
   constructor(public controllers: Controller[]) {
     const portOverride = process.env.PORT
-    const parsedPort = Number(portOverride)
+    
     if (portOverride && !/^\d+$/.test(portOverride)) {
       throw new Error(`Invalid PORT: '${portOverride}'`)
     }
+    
     const parsedPort = Number(portOverride)
     if (portOverride && (parsedPort < 1 || parsedPort > 65535)) {
       throw new Error(`Invalid PORT: '${portOverride}'`)
