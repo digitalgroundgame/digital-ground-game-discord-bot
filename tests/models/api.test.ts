@@ -45,4 +45,16 @@ describe('Api', () => {
 
     expect(() => new Api([])).toThrow("Invalid PORT: 'invalid'")
   })
+
+  it('rejects a PORT above the valid range during construction', () => {
+    vi.stubEnv('PORT', '70000')
+
+    expect(() => new Api([])).toThrow("Invalid PORT: '70000'")
+  })
+
+  it('rejects PORT=0 rather than silently falling back to the configured port', () => {
+    vi.stubEnv('PORT', '0')
+
+    expect(() => new Api([])).toThrow("Invalid PORT: '0'")
+  })
 })

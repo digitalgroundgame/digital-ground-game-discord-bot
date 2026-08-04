@@ -16,11 +16,12 @@ export class Api {
 
   constructor(public controllers: Controller[]) {
     const portOverride = process.env.PORT
-    if (portOverride !== undefined && portOverride !== '' && !/^\d+$/.test(portOverride)) {
+    const parsedPort = Number(portOverride)
+    if (portOverride && (!Number.isInteger(parsedPort) || parsedPort < 1 || parsedPort > 65535)) {
       throw new Error(`Invalid PORT: '${portOverride}'`)
     }
 
-    this.port = Number(portOverride) || Config.api.port
+    this.port = parsedPort || Config.api.port
     this.app = express()
     this.app.use(express.json())
     this.setupControllers()
