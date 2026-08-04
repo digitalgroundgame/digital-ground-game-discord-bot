@@ -12,8 +12,21 @@ const Logs = require('../../lang/logs.json')
 
 export class Api {
   public app: Express
+  private readonly port: number
 
   constructor(public controllers: Controller[]) {
+    const portOverride = process.env.PORT
+
+    if (portOverride && !/^\d+$/.test(portOverride)) {
+      throw new Error(`Invalid PORT: '${portOverride}'`)
+    }
+
+    const parsedPort = Number(portOverride)
+    if (portOverride && (parsedPort < 1 || parsedPort > 65535)) {
+      throw new Error(`Invalid PORT: '${portOverride}'`)
+    }
+
+    this.port = parsedPort || Config.api.port
     this.app = express()
     this.app.use(express.json())
     this.setupControllers()
@@ -22,13 +35,19 @@ export class Api {
 
   public async start(): Promise<void> {
     const listen = util.promisify(this.app.listen.bind(this.app))
-    await listen(Config.api.port)
-    Logger.info(Logs.info.apiStarted.replaceAll('{PORT}', Config.api.port))
+
+    await listen(this.port)
+    Logger.info(Logs.info.apiStarted.replaceAll('{PORT}', String(this.port)))
   }
 
   private setupControllers(): void {
     for (const controller of this.controllers) {
-      if (controller.authToken) {
+      if (controller.requiresAuth) {
+        if (!controller.authToken) {
+          throw new Error(
+            `Controller '${controller.path}' requires an auth token but none is configured; refusing to mount it unauthenticated.`,
+          )
+        }
         controller.router.use(checkAuth(controller.authToken))
       }
       controller.register()
