@@ -14,13 +14,13 @@ import {
 import { Logger } from '../services/index.js'
 
 const require = createRequire(import.meta.url)
-const Config = require('../../config/config.json')
 const Logs = require('../../lang/logs.json')
 
 export class ShardsController implements Controller {
   public path = '/shards'
   public router: Router = Router()
-  public authToken: string = Config.api.secret
+  public requiresAuth = true
+  public authToken: string = process.env.DISCORD_BOT_API_SECRET
 
   constructor(private shardManager: ShardingManager) {}
 
