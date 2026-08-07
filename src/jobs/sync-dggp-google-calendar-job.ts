@@ -1,10 +1,11 @@
 import { createRequire } from 'node:module'
 
-import { Job } from './job.js'
 import {
   CalendarSyncInProgressError,
-  type CalendarSyncRunner,
-} from '../services/calendar-sync-runner.js'
+  CalendarSyncSkippedError,
+} from '../models/control-api/calendar-sync.js'
+import { Job } from './job.js'
+import { type CalendarSyncRunner } from '../services/calendar-sync-runner.js'
 import { Logger } from '../services/logger.js'
 
 const require = createRequire(import.meta.url)
@@ -29,6 +30,11 @@ export class SyncDggpGoogleCalendarJob extends Job {
     } catch (error) {
       if (error instanceof CalendarSyncInProgressError) {
         Logger.info('Calendar sync: skipped because another sync is already in progress.')
+        return
+      }
+
+      if (error instanceof CalendarSyncSkippedError) {
+        Logger.info(`Calendar sync: skipped — ${error.message}`)
         return
       }
 

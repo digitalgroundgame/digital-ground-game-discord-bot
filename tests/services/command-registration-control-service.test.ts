@@ -3,15 +3,13 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   COMMAND_REGISTRATION_MESSAGE_TYPE,
+  CommandRegistrationInProgressError,
   CommandRegistrationInvalidArgumentError,
   CommandRegistrationNotFoundError,
   type CommandRegistrationRequest,
   type CommandRegistrationResult,
 } from '../../src/models/control-api/command-registration.js'
-import {
-  CommandRegistrationControlService,
-  CommandRegistrationInProgressError,
-} from '../../src/services/command-registration-control-service.js'
+import { CommandRegistrationControlService } from '../../src/services/command-registration-control-service.js'
 
 interface ControlServiceHarness {
   deathListeners: Map<number, () => void>

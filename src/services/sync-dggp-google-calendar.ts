@@ -2,6 +2,7 @@ import type { Client, GuildScheduledEvent } from 'discord.js'
 import { GuildScheduledEventStatus } from 'discord.js'
 import { createRequire } from 'node:module'
 
+import { CalendarSyncSkippedError } from '../models/control-api/calendar-sync.js'
 import { discordRecurrenceRuleToGoogleRRule } from '../utils/discord-recurrence-to-google-rrule.js'
 import type {
   CalendarEventInput,
@@ -110,30 +111,28 @@ export async function syncDggpScheduledEventsToGoogle(
   calendarService: GoogleCalendarService,
 ): Promise<void> {
   if (!calendarService.isConfigured()) {
-    Logger.info(
-      'Calendar sync: skipped — set GOOGLE_CALENDAR_ID and GOOGLE_APPLICATION_CREDENTIALS (or GOOGLE_CALENDAR_CREDENTIALS).',
+    throw new CalendarSyncSkippedError(
+      'Google Calendar sync is not configured. Set GOOGLE_CALENDAR_ID and GOOGLE_APPLICATION_CREDENTIALS (or GOOGLE_CALENDAR_CREDENTIALS).',
     )
-    return
   }
 
   if (!(await calendarService.ensureInitialized())) {
-    return
+    throw new CalendarSyncSkippedError(
+      'The Google Calendar client could not be initialized. Check the configured credentials and calendar ID.',
+    )
   }
 
   const guildId = process.env.DISCORD_GUILD_ID
-  const guild = client.guilds.cache.find((g) => g.id === guildId)
-  if (!guild) {
-    Logger.info(`Calendar sync: guild "${guildId}" not in cache; skip.`)
-    return
+  if (!guildId) {
+    throw new CalendarSyncSkippedError('DISCORD_GUILD_ID is not configured.')
   }
 
-  let events
-  try {
-    events = await guild.scheduledEvents.fetch()
-  } catch (error) {
-    Logger.error(Logs.error.calendarSync.replace('{EVENT_NAME}', 'scheduledEvents.fetch'), error)
-    return
+  const guild = client.guilds.cache.find((g) => g.id === guildId)
+  if (!guild) {
+    throw new CalendarSyncSkippedError(`Discord guild "${guildId}" is not available to this shard.`)
   }
+
+  const events = await guild.scheduledEvents.fetch()
 
   const { timeMin, timeMax } = listWindowForDiscordEvents(events.values())
   const googleEvents = await calendarService.listEventsBetween(timeMin, timeMax)

@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { CALENDAR_SYNC_MESSAGE_TYPE } from '../../src/models/control-api/calendar-sync.js'
+import {
+  CALENDAR_SYNC_MESSAGE_TYPE,
+  CalendarSyncInProgressError,
+  CalendarSyncSkippedError,
+} from '../../src/models/control-api/calendar-sync.js'
 import {
   COMMAND_REGISTRATION_MESSAGE_TYPE,
   CommandRegistrationInvalidArgumentError,
   CommandRegistrationNotFoundError,
   type CommandRegistrationSummary,
 } from '../../src/models/control-api/command-registration.js'
-import { CalendarSyncInProgressError } from '../../src/services/calendar-sync-runner.js'
 import { ControlRequestHandler } from '../../src/services/control-request-handler.js'
 import { Logger } from '../../src/services/logger.js'
 
@@ -141,5 +144,32 @@ describe('ControlRequestHandler', () => {
       error: 'A calendar sync is already in progress.',
       busy: true,
     })
+  })
+
+  it('reports a skipped calendar sync as a failure with its reason', async () => {
+    const sendResult = vi.fn(async () => {})
+    const handler = new ControlRequestHandler(sendResult, vi.fn(), {
+      run: vi.fn(async () => {
+        throw new CalendarSyncSkippedError('DISCORD_GUILD_ID is not configured.')
+      }),
+    })
+
+    await handler.handle({
+      type: CALENDAR_SYNC_MESSAGE_TYPE,
+      kind: 'request',
+      requestId: 'calendar-request',
+    })
+
+    expect(sendResult).toHaveBeenCalledWith({
+      type: CALENDAR_SYNC_MESSAGE_TYPE,
+      kind: 'result',
+      requestId: 'calendar-request',
+      success: false,
+      error: 'DISCORD_GUILD_ID is not configured.',
+      busy: false,
+    })
+    expect(Logger.info).toHaveBeenCalledWith(
+      'Calendar sync request skipped: DISCORD_GUILD_ID is not configured.',
+    )
   })
 })

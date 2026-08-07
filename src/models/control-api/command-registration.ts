@@ -25,6 +25,14 @@ export class CommandRegistrationNotFoundError extends Error {
   public override readonly name = 'CommandRegistrationNotFoundError'
 }
 
+export class CommandRegistrationInProgressError extends Error {
+  public override readonly name = 'CommandRegistrationInProgressError'
+
+  public constructor() {
+    super('A command registration operation is already in progress.')
+  }
+}
+
 export interface CommandRegistrationSummary {
   localAndRemote: string[]
   localOnly: string[]

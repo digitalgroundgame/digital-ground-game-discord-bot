@@ -1,4 +1,6 @@
 import {
+  CalendarSyncInProgressError,
+  CalendarSyncSkippedError,
   type CalendarSyncRequest,
   type CalendarSyncResult,
   isCalendarSyncRequest,
@@ -12,7 +14,7 @@ import {
   type CommandRegistrationSummary,
   isCommandRegistrationRequest,
 } from '../models/control-api/command-registration.js'
-import { CalendarSyncInProgressError, type CalendarSyncRunner } from './calendar-sync-runner.js'
+import { type CalendarSyncRunner } from './calendar-sync-runner.js'
 import { Logger } from './logger.js'
 import { SingleFlight } from './single-flight.js'
 
@@ -101,7 +103,11 @@ export class ControlRequestHandler {
         success: true,
       })
     } catch (error) {
-      await Logger.error('Calendar sync request failed.', error)
+      if (error instanceof CalendarSyncSkippedError) {
+        Logger.info(`Calendar sync request skipped: ${error.message}`)
+      } else {
+        await Logger.error('Calendar sync request failed.', error)
+      }
       await this.sendResult({
         type: message.type,
         kind: 'result',

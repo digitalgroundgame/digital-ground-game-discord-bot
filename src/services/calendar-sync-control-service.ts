@@ -4,10 +4,10 @@ import { ShardClientUtil, type ShardingManager, type Shard } from 'discord.js'
 
 import {
   CALENDAR_SYNC_MESSAGE_TYPE,
+  CalendarSyncInProgressError,
   isCalendarSyncResult,
   type CalendarSyncRequest,
 } from '../models/control-api/calendar-sync.js'
-import { CalendarSyncInProgressError } from './calendar-sync-runner.js'
 
 const calendarSyncTimeoutMs = 5 * 60 * 1000
 

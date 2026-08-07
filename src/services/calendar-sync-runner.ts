@@ -1,10 +1,5 @@
+import { CalendarSyncInProgressError } from '../models/control-api/calendar-sync.js'
 import { SingleFlight } from './single-flight.js'
-
-export class CalendarSyncInProgressError extends Error {
-  public constructor() {
-    super('A calendar sync is already in progress.')
-  }
-}
 
 export class CalendarSyncRunner {
   private singleFlight = new SingleFlight()

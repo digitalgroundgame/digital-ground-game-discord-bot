@@ -4,6 +4,7 @@ import { type ShardingManager } from 'discord.js'
 
 import {
   COMMAND_REGISTRATION_MESSAGE_TYPE,
+  CommandRegistrationInProgressError,
   CommandRegistrationInvalidArgumentError,
   CommandRegistrationNotFoundError,
   isCommandRegistrationResult,
@@ -13,12 +14,6 @@ import {
 } from '../models/control-api/command-registration.js'
 
 const commandRegistrationTimeoutMs = 5 * 60 * 1000
-
-export class CommandRegistrationInProgressError extends Error {
-  public constructor() {
-    super('A command registration operation is already in progress.')
-  }
-}
 
 export class CommandRegistrationControlService {
   private activeRequest:

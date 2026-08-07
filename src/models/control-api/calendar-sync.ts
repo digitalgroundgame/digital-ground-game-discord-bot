@@ -1,5 +1,17 @@
 export const CALENDAR_SYNC_MESSAGE_TYPE = 'calendar-sync'
 
+export class CalendarSyncInProgressError extends Error {
+  public override readonly name = 'CalendarSyncInProgressError'
+
+  public constructor() {
+    super('A calendar sync is already in progress.')
+  }
+}
+
+export class CalendarSyncSkippedError extends Error {
+  public override readonly name = 'CalendarSyncSkippedError'
+}
+
 export interface CalendarSyncRequest {
   type: typeof CALENDAR_SYNC_MESSAGE_TYPE
   kind: 'request'

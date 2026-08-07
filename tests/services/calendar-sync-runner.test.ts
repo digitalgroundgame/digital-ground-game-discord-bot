@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  CalendarSyncInProgressError,
-  CalendarSyncRunner,
-} from '../../src/services/calendar-sync-runner.js'
+import { CalendarSyncInProgressError } from '../../src/models/control-api/calendar-sync.js'
+import { CalendarSyncRunner } from '../../src/services/calendar-sync-runner.js'
 
 describe('CalendarSyncRunner', () => {
   it('serializes sync attempts and releases the lock after completion', async () => {

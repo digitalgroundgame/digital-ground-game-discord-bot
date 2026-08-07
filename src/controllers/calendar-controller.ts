@@ -1,6 +1,6 @@
 import { type Request, type Response, Router } from 'express'
 
-import { CalendarSyncInProgressError } from '../services/calendar-sync-runner.js'
+import { CalendarSyncInProgressError } from '../models/control-api/calendar-sync.js'
 
 import { type Controller } from './index.js'
 

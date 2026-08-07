@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CalendarController } from '../../src/controllers/calendar-controller.js'
 import { Api } from '../../src/models/api.js'
-import { CalendarSyncInProgressError } from '../../src/services/calendar-sync-runner.js'
+import { CalendarSyncInProgressError } from '../../src/models/control-api/calendar-sync.js'
 
 const CONTROL_SECRET = 'test-control-secret'
 

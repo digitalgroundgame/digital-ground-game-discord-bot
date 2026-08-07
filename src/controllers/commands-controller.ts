@@ -1,12 +1,12 @@
 import { type Request, type Response, Router } from 'express'
 
 import {
+  CommandRegistrationInProgressError,
   CommandRegistrationInvalidArgumentError,
   CommandRegistrationNotFoundError,
   type CommandRegistrationAction,
   type CommandRegistrationSummary,
 } from '../models/control-api/command-registration.js'
-import { CommandRegistrationInProgressError } from '../services/command-registration-control-service.js'
 
 import { type Controller } from './index.js'
 

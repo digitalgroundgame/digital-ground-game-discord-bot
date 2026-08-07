@@ -42,12 +42,15 @@ import {
 import { CustomClient } from './extensions/index.js'
 import { AutoCloseWelcomeThreadsJob, SyncDggpGoogleCalendarJob, type Job } from './jobs/index.js'
 import { Bot } from './models/bot.js'
+import {
+  CalendarSyncInProgressError,
+  CalendarSyncSkippedError,
+} from './models/control-api/calendar-sync.js'
 import { type CommandRegistrationSummary } from './models/control-api/command-registration.js'
 import { type Reaction } from './reactions/index.js'
 import { syncDggpScheduledEventsToGoogle } from './services/sync-dggp-google-calendar.js'
 import {
   AttendanceService,
-  CalendarSyncInProgressError,
   CalendarSyncRunner,
   CommandRegistrationService,
   ControlRequestHandler,
@@ -241,6 +244,11 @@ async function start(): Promise<void> {
           Logger.info(
             'Calendar sync: startup sync skipped because another sync is already in progress.',
           )
+          return
+        }
+
+        if (error instanceof CalendarSyncSkippedError) {
+          Logger.info(`Calendar sync: startup sync skipped — ${error.message}`)
           return
         }
 
