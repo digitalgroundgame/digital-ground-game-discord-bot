@@ -4,7 +4,7 @@ The manager exposes command administration and on-demand calendar sync through i
 
 The examples below use the local API URL. For a remote deployment, replace `http://localhost:3000` with its HTTPS URL. Do not send the control secret over unencrypted HTTP.
 
-Each request is forwarded to a ready Discord shard, which uses the already-running bot build. Only one command operation runs at a time; a concurrent request receives HTTP 409.
+Each request is forwarded to a ready Discord shard, which uses the already-running bot build. Only one command operation runs at a time per manager process; a concurrent request to the same manager receives HTTP 409. In a clustered deployment this guard does not span containers, so avoid issuing command mutations from more than one place at once.
 
 ## View command state
 

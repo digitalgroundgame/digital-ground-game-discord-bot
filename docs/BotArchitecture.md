@@ -196,6 +196,8 @@ API layer for cluster management and cross-shard coordination:
 - **[Root Controller](../src/controllers/root-controller.ts)**: Base API controller
 - **[Guilds Controller](../src/controllers/guilds-controller.ts)**: Guild-related API endpoints
 - **[Shards Controller](../src/controllers/shards-controller.ts)**: Shard/cluster status and management
+- **[Commands Controller](../src/controllers/commands-controller.ts)**: Authenticated Discord command administration
+- **[Calendar Controller](../src/controllers/calendar-controller.ts)**: Authenticated on-demand Google Calendar synchronization
 - **[Integrations Controller](../src/controllers/integrations-controller.ts)**: Integration-related endpoints
 
 #### Configuration

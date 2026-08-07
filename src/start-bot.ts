@@ -5,15 +5,6 @@ import { parentPort } from 'node:worker_threads'
 
 import { type Button } from './buttons/index.js'
 import {
-  CommandRegistrationInvalidArgumentError,
-  CommandRegistrationNotFoundError,
-  isCalendarSyncRequest,
-  isCommandRegistrationRequest,
-  type CalendarSyncResult,
-  type CommandRegistrationResult,
-  type CommandRegistrationSummary,
-} from './command-registration-control.js'
-import {
   AttendanceTrackCommand,
   CensusCommand,
   ContentCommand,
@@ -51,6 +42,7 @@ import {
 import { CustomClient } from './extensions/index.js'
 import { AutoCloseWelcomeThreadsJob, SyncDggpGoogleCalendarJob, type Job } from './jobs/index.js'
 import { Bot } from './models/bot.js'
+import { type CommandRegistrationSummary } from './models/control-api/command-registration.js'
 import { type Reaction } from './reactions/index.js'
 import { syncDggpScheduledEventsToGoogle } from './services/sync-dggp-google-calendar.js'
 import {
@@ -58,6 +50,8 @@ import {
   CalendarSyncInProgressError,
   CalendarSyncRunner,
   CommandRegistrationService,
+  ControlRequestHandler,
+  type ControlRequestResult,
   ContentService,
   CrmService,
   EventDataService,
@@ -105,79 +99,6 @@ async function start(): Promise<void> {
       ...Config.client.caches,
     }),
     enforceNonce: true,
-  })
-
-  let commandRegistrationInProgress = false
-  const handleCommandRegistrationRequest = async (message: unknown): Promise<void> => {
-    if (!isCommandRegistrationRequest(message)) {
-      return
-    }
-
-    const sendResult = async (result: CommandRegistrationResult): Promise<void> => {
-      if (!client.shard) {
-        return
-      }
-
-      try {
-        await client.shard.send(result)
-      } catch (error) {
-        await Logger.error('Unable to report command registration result to the manager.', error)
-      }
-    }
-
-    if (commandRegistrationInProgress) {
-      Logger.warn('Ignoring command registration request because one is already in progress.')
-      await sendResult({
-        type: message.type,
-        kind: 'result',
-        requestId: message.requestId,
-        success: false,
-        error: 'A command registration is already in progress.',
-      })
-      return
-    }
-
-    commandRegistrationInProgress = true
-    Logger.info('Received command registration request from the shard manager.')
-    try {
-      const commands = await registerCommands([
-        'node',
-        'start-bot',
-        'commands',
-        message.action,
-        ...message.args,
-      ])
-      Logger.info('Command registration request completed successfully.')
-      await sendResult({
-        type: message.type,
-        kind: 'result',
-        requestId: message.requestId,
-        success: true,
-        ...(message.action === 'view' ? { commands } : {}),
-      })
-    } catch (error) {
-      await Logger.error('Command registration request failed.', error)
-      await sendResult({
-        type: message.type,
-        kind: 'result',
-        requestId: message.requestId,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-        ...(error instanceof CommandRegistrationNotFoundError
-          ? { errorCode: 'not-found' as const }
-          : error instanceof CommandRegistrationInvalidArgumentError
-            ? { errorCode: 'invalid-argument' as const }
-            : {}),
-      })
-    } finally {
-      commandRegistrationInProgress = false
-    }
-  }
-  process.on('message', (message) => {
-    void handleCommandRegistrationRequest(message)
-  })
-  parentPort?.on('message', (message) => {
-    void handleCommandRegistrationRequest(message)
   })
 
   // Service account used by /grant-access to manage Google Group membership.
@@ -255,49 +176,28 @@ async function start(): Promise<void> {
   const calendarSyncRunner = new CalendarSyncRunner(async (): Promise<void> => {
     await syncDggpScheduledEventsToGoogle(client, googleCalendarService)
   })
-  const handleCalendarSyncRequest = async (message: unknown): Promise<void> => {
-    if (!isCalendarSyncRequest(message)) {
+
+  const sendControlResult = async (result: ControlRequestResult): Promise<void> => {
+    if (!client.shard) {
       return
     }
 
-    const sendResult = async (result: CalendarSyncResult): Promise<void> => {
-      if (!client.shard) {
-        return
-      }
-
-      try {
-        await client.shard.send(result)
-      } catch (error) {
-        await Logger.error('Unable to report calendar sync result to the manager.', error)
-      }
-    }
-
-    Logger.info('Received calendar sync request from the shard manager.')
     try {
-      await calendarSyncRunner.run()
-      await sendResult({
-        type: message.type,
-        kind: 'result',
-        requestId: message.requestId,
-        success: true,
-      })
+      await client.shard.send(result)
     } catch (error) {
-      await Logger.error('Calendar sync request failed.', error)
-      await sendResult({
-        type: message.type,
-        kind: 'result',
-        requestId: message.requestId,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-        busy: error instanceof CalendarSyncInProgressError,
-      })
+      await Logger.error('Unable to report control request result to the manager.', error)
     }
   }
+  const controlRequestHandler = new ControlRequestHandler(
+    sendControlResult,
+    registerCommands,
+    calendarSyncRunner,
+  )
   process.on('message', (message) => {
-    void handleCalendarSyncRequest(message)
+    void controlRequestHandler.handle(message)
   })
   parentPort?.on('message', (message) => {
-    void handleCalendarSyncRequest(message)
+    void controlRequestHandler.handle(message)
   })
   // Event handlers
   const guildJoinHandler = new GuildJoinHandler(eventDataService)

@@ -8,7 +8,7 @@ import {
   CommandRegistrationNotFoundError,
   type CommandRegistrationAction,
   type CommandRegistrationSummary,
-} from '../../src/command-registration-control.js'
+} from '../../src/models/control-api/command-registration.js'
 import { Api } from '../../src/models/api.js'
 
 const CONTROL_SECRET = 'test-control-secret'

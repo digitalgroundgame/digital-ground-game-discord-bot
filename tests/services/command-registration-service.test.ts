@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   CommandRegistrationInvalidArgumentError,
   CommandRegistrationNotFoundError,
-} from '../../src/command-registration-control.js'
+} from '../../src/models/control-api/command-registration.js'
 import { CommandRegistrationService } from '../../src/services/command-registration-service.js'
 
 vi.mock('../../src/config/environment.js', () => ({}))

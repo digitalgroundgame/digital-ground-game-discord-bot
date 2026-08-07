@@ -6,7 +6,7 @@ import {
   CALENDAR_SYNC_MESSAGE_TYPE,
   isCalendarSyncResult,
   type CalendarSyncRequest,
-} from '../command-registration-control.js'
+} from '../models/control-api/calendar-sync.js'
 import { CalendarSyncInProgressError } from './calendar-sync-runner.js'
 
 const calendarSyncTimeoutMs = 5 * 60 * 1000

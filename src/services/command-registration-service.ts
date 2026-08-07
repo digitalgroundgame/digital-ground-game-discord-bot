@@ -12,7 +12,7 @@ import {
   CommandRegistrationInvalidArgumentError,
   CommandRegistrationNotFoundError,
   type CommandRegistrationSummary,
-} from '../command-registration-control.js'
+} from '../models/control-api/command-registration.js'
 import { Logger } from './logger.js'
 
 import Logs from '../../lang/logs.json' with { type: 'json' }

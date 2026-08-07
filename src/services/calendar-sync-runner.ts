@@ -1,3 +1,5 @@
+import { SingleFlight } from './single-flight.js'
+
 export class CalendarSyncInProgressError extends Error {
   public constructor() {
     super('A calendar sync is already in progress.')
@@ -5,20 +7,20 @@ export class CalendarSyncInProgressError extends Error {
 }
 
 export class CalendarSyncRunner {
-  private inProgress = false
+  private singleFlight = new SingleFlight()
 
   public constructor(private executeSync: () => Promise<void>) {}
 
   public async run(): Promise<void> {
-    if (this.inProgress) {
+    const release = this.singleFlight.acquire()
+    if (!release) {
       throw new CalendarSyncInProgressError()
     }
 
-    this.inProgress = true
     try {
       await this.executeSync()
     } finally {
-      this.inProgress = false
+      release()
     }
   }
 }

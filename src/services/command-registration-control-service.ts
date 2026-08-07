@@ -10,7 +10,7 @@ import {
   type CommandRegistrationAction,
   type CommandRegistrationRequest,
   type CommandRegistrationSummary,
-} from '../command-registration-control.js'
+} from '../models/control-api/command-registration.js'
 
 const commandRegistrationTimeoutMs = 5 * 60 * 1000
 
@@ -24,6 +24,7 @@ export class CommandRegistrationControlService {
   private activeRequest:
     | {
         id: string
+        shardId: number
         timeout: NodeJS.Timeout
         resolve: (commands: CommandRegistrationSummary | undefined) => void
         reject: (error: Error) => void
@@ -34,7 +35,13 @@ export class CommandRegistrationControlService {
     for (const shard of this.shardManager.shards.values()) {
       shard.on('message', (message) => this.handleShardMessage(message))
       shard.on('death', () => {
-        this.rejectActiveRequest(new Error('Discord shard died during command registration.'))
+        if (this.activeRequest?.shardId !== shard.id) {
+          return
+        }
+
+        this.rejectActiveRequest(
+          new Error(`Discord shard ${shard.id} died during command registration.`),
+        )
       })
     }
   }
@@ -63,6 +70,7 @@ export class CommandRegistrationControlService {
     return await new Promise<CommandRegistrationSummary | undefined>((resolve, reject) => {
       this.activeRequest = {
         id: request.requestId,
+        shardId: shard.id,
         timeout: setTimeout(() => {
           this.activeRequest = undefined
           reject(
@@ -94,6 +102,9 @@ export class CommandRegistrationControlService {
           break
         case 'not-found':
           this.rejectActiveRequest(new CommandRegistrationNotFoundError(errorMessage))
+          break
+        case 'in-progress':
+          this.rejectActiveRequest(new CommandRegistrationInProgressError())
           break
         default:
           this.rejectActiveRequest(new Error(errorMessage))

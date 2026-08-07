@@ -1,13 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  CALENDAR_SYNC_MESSAGE_TYPE,
   COMMAND_REGISTRATION_MESSAGE_TYPE,
-  isCalendarSyncRequest,
-  isCalendarSyncResult,
   isCommandRegistrationRequest,
   isCommandRegistrationResult,
-} from '../src/command-registration-control.js'
+} from '../../../src/models/control-api/command-registration.js'
 
 describe('command registration control messages', () => {
   it('recognizes a registration request', () => {
@@ -33,26 +30,31 @@ describe('command registration control messages', () => {
     ).toBe(false)
   })
 
-  it('recognizes successful and failed registration results', () => {
+  it('recognizes successful and known-error registration results', () => {
     expect(
       isCommandRegistrationResult({
         type: COMMAND_REGISTRATION_MESSAGE_TYPE,
         kind: 'result',
         requestId: 'request-1',
         success: true,
-        busy: false,
       }),
     ).toBe(true)
-    expect(
-      isCommandRegistrationResult({
-        type: COMMAND_REGISTRATION_MESSAGE_TYPE,
-        kind: 'result',
-        requestId: 'request-1',
-        success: false,
-        error: 'Request failed',
-        errorCode: 'not-found',
-      }),
-    ).toBe(true)
+
+    for (const errorCode of ['not-found', 'invalid-argument', 'in-progress']) {
+      expect(
+        isCommandRegistrationResult({
+          type: COMMAND_REGISTRATION_MESSAGE_TYPE,
+          kind: 'result',
+          requestId: 'request-1',
+          success: false,
+          error: 'Request failed',
+          errorCode,
+        }),
+      ).toBe(true)
+    }
+  })
+
+  it('rejects an unknown registration error code', () => {
     expect(
       isCommandRegistrationResult({
         type: COMMAND_REGISTRATION_MESSAGE_TYPE,
@@ -63,23 +65,5 @@ describe('command registration control messages', () => {
         errorCode: 'unknown',
       }),
     ).toBe(false)
-  })
-
-  it('recognizes calendar sync control messages', () => {
-    expect(
-      isCalendarSyncRequest({
-        type: CALENDAR_SYNC_MESSAGE_TYPE,
-        kind: 'request',
-        requestId: 'request-1',
-      }),
-    ).toBe(true)
-    expect(
-      isCalendarSyncResult({
-        type: CALENDAR_SYNC_MESSAGE_TYPE,
-        kind: 'result',
-        requestId: 'request-1',
-        success: true,
-      }),
-    ).toBe(true)
   })
 })

@@ -7,54 +7,72 @@ import {
   CommandRegistrationNotFoundError,
   type CommandRegistrationRequest,
   type CommandRegistrationResult,
-} from '../../src/command-registration-control.js'
-import { CommandRegistrationControlService } from '../../src/services/command-registration-control-service.js'
+} from '../../src/models/control-api/command-registration.js'
+import {
+  CommandRegistrationControlService,
+  CommandRegistrationInProgressError,
+} from '../../src/services/command-registration-control-service.js'
 
 interface ControlServiceHarness {
-  deathListener: () => void
-  messageListener: (message: CommandRegistrationResult) => void
+  deathListeners: Map<number, () => void>
+  messageListeners: Map<number, (message: CommandRegistrationResult) => void>
   send: ReturnType<typeof vi.fn>
   service: CommandRegistrationControlService
 }
 
 function buildHarness(): ControlServiceHarness {
-  let deathListener: (() => void) | undefined
-  let messageListener: ((message: CommandRegistrationResult) => void) | undefined
-  const send = vi.fn().mockResolvedValue(undefined)
-  const shard = {
-    ready: true,
-    on: vi.fn((event: string, listener: (message: CommandRegistrationResult) => void) => {
-      if (event === 'message') {
-        messageListener = listener
-      } else if (event === 'death') {
-        deathListener = listener
-      }
-    }),
-    send,
+  const deathListeners = new Map<number, () => void>()
+  const messageListeners = new Map<number, (message: CommandRegistrationResult) => void>()
+  const sends = new Map<number, ReturnType<typeof vi.fn>>()
+  const buildShard = (id: number) => {
+    const send = vi.fn().mockResolvedValue(undefined)
+    sends.set(id, send)
+    return {
+      id,
+      ready: true,
+      on: vi.fn(
+        (
+          event: string,
+          listener: ((message: CommandRegistrationResult) => void) | (() => void),
+        ) => {
+          if (event === 'message') {
+            messageListeners.set(id, listener as (message: CommandRegistrationResult) => void)
+          } else if (event === 'death') {
+            deathListeners.set(id, listener as () => void)
+          }
+        },
+      ),
+      send,
+    }
   }
   const shardManager = {
-    shards: new Map([[0, shard]]),
+    shards: new Map([
+      [0, buildShard(0)],
+      [1, buildShard(1)],
+    ]),
   } as unknown as ShardingManager
   const service = new CommandRegistrationControlService(shardManager)
 
-  if (!(deathListener && messageListener)) {
+  const send = sends.get(0)
+  if (!(send && deathListeners.size === 2 && messageListeners.size === 2)) {
     throw new Error('Expected the control service to register shard listeners.')
   }
 
-  return { deathListener, messageListener, send, service }
+  return { deathListeners, messageListeners, send, service }
 }
 
 describe('CommandRegistrationControlService', () => {
   it.each([
     ['not-found', CommandRegistrationNotFoundError],
     ['invalid-argument', CommandRegistrationInvalidArgumentError],
+    ['in-progress', CommandRegistrationInProgressError],
   ] as const)('reconstructs a %s shard error', async (errorCode, ErrorType) => {
-    const { messageListener, send, service } = buildHarness()
+    const { messageListeners, send, service } = buildHarness()
     const request = service.request('delete', ['missing'])
 
     await vi.waitFor(() => expect(send).toHaveBeenCalledOnce())
     const sentRequest = send.mock.calls[0]?.[0] as CommandRegistrationRequest
-    messageListener({
+    messageListeners.get(0)?.({
       type: COMMAND_REGISTRATION_MESSAGE_TYPE,
       kind: 'result',
       requestId: sentRequest.requestId,
@@ -66,18 +84,24 @@ describe('CommandRegistrationControlService', () => {
     await expect(request).rejects.toBeInstanceOf(ErrorType)
   })
 
-  it('rejects the active request and permits another request when the shard dies', async () => {
-    const { deathListener, send, service } = buildHarness()
+  it('rejects only when the shard serving the active request dies', async () => {
+    const { deathListeners, send, service } = buildHarness()
     const request = service.request('register')
 
     await vi.waitFor(() => expect(send).toHaveBeenCalledOnce())
-    deathListener()
+    deathListeners.get(1)?.()
 
-    await expect(request).rejects.toThrow('Discord shard died during command registration.')
+    await expect(service.request('register')).rejects.toBeInstanceOf(
+      CommandRegistrationInProgressError,
+    )
+
+    deathListeners.get(0)?.()
+
+    await expect(request).rejects.toThrow('Discord shard 0 died during command registration.')
 
     const nextRequest = service.request('register')
     await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(2))
-    deathListener()
-    await expect(nextRequest).rejects.toThrow('Discord shard died during command registration.')
+    deathListeners.get(0)?.()
+    await expect(nextRequest).rejects.toThrow('Discord shard 0 died during command registration.')
   })
 })

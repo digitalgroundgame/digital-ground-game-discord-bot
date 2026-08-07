@@ -20,6 +20,12 @@ export function validateEnv(): void {
     }
   }
 
+  if (process.env.DISCORD_BOT_CONTROL_API_SECRET === process.env.DISCORD_BOT_API_SECRET) {
+    throw new Error(
+      'DISCORD_BOT_CONTROL_API_SECRET must differ from DISCORD_BOT_API_SECRET; the control routes are a separate privilege tier.',
+    )
+  }
+
   const snowflakePattern = /^\d{17,19}$/
   const developerIds = process.env.DISCORD_BOT_DEVELOPER_IDS.split(',').map((id) => id.trim())
   if (developerIds.length === 0) {
