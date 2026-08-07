@@ -1,6 +1,6 @@
-import express, { type Express } from 'express'
+import { type Express } from 'express'
 import request from 'supertest'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CommandsController } from '../../src/controllers/commands-controller.js'
 import {
@@ -9,7 +9,9 @@ import {
   type CommandRegistrationAction,
   type CommandRegistrationSummary,
 } from '../../src/command-registration-control.js'
+import { Api } from '../../src/models/api.js'
 
+const CONTROL_SECRET = 'test-control-secret'
 const commandSummary = {
   localAndRemote: ['help'],
   localOnly: [],
@@ -32,18 +34,38 @@ function buildApp(
       return action === 'view' ? commandSummary : undefined
     },
   })
-  controller.register()
-
-  const app = express()
-  app.use(express.json())
-  app.use(controller.path, controller.router)
-  return app
+  return new Api([controller]).app
 }
 
 describe('CommandsController', () => {
-  it('registers commands through the local control service', async () => {
+  beforeEach(() => {
+    vi.stubEnv('DISCORD_BOT_CONTROL_API_SECRET', CONTROL_SECRET)
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('requires control API authentication', async () => {
     const calls: Array<{ action: CommandRegistrationAction; args: string[] }> = []
     const res = await request(buildApp(calls)).post('/commands/register').send({})
+
+    expect(res.status).toBe(401)
+    expect(calls).toEqual([])
+  })
+
+  it('refuses to mount without a control API secret', () => {
+    vi.stubEnv('DISCORD_BOT_CONTROL_API_SECRET', '')
+
+    expect(() => buildApp([])).toThrow(/auth token/)
+  })
+
+  it('registers commands through the authenticated control API', async () => {
+    const calls: Array<{ action: CommandRegistrationAction; args: string[] }> = []
+    const res = await request(buildApp(calls))
+      .post('/commands/register')
+      .set('Authorization', CONTROL_SECRET)
+      .send({})
 
     expect(res.status).toBe(200)
     expect(res.body).toEqual({ action: 'register', success: true })
@@ -52,7 +74,10 @@ describe('CommandsController', () => {
 
   it('requires explicit confirmation before clearing every command', async () => {
     const calls: Array<{ action: CommandRegistrationAction; args: string[] }> = []
-    const res = await request(buildApp(calls)).delete('/commands').send({})
+    const res = await request(buildApp(calls))
+      .delete('/commands')
+      .set('Authorization', CONTROL_SECRET)
+      .send({})
 
     expect(res.status).toBe(400)
     expect(calls).toEqual([])
@@ -60,7 +85,7 @@ describe('CommandsController', () => {
 
   it('views the command state', async () => {
     const calls: Array<{ action: CommandRegistrationAction; args: string[] }> = []
-    const res = await request(buildApp(calls)).get('/commands')
+    const res = await request(buildApp(calls)).get('/commands').set('Authorization', CONTROL_SECRET)
 
     expect(res.status).toBe(200)
     expect(res.body).toEqual({ action: 'view', success: true, commands: commandSummary })
@@ -71,8 +96,14 @@ describe('CommandsController', () => {
     const calls: Array<{ action: CommandRegistrationAction; args: string[] }> = []
     const app = buildApp(calls)
 
-    const clearRes = await request(app).delete('/commands').send({ confirm: true })
-    const renameRes = await request(app).patch('/commands/old-name').send({ name: 'new-name' })
+    const clearRes = await request(app)
+      .delete('/commands')
+      .set('Authorization', CONTROL_SECRET)
+      .send({ confirm: true })
+    const renameRes = await request(app)
+      .patch('/commands/old-name')
+      .set('Authorization', CONTROL_SECRET)
+      .send({ name: 'new-name' })
 
     expect(clearRes.status).toBe(200)
     expect(renameRes.status).toBe(200)
@@ -88,7 +119,9 @@ describe('CommandsController', () => {
       "Could not find a command with the name 'missing'.",
     )
 
-    const res = await request(buildApp(calls, error)).delete('/commands/missing')
+    const res = await request(buildApp(calls, error))
+      .delete('/commands/missing')
+      .set('Authorization', CONTROL_SECRET)
 
     expect(res.status).toBe(404)
     expect(res.body).toEqual({ error: error.message })
@@ -99,7 +132,9 @@ describe('CommandsController', () => {
     const calls: Array<{ action: CommandRegistrationAction; args: string[] }> = []
     const error = new CommandRegistrationInvalidArgumentError('Missing command name.')
 
-    const res = await request(buildApp(calls, error)).post('/commands/register')
+    const res = await request(buildApp(calls, error))
+      .post('/commands/register')
+      .set('Authorization', CONTROL_SECRET)
 
     expect(res.status).toBe(400)
     expect(res.body).toEqual({ error: error.message })

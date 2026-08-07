@@ -97,11 +97,11 @@ A welcome message is sent to the server and owner when the bot is added.
    - Navigate into the downloaded source files and type `npm install`.
 5. Start the manager and register commands.
    - In order to use slash commands, they first [have to be registered](https://discordjs.guide/creating-your-bot/command-deployment.html).
-   - Start the manager with `npm run start:manager`, then use the local command-control socket:
+   - Start the manager with `npm run start:manager`, then use the authenticated bot control API:
 
      ```sh
-     curl --unix-socket /tmp/dggac-bot/control.sock \
-       -X POST http://localhost/commands/register
+     curl -X POST http://localhost:3000/commands/register \
+       -H "Authorization: $DISCORD_BOT_CONTROL_API_SECRET"
      ```
 
      - Run this after deploying a command name, structure, or add/remove command change.
@@ -136,6 +136,7 @@ DISCORD_BOT_DEVELOPER_IDS="123456789012345678,987654321098765432" # comma-separa
 
 # API Configuration
 DISCORD_BOT_API_SECRET="00000000-0000-0000-0000-000000000000"
+DISCORD_BOT_CONTROL_API_SECRET="11111111-1111-1111-1111-111111111111"
 
 # Clustering Configuration (only needed if clustering.enabled is true)
 DISCORD_BOT_MASTER_API_TOKEN="00000000-0000-0000-0000-000000000000"

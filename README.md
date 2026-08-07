@@ -37,16 +37,16 @@ This template for a Discord bot was based upon this public template. https://git
    - Use `npm install` only when you intentionally add/update/remove dependencies.
 
 4. Start the bot.
-   - `npm run start:manager` builds and runs the sharding manager, which spawns the bot shards and exposes the [local control socket](docs/CommandControlSocket.md).
-   - `npm start` runs a single unsharded bot instead. It has no control socket, so use the manager if you need to register commands.
+   - `npm run start:manager` builds and runs the sharding manager, which spawns the bot shards and exposes the authenticated [bot control API](docs/CommandControlApi.md).
+   - `npm start` runs a single unsharded bot instead. It does not expose the control API, so use the manager if you need to register commands.
 
 5. Register commands.
    - In order to use slash commands, they first [have to be registered](https://discordjs.guide/creating-your-bot/command-deployment.html).
-   - With the manager running, use the local command-control socket:
+   - With the manager running, use the authenticated bot control API:
 
      ```sh
-     curl --unix-socket /tmp/dggac-bot/control.sock \
-       -X POST http://localhost/commands/register
+     curl -X POST http://localhost:3000/commands/register \
+       -H "Authorization: $DISCORD_BOT_CONTROL_API_SECRET"
      ```
 
      - Run this after deploying a command name, structure, or add/remove command change.
@@ -137,6 +137,7 @@ DISCORD_BOT_MASTER_API_TOKEN="token"
 
 ```
 DISCORD_BOT_API_SECRET="secret"
+DISCORD_BOT_CONTROL_API_SECRET="different-control-secret"
 ```
 
 ## Bot reference
@@ -145,7 +146,7 @@ This section lists slash and context-menu commands, which Discord events the bot
 
 ### Commands
 
-All commands below are registered with Discord through the [local command-control socket](docs/CommandControlSocket.md) (see [Setup](#setup)). Slash names shown are the default English values from the lang file.
+All commands below are registered with Discord through the authenticated [bot control API](docs/CommandControlApi.md) (see [Setup](#setup)). Slash names shown are the default English values from the lang file.
 
 | Command               | Type      | What it does                                                                                                                                                                                                                                                                                                      | Code                                                                                                                                                                         |
 | --------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

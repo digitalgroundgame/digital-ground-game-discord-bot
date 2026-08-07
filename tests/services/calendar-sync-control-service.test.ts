@@ -12,6 +12,7 @@ describe('CalendarSyncControlService', () => {
     let deathListener: (() => void) | undefined
     const send = vi.fn().mockResolvedValue(undefined)
     const shard = {
+      id: 0,
       ready: true,
       on: vi.fn((event: string, listener: () => void) => {
         if (event === 'death') {
@@ -35,11 +36,11 @@ describe('CalendarSyncControlService', () => {
     await vi.waitFor(() => expect(send).toHaveBeenCalledOnce())
     deathListener()
 
-    await expect(request).rejects.toThrow('Discord shard died during calendar sync.')
+    await expect(request).rejects.toThrow('Discord shard 0 died during calendar sync.')
 
     const nextRequest = service.sync()
     await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(2))
     deathListener()
-    await expect(nextRequest).rejects.toThrow('Discord shard died during calendar sync.')
+    await expect(nextRequest).rejects.toThrow('Discord shard 0 died during calendar sync.')
   })
 })

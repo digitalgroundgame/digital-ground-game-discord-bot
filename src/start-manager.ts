@@ -87,32 +87,29 @@ async function start(): Promise<void> {
 
   const manager = new Manager(shardManager, new JobService(jobs))
 
+  // Start the shards before constructing control services, which register listeners on them.
+  await manager.start()
+
   // API
   const guildsController = new GuildsController(shardManager)
   const shardsController = new ShardsController(shardManager)
   const rootController = new RootController()
   const integrations: Integration[] = [new PragmaticPapersIntegration(), new DmProxyIntegration()]
   const integrationsController = new IntegrationsController(integrations, shardManager)
+  const commandRegistrationControlService = new CommandRegistrationControlService(shardManager)
+  const calendarSyncControlService = new CalendarSyncControlService(shardManager)
 
   const controllers: Controller[] = [
     guildsController,
     shardsController,
+    new CommandsController(commandRegistrationControlService),
+    new CalendarController(calendarSyncControlService),
     integrationsController,
     rootController,
   ]
 
   const api = new Api(controllers)
-
-  // Start
-  await manager.start()
   await api.start()
-  const commandRegistrationControlService = new CommandRegistrationControlService(shardManager)
-  const calendarSyncControlService = new CalendarSyncControlService(shardManager)
-  const localControlApi = new Api([
-    new CommandsController(commandRegistrationControlService),
-    new CalendarController(calendarSyncControlService),
-  ])
-  await localControlApi.startUnixSocket()
   if (Config.clustering.enabled) {
     await masterApiService.ready()
   }

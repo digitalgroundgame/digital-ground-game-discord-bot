@@ -15,6 +15,7 @@ export class CalendarSyncControlService {
   private activeRequest:
     | {
         id: string
+        shardId: number
         timeout: NodeJS.Timeout
         resolve: () => void
         reject: (error: Error) => void
@@ -30,8 +31,6 @@ export class CalendarSyncControlService {
         }
 
         this.rejectActiveRequest(new Error(`Discord shard ${shard.id} died during calendar sync.`))
-      })
-        this.rejectActiveRequest(new Error('Discord shard died during calendar sync.'))
       })
     }
   }
@@ -51,6 +50,7 @@ export class CalendarSyncControlService {
     await new Promise<void>((resolve, reject) => {
       this.activeRequest = {
         id: request.requestId,
+        shardId: shard.id,
         timeout: setTimeout(() => {
           this.activeRequest = undefined
           reject(new Error('Timed out while waiting for the shard to complete calendar sync.'))

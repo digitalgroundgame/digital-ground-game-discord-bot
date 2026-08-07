@@ -20,6 +20,8 @@ export interface CommandRegistrationControllerService {
 export class CommandsController implements Controller {
   public path = '/commands'
   public router: Router = Router()
+  public requiresAuth = true
+  public authToken: string = process.env.DISCORD_BOT_CONTROL_API_SECRET
 
   public constructor(
     private commandRegistrationControlService: CommandRegistrationControllerService,

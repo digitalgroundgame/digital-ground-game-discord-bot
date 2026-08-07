@@ -29,7 +29,7 @@ Important entry points:
 - `npm run lint:fix` - auto-fix lint issues where possible.
 - `npm run format` - check Prettier formatting.
 - `npm run format:fix` - apply Prettier formatting.
-- Use the local command-control socket documented in `docs/CommandControlSocket.md` to register Discord commands after command metadata/name/shape changes.
+- Use the authenticated bot control API documented in `docs/CommandControlApi.md` to register Discord commands after command metadata/name/shape changes.
 - `npm run db:push` - push Drizzle schema changes.
 
 ## Required Verification

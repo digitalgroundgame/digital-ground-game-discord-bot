@@ -11,6 +11,8 @@ export interface CalendarSyncControllerService {
 export class CalendarController implements Controller {
   public path = '/calendar'
   public router: Router = Router()
+  public requiresAuth = true
+  public authToken: string = process.env.DISCORD_BOT_CONTROL_API_SECRET
 
   public constructor(private calendarSyncControlService: CalendarSyncControllerService) {}
 
