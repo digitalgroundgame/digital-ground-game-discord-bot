@@ -1,6 +1,7 @@
 import schedule, { type JobCallback, type Spec } from 'node-schedule'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import Logs from '../../lang/logs.json' with { type: 'json' }
 import { type Job } from '../../src/jobs/index.js'
 import { JobService, Logger } from '../../src/services/index.js'
 
@@ -10,10 +11,10 @@ vi.mock('node-schedule', () => ({
   },
 }))
 
-function createJob(name: string, run: () => Promise<void>): Job {
+function createJob(name: string, run: () => Promise<void>, log = false): Job {
   return {
     name,
-    log: false,
+    log,
     schedule: '* * * * * *',
     runOnce: false,
     initialDelaySecs: 0,
@@ -83,6 +84,25 @@ describe('JobService', () => {
     expect(schedule.scheduleJob).toHaveBeenCalledTimes(4)
   })
 
+  it('reports an invalid schedule without retaining an empty scheduled job', () => {
+    vi.mocked(schedule.scheduleJob).mockReturnValueOnce(null as never)
+    const service = new JobService([createJob('invalid job', vi.fn().mockResolvedValue(undefined))])
+
+    service.start()
+
+    expect(Logger.error).toHaveBeenCalledWith(
+      Logs.error.jobSchedule
+        .replaceAll('{JOB}', 'invalid job')
+        .replaceAll('{SCHEDULE}', '* * * * * *'),
+    )
+    expect(Logger.info).not.toHaveBeenCalledWith(
+      Logs.info.jobScheduled
+        .replaceAll('{JOB}', 'invalid job')
+        .replaceAll('{SCHEDULE}', '* * * * * *'),
+    )
+    expect(() => service.stop()).not.toThrow()
+  })
+
   it('skips an overlapping run of the same job and resumes after completion', async () => {
     const deferred = createDeferred()
     const run = vi.fn(() => deferred.promise)
@@ -96,7 +116,7 @@ describe('JobService', () => {
 
     expect(run).toHaveBeenCalledOnce()
     expect(Logger.warn).toHaveBeenCalledWith(
-      "Skipped job 'slow job' because its previous run is still active.",
+      Logs.warn.jobSkipped.replaceAll('{JOB}', 'slow job').replaceAll('{DURATION_SECONDS}', '0'),
     )
 
     deferred.resolve()
@@ -104,6 +124,36 @@ describe('JobService', () => {
     await callbacks[0]?.(new Date())
 
     expect(run).toHaveBeenCalledTimes(2)
+  })
+
+  it('reports elapsed time and escalates a stuck run once', async () => {
+    const deferred = createDeferred()
+    const run = vi.fn(() => deferred.promise)
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000)
+    const service = new JobService([createJob('stuck job', run)])
+    service.start()
+
+    const firstRun = Promise.resolve(callbacks[0]?.(new Date()))
+    await vi.waitFor(() => expect(run).toHaveBeenCalledOnce())
+
+    now.mockReturnValue(6_000)
+    await callbacks[0]?.(new Date())
+
+    expect(Logger.warn).toHaveBeenCalledWith(
+      Logs.warn.jobSkipped.replaceAll('{JOB}', 'stuck job').replaceAll('{DURATION_SECONDS}', '5'),
+    )
+
+    now.mockReturnValue(3_601_000)
+    await callbacks[0]?.(new Date())
+    await callbacks[0]?.(new Date())
+
+    expect(Logger.error).toHaveBeenCalledOnce()
+    expect(Logger.error).toHaveBeenCalledWith(
+      Logs.error.jobStuck.replaceAll('{JOB}', 'stuck job').replaceAll('{DURATION_SECONDS}', '3600'),
+    )
+
+    deferred.resolve()
+    await firstRun
   })
 
   it('allows different jobs to run concurrently', async () => {
@@ -139,5 +189,19 @@ describe('JobService', () => {
 
     expect(run).toHaveBeenCalledTimes(2)
     expect(Logger.error).toHaveBeenCalledOnce()
+  })
+
+  it('logs the start and completion of jobs configured for informational logging', async () => {
+    const service = new JobService([
+      createJob('logged job', vi.fn().mockResolvedValue(undefined), true),
+    ])
+    service.start()
+
+    await callbacks[0]?.(new Date())
+
+    expect(Logger.info).toHaveBeenCalledWith(Logs.info.jobRun.replaceAll('{JOB}', 'logged job'))
+    expect(Logger.info).toHaveBeenCalledWith(
+      Logs.info.jobCompleted.replaceAll('{JOB}', 'logged job'),
+    )
   })
 })

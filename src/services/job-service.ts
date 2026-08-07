@@ -1,7 +1,6 @@
 import { CronExpressionParser } from 'cron-parser'
 import { DateTime } from 'luxon'
-import schedule from 'node-schedule'
-import { type Job as ScheduledJob } from 'node-schedule'
+import schedule, { type Job as ScheduledJob } from 'node-schedule'
 import { createRequire } from 'node:module'
 
 import { Logger } from './index.js'
@@ -11,7 +10,9 @@ const require = createRequire(import.meta.url)
 const Logs = require('../../lang/logs.json')
 
 export class JobService {
-  private inFlightJobs = new Set<Job>()
+  private static readonly stuckJobThresholdMs = 60 * 60 * 1000
+
+  private inFlightJobs = new Map<Job, { startedAt: number; stuckReported: boolean }>()
   private scheduledJobs: ScheduledJob[] = []
   private started = false
 
@@ -37,12 +38,30 @@ export class JobService {
           }
 
       const scheduledJob = schedule.scheduleJob(jobSchedule, async () => {
-        if (this.inFlightJobs.has(job)) {
-          Logger.warn(Logs.warn.jobSkipped.replaceAll('{JOB}', job.name))
+        const inFlightJob = this.inFlightJobs.get(job)
+        if (inFlightJob) {
+          const elapsedMs = Math.max(0, Date.now() - inFlightJob.startedAt)
+          const elapsedSeconds = Math.floor(elapsedMs / 1000).toString()
+
+          if (elapsedMs >= JobService.stuckJobThresholdMs && !inFlightJob.stuckReported) {
+            inFlightJob.stuckReported = true
+            Logger.error(
+              Logs.error.jobStuck
+                .replaceAll('{JOB}', job.name)
+                .replaceAll('{DURATION_SECONDS}', elapsedSeconds),
+            )
+          } else {
+            Logger.warn(
+              Logs.warn.jobSkipped
+                .replaceAll('{JOB}', job.name)
+                .replaceAll('{DURATION_SECONDS}', elapsedSeconds),
+            )
+          }
+
           return
         }
 
-        this.inFlightJobs.add(job)
+        this.inFlightJobs.set(job, { startedAt: Date.now(), stuckReported: false })
 
         try {
           if (job.log) {
@@ -60,6 +79,16 @@ export class JobService {
           this.inFlightJobs.delete(job)
         }
       })
+
+      if (!scheduledJob) {
+        Logger.error(
+          Logs.error.jobSchedule
+            .replaceAll('{JOB}', job.name)
+            .replaceAll('{SCHEDULE}', job.schedule),
+        )
+        continue
+      }
+
       this.scheduledJobs.push(scheduledJob)
       Logger.info(
         Logs.info.jobScheduled.replaceAll('{JOB}', job.name).replaceAll('{SCHEDULE}', job.schedule),
@@ -67,6 +96,10 @@ export class JobService {
     }
   }
 
+  /**
+   * Cancels future invocations and allows the schedules to be started again.
+   * Runs already in flight are neither interrupted nor awaited.
+   */
   public stop(): void {
     for (const scheduledJob of this.scheduledJobs) {
       scheduledJob.cancel()

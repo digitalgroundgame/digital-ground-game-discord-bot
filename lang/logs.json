@@ -31,7 +31,7 @@
   },
   "warn": {
     "managerNoShards": "No shards to spawn.",
-    "jobSkipped": "Skipped job '{JOB}' because its previous run is still active."
+    "jobSkipped": "Skipped job '{JOB}' because its previous run has been active for {DURATION_SECONDS} seconds."
   },
   "error": {
     "unspecified": "An unspecified error occurred.",
@@ -46,6 +46,8 @@
     "clientLogin": "An error occurred while the client attempted to login.",
     "botReady": "An error occurred while running the onBotReady callback.",
     "job": "An error occurred while running the '{JOB}' job.",
+    "jobSchedule": "Could not schedule job '{JOB}' for '{SCHEDULE}'.",
+    "jobStuck": "Job '{JOB}' has been active for {DURATION_SECONDS} seconds and is still blocking scheduled runs.",
     "updatedServerCountSite": "An error occurred while updating the server count on '{BOT_SITE}'.",
     "guildJoin": "An error occurred while processing a guild join.",
     "guildLeave": "An error occurred while processing a guild leave.",
