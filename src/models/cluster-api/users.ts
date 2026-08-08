@@ -13,7 +13,11 @@ export interface AccessGrantInfo {
 /** A DB-backed external account (from `/link-account`) the member has linked. */
 export interface LinkedAccess {
   provider: AccountProvider
-  username: string
+  /**
+   * Provider-side account identifier. For `google` this is the member's email
+   * address — treat as PII.
+   */
+  externalId: string
   displayName: string | null
   linkedAt: string
   /** Teams this account has been granted access to, as recorded by the bot. */

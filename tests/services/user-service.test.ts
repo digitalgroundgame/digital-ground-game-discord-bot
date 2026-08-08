@@ -46,7 +46,7 @@ describe('UserService.getActiveRoles', () => {
     const localAdmin = createRole('local-admin-role', ServerRoles.ADMIN.name)
     const member = createMember([localAdmin], [localAdmin])
 
-    expect(UserService.getActiveRoleKeys(member)).toEqual(['ADMIN'])
+    expect(UserService.getActiveRoles(member).map((role) => role.key)).toEqual(['ADMIN'])
     // The reported id must be the guild role the match was made on, not the
     // configured id — that id does not exist in this guild.
     expect(UserService.getActiveRoles(member)[0].id).toBe('local-admin-role')
@@ -65,9 +65,11 @@ describe('UserService.getActiveRoles', () => {
     const director = createRole(ServerRoles.DIRECTOR.id, ServerRoles.DIRECTOR.name)
     const member = createMember([admin, director], [admin, director])
 
-    expect(UserService.getActiveRoleKeys(member, catalog as unknown as typeof ServerRoles)).toEqual(
-      ['ADMIN'],
-    )
+    expect(
+      UserService.getActiveRoles(member, catalog as unknown as typeof ServerRoles).map(
+        (role) => role.key,
+      ),
+    ).toEqual(['ADMIN'])
   })
 })
 

@@ -57,14 +57,6 @@ export class UserService {
     )
   }
 
-  /** The config keys of the pre-defined roles `member` actively holds. */
-  public static getActiveRoleKeys(
-    member: GuildMember,
-    roles: Record<RoleKey, ServerRole> = ServerRoles,
-  ): RoleKey[] {
-    return UserService.getActiveRoles(member, roles).map((role) => role.key)
-  }
-
   /**
    * Link (or refresh) an external account for a Discord user. Ensures the
    * `user` row exists, then upserts the `linked_account` row keyed on

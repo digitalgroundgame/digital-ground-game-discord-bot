@@ -49,7 +49,7 @@ export class CustomClient extends Client {
       roles: UserService.getActiveRoles(member),
       access: linkedAccounts.map((account) => ({
         provider: account.provider,
-        username: account.externalId,
+        externalId: account.externalId,
         displayName: account.displayName,
         linkedAt: account.linkedAt.toISOString(),
         grants: (grantsByAccount.get(account.id) ?? []).map((grant) => ({

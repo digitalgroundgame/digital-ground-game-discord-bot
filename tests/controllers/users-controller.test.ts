@@ -26,7 +26,7 @@ const sampleUser = {
   access: [
     {
       provider: 'google',
-      username: 'test@example.com',
+      externalId: 'test@example.com',
       displayName: 'Test User',
       linkedAt: '2024-02-01T00:00:00.000Z',
       grants: [
