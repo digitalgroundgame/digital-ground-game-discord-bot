@@ -24,7 +24,7 @@
       "GuildInviteManager": 0,
       "GuildStickerManager": 0,
       "MessageManager": 0,
-      "PresenceManager": 0,
+      "// NOTE: PresenceManager cache is left at the discord.js default so /ping-skill-role can filter by online status": "",
       "StageInstanceManager": 0,
       "ThreadManager": 0,
       "ThreadMemberManager": 0
@@ -126,6 +126,10 @@
   "managedContent": {
     "// NOTE": "Role config keys (see roles below) allowed to run /content.",
     "allowedRoleKeys": ["ADMIN", "DIRECTOR", "WELCOME_SUPERVISOR"]
+  },
+  "pingSkillRole": {
+    "// NOTE": "Role config keys (see roles below) allowed to run /ping-skill-role.",
+    "allowedRoleKeys": ["ADMIN", "DIRECTOR", "COORDINATOR"]
   },
   "roles": {
     "COORDINATOR": {

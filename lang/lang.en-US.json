@@ -248,6 +248,14 @@
       "contentNotConfigured": {
         "description": "Content management isn't configured on this bot. The database connection must be set.",
         "color": "{{COM:colors.warning}}"
+      },
+      "pingSkillRoleEveryone": {
+        "description": "Pick a specific skill role — pinging @everyone isn't supported.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "pingSkillRoleNoneOnline": {
+        "description": "No members of **{{SKILL}}** are online right now, so nobody was pinged.",
+        "color": "{{COM:colors.warning}}"
       }
     },
     "validationEmbeds": {
@@ -339,7 +347,8 @@
       "attendanceTrack": "attendance-track",
       "stopAttendanceTrack": "stop-attendance-track",
       "grantAccess": "grant-access",
-      "linkAccount": "link-account"
+      "linkAccount": "link-account",
+      "pingSkillRole": "ping-skill-role"
     },
     "userCommands": {
       "sendDevOnboarding": "Send Dev Onboarding",
@@ -358,7 +367,9 @@
       "service": "service",
       "team": "team",
       "user": "user",
-      "identifier": "identifier"
+      "identifier": "identifier",
+      "skill": "skill",
+      "note": "note"
     },
     "commandDescs": {
       "content": "View or edit bot-managed content (welcome, onboarding, rules text).",
@@ -374,7 +385,8 @@
       "attendanceTrack": "Tracks voice-channel attendance until you leave or stop tracking.",
       "stopAttendanceTrack": "Stops your active attendance tracker and sends the results immediately.",
       "grantAccess": "Grant a member access to a team's service (e.g. a Google Group).",
-      "linkAccount": "Link an external account (e.g. your Google email) to a Discord profile."
+      "linkAccount": "Link an external account (e.g. your Google email) to a Discord profile.",
+      "pingSkillRole": "Ping the online members of a skill role (works in forum posts)."
     },
     "argDescs": {
       "contentKey": "The content entry to manage.",
@@ -388,7 +400,9 @@
       "grantAccessUser": "The member to grant access to.",
       "linkAccountService": "The service to link an account for.",
       "linkAccountIdentifier": "The account identifier (e.g. a Google email address).",
-      "linkAccountUser": "Coordinators only: the member to link an account for (defaults to you)."
+      "linkAccountUser": "Coordinators only: the member to link an account for (defaults to you).",
+      "pingSkillRoleSkill": "The skill role whose online members should be pinged.",
+      "pingSkillRoleNote": "An optional note to include with the ping."
     },
     "fields": {
       "commands": "Commands",
@@ -476,6 +490,10 @@
     },
     "other": {
       "na": "N/A"
+    },
+    "pingSkillRole": {
+      "header": "📣 Paging online **{{SKILL}}** members (requested by {{USER}})",
+      "headerWithNote": "📣 Paging online **{{SKILL}}** members (requested by {{USER}}): {{NOTE}}"
     },
     "links": {
       "authorEmbed": "[{{COM:bot.author}}]({{COM:links.author}})",
