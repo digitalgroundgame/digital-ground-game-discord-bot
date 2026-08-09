@@ -30,19 +30,21 @@ export class PingSkillRoleCommand implements Command {
   public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
     // requireRoles already guarantees a guild context, but narrow the type.
     if (!intr.inGuild() || !intr.guild) {
-      await InteractionUtils.send(intr, Lang.getEmbed('validationEmbeds.guildOnly', data.lang), true)
+      await InteractionUtils.editReply(intr, Lang.getEmbed('validationEmbeds.guildOnly', data.lang))
       return
     }
 
     const role = intr.options.getRole(Lang.getRef('arguments.skill', Language.Default), true)
-    const note = intr.options.getString(Lang.getRef('arguments.note', Language.Default))
+    // Treat a whitespace-only note as no note.
+    const note = intr.options.getString(Lang.getRef('arguments.note', Language.Default))?.trim()
 
     // The role picker includes @everyone; pinging the whole server is never intended.
+    // Error paths use editReply: the command handler has already deferred publicly,
+    // and an ephemeral follow-up would leave the public placeholder unresolved.
     if (role.id === intr.guild.id) {
-      await InteractionUtils.send(
+      await InteractionUtils.editReply(
         intr,
         Lang.getEmbed('displayEmbeds.pingSkillRoleEveryone', data.lang),
-        true,
       )
       return
     }
@@ -59,10 +61,9 @@ export class PingSkillRoleCommand implements Command {
     )
 
     if (onlineMembers.size === 0) {
-      await InteractionUtils.send(
+      await InteractionUtils.editReply(
         intr,
         Lang.getEmbed('displayEmbeds.pingSkillRoleNoneOnline', data.lang, { SKILL: role.name }),
-        true,
       )
       return
     }

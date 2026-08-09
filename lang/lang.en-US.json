@@ -254,7 +254,7 @@
         "color": "{{COM:colors.warning}}"
       },
       "pingSkillRoleNoneOnline": {
-        "description": "No members of **{{SKILL}}** are online right now, so nobody was pinged.",
+        "description": "No other members of **{{SKILL}}** are online right now, so nobody was pinged.",
         "color": "{{COM:colors.warning}}"
       }
     },
