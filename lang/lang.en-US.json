@@ -253,6 +253,10 @@
         "description": "Pick a specific skill role — pinging @everyone isn't supported.",
         "color": "{{COM:colors.warning}}"
       },
+      "pingSkillRoleRateLimited": {
+        "description": "Discord is rate limiting member lookups right now. Try again in about {{SECONDS}} seconds.",
+        "color": "{{COM:colors.warning}}"
+      },
       "pingSkillRoleNoneOnline": {
         "description": "No other members of **{{SKILL}}** are online right now, so nobody was pinged.",
         "color": "{{COM:colors.warning}}"

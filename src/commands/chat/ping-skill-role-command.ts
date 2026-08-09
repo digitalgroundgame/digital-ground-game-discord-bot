@@ -1,4 +1,10 @@
-import { type ChatInputCommandInteraction, type PermissionsString } from 'discord.js'
+import {
+  type ChatInputCommandInteraction,
+  type Collection,
+  type GuildMember,
+  type PermissionsString,
+  type Snowflake,
+} from 'discord.js'
 import { RateLimiter } from 'discord.js-rate-limiter'
 
 import {
@@ -49,8 +55,31 @@ export class PingSkillRoleCommand implements Command {
       return
     }
 
-    // Fetch the full member list with presences so online status is current.
-    const members = await intr.guild.members.fetch({ withPresences: true })
+    // A full gateway member fetch (opcode 8) is aggressively rate limited, so
+    // reuse the cache when it already holds every member; presences stay
+    // current via presence-update events. Otherwise fetch, and turn a gateway
+    // rate limit into a "try again shortly" reply instead of a generic error.
+    let members: Collection<Snowflake, GuildMember>
+    if (intr.guild.members.cache.size >= intr.guild.memberCount) {
+      members = intr.guild.members.cache
+    } else {
+      try {
+        members = await intr.guild.members.fetch({ withPresences: true })
+      } catch (error) {
+        if (error instanceof Error && error.name === 'GatewayRateLimitError') {
+          const retryAfter = (error as { data?: { retry_after?: number } }).data?.retry_after
+          const seconds = Math.ceil(retryAfter ?? 30)
+          await InteractionUtils.editReply(
+            intr,
+            Lang.getEmbed('displayEmbeds.pingSkillRoleRateLimited', data.lang, {
+              SECONDS: seconds.toString(),
+            }),
+          )
+          return
+        }
+        throw error
+      }
+    }
     const onlineMembers = members.filter(
       (member) =>
         !member.user.bot &&
