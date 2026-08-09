@@ -136,9 +136,13 @@ export class UserService {
 
   /**
    * Copy every pending grant recorded for `email` into `access_grant` for the
-   * freshly linked account. Upserts with the same semantics as
-   * {@link recordAccessGrant} — both timestamps move to now — so a materialized
-   * grant is indistinguishable from one `/grant-access` recorded.
+   * freshly linked account, so a materialized grant is indistinguishable from
+   * one `/grant-access` recorded.
+   *
+   * `grantedAt` means "the earliest evidence this account had access", so it is
+   * seeded from the backfill's `discoveredAt` rather than link time and never
+   * moves forward: pending rows are kept after materialization, so a stale one
+   * sits beside the real grant and is re-applied on every subsequent link.
    *
    * @returns how many pending grants were found for the email.
    */
@@ -166,12 +170,18 @@ export class UserService {
           linkedAccountId,
           team: grant.team,
           groupAddress: grant.groupAddress,
-          grantedAt: now,
+          grantedAt: grant.discoveredAt,
           updatedAt: now,
         })
         .onConflictDoUpdate({
           target: [accessGrant.linkedAccountId, accessGrant.team],
-          set: { groupAddress: grant.groupAddress, grantedAt: now, updatedAt: now },
+          set: {
+            groupAddress: grant.groupAddress,
+            // Keep the earlier date: the row may already carry an older
+            // `/grant-access` date, and a backfill re-run bumps `discoveredAt`.
+            grantedAt: sql`min(${accessGrant.grantedAt}, excluded.${sql.raw(accessGrant.grantedAt.name)})`,
+            updatedAt: now,
+          },
         })
         .run()
     }

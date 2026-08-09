@@ -311,6 +311,10 @@ describe('UserService.linkAccount materialization', () => {
     service = new UserService(createTestDatabase())
   })
 
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('turns pending grants for the linked address into real grants', async () => {
     await service.recordPendingAccessGrant('google', 'a@example.com', 'welcome', 'welcome@x.org')
     await service.recordPendingAccessGrant('google', 'a@example.com', 'organizers', 'org@x.org')
@@ -368,6 +372,179 @@ describe('UserService.linkAccount materialization', () => {
 
     expect(grants).toHaveLength(1)
     expect(grants[0].groupAddress).toBe('welcome@x.org')
+  })
+
+  it('dates a materialized grant when the backfill discovered it, not when linked', async () => {
+    vi.useFakeTimers()
+    const discovered = new Date('2026-01-01T00:00:00.000Z')
+    vi.setSystemTime(discovered)
+    await service.recordPendingAccessGrant('google', 'a@example.com', 'welcome', 'welcome@x.org')
+
+    vi.setSystemTime(new Date('2026-07-01T00:00:00.000Z'))
+    await service.linkAccount('user-1', 'google', {
+      externalId: 'a@example.com',
+      email: 'a@example.com',
+    })
+    vi.useRealTimers()
+
+    const [grant] = await service.listAccessGrants('user-1')
+
+    expect(grant.grantedAt).toEqual(discovered)
+  })
+
+  it('keeps the earlier date when the recorded grant predates the discovery', async () => {
+    vi.useFakeTimers()
+    const granted = new Date('2026-01-01T00:00:00.000Z')
+    vi.setSystemTime(granted)
+    await service.linkAccount('user-1', 'google', {
+      externalId: 'a@example.com',
+      email: 'a@example.com',
+    })
+    const [account] = await service.listLinkedAccounts('user-1')
+    await service.recordAccessGrant(account.id, 'welcome', 'welcome@x.org')
+
+    // The backfill only saw the membership months after `/grant-access` recorded it.
+    vi.setSystemTime(new Date('2026-07-01T00:00:00.000Z'))
+    await service.recordPendingAccessGrant('google', 'a@example.com', 'welcome', 'welcome@x.org')
+    await service.linkAccount('user-1', 'google', {
+      externalId: 'a@example.com',
+      email: 'a@example.com',
+    })
+    vi.useRealTimers()
+
+    const [grant] = await service.listAccessGrants('user-1')
+
+    expect(grant.grantedAt).toEqual(granted)
+  })
+
+  it('does not push grantedAt forward when a backfill re-run bumps discoveredAt', async () => {
+    vi.useFakeTimers()
+    const discovered = new Date('2026-01-01T00:00:00.000Z')
+    vi.setSystemTime(discovered)
+    await service.recordPendingAccessGrant('google', 'a@example.com', 'welcome', 'welcome@x.org')
+    await service.linkAccount('user-1', 'google', {
+      externalId: 'a@example.com',
+      email: 'a@example.com',
+    })
+
+    // A later backfill sees the same membership again and restamps the pending row.
+    vi.setSystemTime(new Date('2026-07-01T00:00:00.000Z'))
+    await service.recordPendingAccessGrant('google', 'a@example.com', 'welcome', 'welcome@x.org')
+    await service.linkAccount('user-1', 'google', {
+      externalId: 'a@example.com',
+      email: 'a@example.com',
+    })
+    vi.useRealTimers()
+
+    const [grant] = await service.listAccessGrants('user-1')
+
+    expect(grant.grantedAt).toEqual(discovered)
+  })
+
+  it('does not move grantedAt on a grant the user already had', async () => {
+    await service.linkAccount('user-1', 'google', {
+      externalId: 'a@example.com',
+      email: 'a@example.com',
+    })
+    const [account] = await service.listLinkedAccounts('user-1')
+    await service.recordAccessGrant(account.id, 'welcome', 'welcome@x.org')
+    const [first] = await service.listAccessGrants('user-1')
+
+    // Pending rows are kept after materialization, so a stale one sits next to
+    // the real grant forever — re-linking must not restamp the original date.
+    await service.recordPendingAccessGrant('google', 'a@example.com', 'welcome', 'welcome@x.org')
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(Date.now() + 60_000))
+    await service.linkAccount('user-1', 'google', {
+      externalId: 'a@example.com',
+      email: 'a@example.com',
+    })
+    vi.useRealTimers()
+
+    const [second] = await service.listAccessGrants('user-1')
+
+    expect(second.grantedAt).toEqual(first.grantedAt)
+    expect(second.updatedAt.getTime()).toBeGreaterThan(first.updatedAt.getTime())
+  })
+
+  // `linkAccount` both drops the old address's grants and materializes the new
+  // address's pending rows in one transaction. The order matters and is not
+  // otherwise pinned: materializing before the delete would wipe what it just wrote.
+  describe('when the account is re-linked to a different address', () => {
+    async function linkOldWithGrant(): Promise<void> {
+      await service.linkAccount('user-1', 'google', {
+        externalId: 'old@example.com',
+        email: 'old@example.com',
+      })
+      const [account] = await service.listLinkedAccounts('user-1')
+      await service.recordAccessGrant(account.id, 'organizers', 'org@x.org')
+    }
+
+    it("drops the old address's grants and materializes the new address's", async () => {
+      await linkOldWithGrant()
+      await service.recordPendingAccessGrant(
+        'google',
+        'new@example.com',
+        'welcome',
+        'welcome@x.org',
+      )
+
+      await service.linkAccount('user-1', 'google', {
+        externalId: 'new@example.com',
+        email: 'new@example.com',
+      })
+
+      const grants = await service.listAccessGrants('user-1')
+
+      expect(grants.map((grant) => grant.team)).toEqual(['welcome'])
+      expect(grants[0].groupAddress).toBe('welcome@x.org')
+    })
+
+    it('leaves no grants when the new address has no pending rows', async () => {
+      await linkOldWithGrant()
+
+      await service.linkAccount('user-1', 'google', {
+        externalId: 'new@example.com',
+        email: 'new@example.com',
+      })
+
+      expect(await service.listAccessGrants('user-1')).toEqual([])
+    })
+
+    it("does not materialize the old address's pending rows", async () => {
+      await linkOldWithGrant()
+      await service.recordPendingAccessGrant(
+        'google',
+        'old@example.com',
+        'welcome',
+        'welcome@x.org',
+      )
+
+      await service.linkAccount('user-1', 'google', {
+        externalId: 'new@example.com',
+        email: 'new@example.com',
+      })
+
+      // The membership belongs to old@, which this account no longer holds.
+      expect(await service.listAccessGrants('user-1')).toEqual([])
+    })
+
+    it('drops the grants and materializes nothing when linked without an address', async () => {
+      await linkOldWithGrant()
+      await service.recordPendingAccessGrant(
+        'google',
+        'new@example.com',
+        'welcome',
+        'welcome@x.org',
+      )
+
+      // The delete keys on `externalId` but materialization keys on `email`, so
+      // a provider that supplies no address gets the drop and no pre-fill.
+      // Latent today: `linkable-accounts.ts` always supplies both for Google.
+      await service.linkAccount('user-1', 'google', { externalId: 'new@example.com' })
+
+      expect(await service.listAccessGrants('user-1')).toEqual([])
+    })
   })
 
   it('leaves the pending row in place so a later re-link still picks it up', async () => {
