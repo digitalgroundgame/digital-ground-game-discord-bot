@@ -257,6 +257,10 @@
         "description": "Discord is rate limiting member lookups right now. Try again in about {{SECONDS}} seconds.",
         "color": "{{COM:colors.warning}}"
       },
+      "pingSkillRoleFetchTimedOut": {
+        "description": "Fetching the member list timed out. Try again shortly.",
+        "color": "{{COM:colors.warning}}"
+      },
       "pingSkillRoleNoneOnline": {
         "description": "No other members of **{{SKILL}}** are online right now, so nobody was pinged.",
         "color": "{{COM:colors.warning}}"

@@ -13,4 +13,5 @@ export class DiscordLimits {
   public static readonly EMBED_FIELD_NAME_LENGTH = 256
   public static readonly EMBED_FOOTER_LENGTH = 2048
   public static readonly MESSAGE_CONTENT_LENGTH = 2000
+  public static readonly MENTIONS_PER_MESSAGE = 100
 }
