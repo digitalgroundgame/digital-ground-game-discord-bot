@@ -44,9 +44,7 @@ describe('chunkMentionIds', () => {
   })
 
   it('accepts any iterable, not just arrays', () => {
-    const ids = new Map(
-      Array.from({ length: 3 }, (_, index) => [snowflake(index), index]),
-    )
+    const ids = new Map(Array.from({ length: 3 }, (_, index) => [snowflake(index), index]))
     expect(chunkMentionIds(ids.keys())).toEqual([[...ids.keys()]])
   })
 })

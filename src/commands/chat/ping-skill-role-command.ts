@@ -9,11 +9,7 @@ import {
 } from 'discord.js'
 import { RateLimiter } from 'discord.js-rate-limiter'
 
-import {
-  DiscordLimits,
-  PingSkillRoleAllowedRoleKeys,
-  ServerRoles,
-} from '../../constants/index.js'
+import { DiscordLimits, PingSkillRoleAllowedRoleKeys, ServerRoles } from '../../constants/index.js'
 import { Language } from '../../models/enum-helpers/index.js'
 import { type EventData } from '../../models/internal-models.js'
 import { Lang, Logger } from '../../services/index.js'
