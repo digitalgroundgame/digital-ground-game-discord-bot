@@ -1,7 +1,15 @@
-import { Collection, type Guild, type GuildMember, RESTJSONErrorCodes } from 'discord.js'
+import {
+  Collection,
+  DiscordAPIError,
+  type Guild,
+  type GuildMember,
+  RateLimitError,
+  RESTJSONErrorCodes,
+} from 'discord.js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CustomClient } from '../../src/extensions/custom-client.js'
+import { Logger } from '../../src/services/logger.js'
 import { UserService } from '../../src/services/user-service.js'
 import { createTestDatabase } from '../helpers/test-database.js'
 
@@ -56,7 +64,8 @@ function createClient(options: {
   const guild = {
     members: {
       fetch: vi.fn().mockImplementation(() => {
-        if (options.fetchError) return Promise.reject(options.fetchError)
+        // `in`, not truthiness, so a test can reject with null/undefined.
+        if ('fetchError' in options) return Promise.reject(options.fetchError)
         return Promise.resolve(options.member)
       }),
     },
@@ -71,8 +80,35 @@ function createClient(options: {
   return client
 }
 
-function discordError(code: number): Error & { code: number } {
-  return Object.assign(new Error(`Discord error ${code}`), { code })
+/**
+ * A real `DiscordAPIError`, not a hand-rolled `{ code }` stub: the whole fix
+ * rests on discord.js putting Discord's numeric body code on `.code`, so the
+ * tests must break if that shape ever changes.
+ */
+function discordError(code: number, message = `Discord error ${code}`): DiscordAPIError {
+  return new DiscordAPIError(
+    { code, message },
+    code,
+    code === RESTJSONErrorCodes.UnknownMember ? 404 : 400,
+    'GET',
+    'https://discord.com/api/v10/guilds/1/members/2',
+    {},
+  )
+}
+
+/** A real rate-limit rejection, which carries no `.code` at all. */
+function rateLimitError(): RateLimitError {
+  return new RateLimitError({
+    timeToReset: 1000,
+    limit: 5,
+    method: 'GET',
+    url: 'https://discord.com/api/v10/guilds/1/members/2',
+    route: '/guilds/:id/members/:id',
+    majorParameter: '1',
+    global: false,
+    retryAfter: 1000,
+    sublimit: undefined,
+  })
 }
 
 describe('CustomClient.getUserInfo', () => {
@@ -107,20 +143,38 @@ describe('CustomClient.getUserInfo', () => {
   })
 
   it.each([
-    ['a rate limit', 429],
-    ['missing access', RESTJSONErrorCodes.MissingAccess],
-  ])('propagates %s rather than reporting the member as absent', async (_label, code) => {
-    const client = createClient({ fetchError: discordError(code), userService })
+    ['missing access', () => discordError(RESTJSONErrorCodes.MissingAccess, 'Missing Access')],
+    ['a rate limit (no `code`)', rateLimitError],
+    [
+      'a socket failure (string `code`)',
+      () =>
+        Object.assign(new Error('read ECONNRESET'), {
+          code: 'ECONNRESET',
+        }),
+    ],
+    ['a non-Error rejection', () => 'something threw a string'],
+  ])('propagates %s rather than reporting the member as absent', async (_label, makeError) => {
+    const error = makeError()
+    const client = createClient({ fetchError: error, userService })
 
     // The controller turns this into a 503; a null would become a 404 and tell
-    // the caller this member definitively has no roles or access.
-    await expect(client.getUserInfo(GUILD_ID, USER_ID)).rejects.toThrow()
+    // the caller this member definitively has no roles or access. Asserting on
+    // the identical value, so a catch that rethrows something else still fails.
+    await expect(client.getUserInfo(GUILD_ID, USER_ID)).rejects.toBe(error)
   })
 
-  it('propagates a non-Discord failure (no `code`) rather than reporting absent', async () => {
-    const client = createClient({ fetchError: new Error('socket hang up'), userService })
+  it('propagates an empty rejection without the code check throwing first', async () => {
+    const client = createClient({ fetchError: undefined, userService })
 
-    await expect(client.getUserInfo(GUILD_ID, USER_ID)).rejects.toThrow('socket hang up')
+    // Reading `.code` off undefined would replace the real failure with a
+    // confusing TypeError in the logs.
+    await expect(client.getUserInfo(GUILD_ID, USER_ID)).rejects.toBeUndefined()
+  })
+
+  it('returns null when the fetch resolves without a member', async () => {
+    const client = createClient({ member: null, userService })
+
+    expect(await client.getUserInfo(GUILD_ID, USER_ID)).toBeNull()
   })
 
   it('groups access grants under the linked account they belong to', async () => {
@@ -164,6 +218,20 @@ describe('CustomClient.getUserInfo', () => {
     expect(info).not.toBeNull()
     expect(info?.access).toBeUndefined()
     expect(Object.hasOwn(info!, 'access')).toBe(false)
+    // Still a complete answer for everything that doesn't need the DB.
+    expect(info?.userId).toBe(USER_ID)
+  })
+
+  it('warns once about the missing userService, not on every request', async () => {
+    const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => undefined)
+    const client = createClient({ member: createMember(), userService: undefined })
+
+    await client.getUserInfo(GUILD_ID, USER_ID)
+    await client.getUserInfo(GUILD_ID, USER_ID)
+    await client.getUserInfo(GUILD_ID, USER_ID)
+
+    expect(warn).toHaveBeenCalledTimes(1)
+    warn.mockRestore()
   })
 
   it('prefers the guild avatar, then the global avatar, then null', async () => {
@@ -189,9 +257,7 @@ describe('CustomClient.getUserInfo', () => {
 
   it('serializes joinedAt as ISO-8601, and null when the member has none', async () => {
     const joined = createClient({ member: createMember(), userService })
-    expect((await joined.getUserInfo(GUILD_ID, USER_ID))?.joinedAt).toBe(
-      '2024-01-02T03:04:05.000Z',
-    )
+    expect((await joined.getUserInfo(GUILD_ID, USER_ID))?.joinedAt).toBe('2024-01-02T03:04:05.000Z')
 
     // Real for uncached/partial members.
     const unknown = createClient({ member: createMember({ joinedAt: null }), userService })

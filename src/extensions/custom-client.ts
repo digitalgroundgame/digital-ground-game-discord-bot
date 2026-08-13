@@ -13,6 +13,8 @@ export class CustomClient extends Client {
   /** Set by the bot process (see `start-bot.ts`) to enable DB-backed lookups. */
   public userService?: UserService
 
+  private warnedAboutMissingUserService = false
+
   constructor(clientOptions: ClientOptions) {
     super(clientOptions)
   }
@@ -37,7 +39,11 @@ export class CustomClient extends Client {
     // hiccup, missing access) propagates so the controller answers 503 rather
     // than telling the caller this member has no roles or access.
     const member = await guild.members.fetch(userId).catch((err: unknown) => {
-      const code = (err as { code?: unknown }).code
+      // `DiscordAPIError.code` is the numeric code from Discord's body. Anything
+      // else — `HTTPError` and `RateLimitError` (no `code`), undici's string
+      // codes like `ECONNRESET` — falls through to the rethrow.
+      const code =
+        typeof err === 'object' && err !== null ? (err as { code?: unknown }).code : undefined
       if (code === RESTJSONErrorCodes.UnknownMember || code === RESTJSONErrorCodes.UnknownUser) {
         return null
       }
@@ -61,9 +67,13 @@ export class CustomClient extends Client {
     // — indistinguishable from "this member has linked nothing". Omit the field
     // instead, so a consumer using it for authorization can tell the difference.
     if (!this.userService) {
-      Logger.warn(
-        `getUserInfo: no userService (SQLITE_PATH unset?); omitting access for ${member.id}`,
-      )
+      // Process-level condition, so warn once rather than on every request.
+      if (!this.warnedAboutMissingUserService) {
+        this.warnedAboutMissingUserService = true
+        Logger.warn(
+          'getUserInfo: no userService (SQLITE_PATH unset?); omitting `access` from /users responses',
+        )
+      }
       return base
     }
 
