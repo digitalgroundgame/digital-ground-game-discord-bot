@@ -3,7 +3,11 @@ import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
 const Config = require('../../config/config.json')
 
-/** Service account scope for managing Google Group membership (requires domain-wide delegation). */
+/**
+ * Service account scope for reading and managing Google Group membership
+ * (requires domain-wide delegation). Covers both `members.insert`, used by
+ * `/grant-access`, and `members.list`, used by `/backfill-grants`.
+ */
 export const GOOGLE_DIRECTORY_SCOPES = [
   'https://www.googleapis.com/auth/admin.directory.group.member',
 ] as const

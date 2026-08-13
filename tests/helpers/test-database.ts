@@ -46,6 +46,18 @@ export function createTestDatabase(): TestDatabase {
     CREATE UNIQUE INDEX "access_grant_account_team_uq"
       ON "access_grant" ("linked_account_id", "team");
 
+    CREATE TABLE "pending_access_grant" (
+      "id" integer PRIMARY KEY AUTOINCREMENT,
+      "provider" text NOT NULL,
+      "email" text NOT NULL,
+      "team" text NOT NULL,
+      "group_address" text NOT NULL,
+      "discovered_at" integer NOT NULL DEFAULT (unixepoch()),
+      "updated_at" integer NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE UNIQUE INDEX "pending_access_grant_provider_email_team_uq"
+      ON "pending_access_grant" ("provider", "email", "team");
+
     CREATE TABLE "content_override" (
       "id" integer PRIMARY KEY AUTOINCREMENT,
       "key" text NOT NULL,

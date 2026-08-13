@@ -38,6 +38,11 @@ function statusCodeOf(err: unknown): number | undefined {
   return undefined
 }
 
+export type ListMembersResult =
+  | { status: 'ok'; emails: string[] }
+  | { status: 'not-configured' }
+  | { status: 'error'; message: string }
+
 export type AddMemberResult =
   | { status: 'added' }
   | { status: 'already-member' }
@@ -144,6 +149,50 @@ export class GoogleGroupsService {
         `Google Groups: members.insert failed for ${memberEmail} -> ${groupEmail}: ${message}`,
         err,
       )
+      return { status: 'error', message }
+    }
+  }
+
+  /**
+   * Every user member of `groupEmail`, as lowercased email addresses.
+   *
+   * Follows pagination to the end of the list. `includeDerivedMembership` flattens
+   * nested groups, so the people inside a sub-group are returned rather than lost;
+   * the `GROUP` rows themselves are then skipped, as only accounts a person can
+   * link are useful here. Anything else without an address (notably `CUSTOMER`
+   * rows, i.e. membership granted to the whole domain) is skipped with a warning —
+   * silently returning an empty list would look like an empty group.
+   */
+  public async listMemberEmails(groupEmail: string): Promise<ListMembersResult> {
+    await this.ensureClient()
+    if (!this.admin) return { status: 'not-configured' }
+    const emails: string[] = []
+    let pageToken: string | undefined
+    try {
+      do {
+        const response = await this.admin.members.list({
+          groupKey: groupEmail,
+          maxResults: 200,
+          includeDerivedMembership: true,
+          pageToken,
+        })
+        for (const member of response.data.members ?? []) {
+          if (member.type === 'GROUP') continue
+          const email = member.email?.trim().toLowerCase()
+          if (email) {
+            emails.push(email)
+          } else {
+            Logger.warn(
+              `Google Groups: skipping ${member.type ?? 'unknown'} member of ${groupEmail} — no email address`,
+            )
+          }
+        }
+        pageToken = response.data.nextPageToken ?? undefined
+      } while (pageToken)
+      return { status: 'ok', emails }
+    } catch (err: unknown) {
+      const message = formatGoogleApiError(err)
+      Logger.error(`Google Groups: members.list failed for ${groupEmail}: ${message}`, err)
       return { status: 'error', message }
     }
   }

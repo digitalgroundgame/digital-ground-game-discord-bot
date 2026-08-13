@@ -184,6 +184,28 @@
         "description": "Google group management isn't configured on this bot. The service account credentials and database connection must be set.",
         "color": "{{COM:colors.warning}}"
       },
+      "backfillGrantsProgress": {
+        "description": "⏳ Reading team groups — **{{DONE}}/{{TOTAL}}** done{{DRY_RUN}}.\n\n{{DETAILS}}"
+      },
+      "backfillGrantsComplete": {
+        "description": "✅ Backfilled **{{TEAM_COUNT}}** team group(s){{DRY_RUN}}.\n\n**{{MEMBERS}}** member(s) · **{{RECORDED}}** grant(s) recorded\n\n{{DETAILS}}"
+      },
+      "backfillGrantsPartial": {
+        "description": "⚠️ Backfilled **{{TEAM_COUNT}}** team group(s){{DRY_RUN}}, but **{{FAILED}}** couldn't be read or recorded — check the logs.\n\n**{{MEMBERS}}** member(s) · **{{RECORDED}}** grant(s) recorded\n\n{{DETAILS}}",
+        "color": "{{COM:colors.warning}}"
+      },
+      "backfillGrantsFailed": {
+        "description": "Couldn't back fill access grants. Please try again or check the logs.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "backfillGrantsUnknownService": {
+        "description": "Unsupported service `{{SERVICE}}`.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "backfillGrantsNotConfigured": {
+        "description": "Google group management isn't configured on this bot. The service account credentials and database connection must be set.",
+        "color": "{{COM:colors.warning}}"
+      },
       "linkAccountSuccess": {
         "description": "Linked **{{IDENTIFIER}}** as {{SUBJECT}} {{SERVICE}} account."
       },
@@ -339,6 +361,7 @@
       "attendanceTrack": "attendance-track",
       "stopAttendanceTrack": "stop-attendance-track",
       "grantAccess": "grant-access",
+      "backfillGrants": "backfill-grants",
       "linkAccount": "link-account"
     },
     "userCommands": {
@@ -358,7 +381,8 @@
       "service": "service",
       "team": "team",
       "user": "user",
-      "identifier": "identifier"
+      "identifier": "identifier",
+      "dryRun": "dry-run"
     },
     "commandDescs": {
       "content": "View or edit bot-managed content (welcome, onboarding, rules text).",
@@ -374,6 +398,7 @@
       "attendanceTrack": "Tracks voice-channel attendance until you leave or stop tracking.",
       "stopAttendanceTrack": "Stops your active attendance tracker and sends the results immediately.",
       "grantAccess": "Grant a member access to a team's service (e.g. a Google Group).",
+      "backfillGrants": "Record existing team Google Group membership as access grants.",
       "linkAccount": "Link an external account (e.g. your Google email) to a Discord profile."
     },
     "argDescs": {
@@ -386,6 +411,9 @@
       "grantAccessService": "The service to grant access to.",
       "grantAccessTeam": "The team whose service the member should be added to.",
       "grantAccessUser": "The member to grant access to.",
+      "backfillGrantsService": "The service to read existing membership from.",
+      "backfillGrantsTeam": "Only back fill this team (defaults to every configured team).",
+      "backfillGrantsDryRun": "Read the groups and report what would change, without writing.",
       "linkAccountService": "The service to link an account for.",
       "linkAccountIdentifier": "The account identifier (e.g. a Google email address).",
       "linkAccountUser": "Coordinators only: the member to link an account for (defaults to you)."

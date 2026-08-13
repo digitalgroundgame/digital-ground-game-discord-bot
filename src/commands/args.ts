@@ -88,6 +88,35 @@ export class Args {
     description_localizations: Lang.getRefLocalizationMap('argDescs.grantAccessUser'),
     type: ApplicationCommandOptionType.User,
   }
+  public static readonly BACKFILL_GRANTS_SERVICE: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.service', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.service'),
+    description: Lang.getRef('argDescs.backfillGrantsService', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.backfillGrantsService'),
+    type: ApplicationCommandOptionType.String,
+    choices: LinkableAccounts.map((account) => ({
+      name: account.label,
+      value: account.provider,
+    })),
+  }
+  public static readonly BACKFILL_GRANTS_TEAM: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.team', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.team'),
+    description: Lang.getRef('argDescs.backfillGrantsTeam', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.backfillGrantsTeam'),
+    type: ApplicationCommandOptionType.String,
+    choices: Object.keys(GoogleGroups).map((shortname) => ({
+      name: shortname,
+      value: shortname,
+    })),
+  }
+  public static readonly BACKFILL_GRANTS_DRY_RUN: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.dryRun', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.dryRun'),
+    description: Lang.getRef('argDescs.backfillGrantsDryRun', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.backfillGrantsDryRun'),
+    type: ApplicationCommandOptionType.Boolean,
+  }
   public static readonly LINK_ACCOUNT_SERVICE: APIApplicationCommandBasicOption = {
     name: Lang.getRef('arguments.service', Language.Default),
     name_localizations: Lang.getRefLocalizationMap('arguments.service'),

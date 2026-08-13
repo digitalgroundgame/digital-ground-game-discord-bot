@@ -1,6 +1,7 @@
 import { type ActivityType, Client, type ClientOptions, type Presence } from 'discord.js'
 
-import { type GetUserResponse } from '../models/cluster-api/index.js'
+import { type AccessGrant, type LinkedAccount } from '../database/schema.js'
+import { type AccessGrantInfo, type GetUserResponse } from '../models/cluster-api/index.js'
 import { UserService } from '../services/index.js'
 
 export class CustomClient extends Client {
@@ -37,6 +38,16 @@ export class CustomClient extends Client {
       grantsByAccount.set(grant.linkedAccountId, forAccount)
     }
 
+    const access = await Promise.all(
+      linkedAccounts.map(async (account) => ({
+        provider: account.provider,
+        externalId: account.externalId,
+        displayName: account.displayName,
+        linkedAt: account.linkedAt.toISOString(),
+        grants: await this.resolveGrants(account, grantsByAccount.get(account.id) ?? []),
+      })),
+    )
+
     return {
       userId: member.id,
       username: member.user.username,
@@ -47,18 +58,44 @@ export class CustomClient extends Client {
       avatarUrl: member.avatarURL() ?? member.user.avatarURL() ?? null,
       joinedAt: member.joinedAt ? member.joinedAt.toISOString() : null,
       roles: UserService.getActiveRoles(member),
-      access: linkedAccounts.map((account) => ({
-        provider: account.provider,
-        externalId: account.externalId,
-        displayName: account.displayName,
-        linkedAt: account.linkedAt.toISOString(),
-        grants: (grantsByAccount.get(account.id) ?? []).map((grant) => ({
+      access,
+    }
+  }
+
+  /**
+   * One account's grants, as the API reports them: its recorded grants plus any
+   * grant the backfill discovered for its address but hasn't materialized yet
+   * (normally only possible if the backfill ran between the link and this read).
+   * Recorded grants win per team, and the two are reported identically —
+   * consumers can't tell a backfilled grant from one `/grant-access` made.
+   */
+  private async resolveGrants(
+    account: LinkedAccount,
+    recorded: AccessGrant[],
+  ): Promise<AccessGrantInfo[]> {
+    const byTeam = new Map<string, AccessGrantInfo>()
+    for (const grant of recorded) {
+      byTeam.set(grant.team, {
+        team: grant.team,
+        groupAddress: grant.groupAddress,
+        grantedAt: grant.grantedAt.toISOString(),
+      })
+    }
+
+    if (account.email) {
+      const pending =
+        (await this.userService?.listPendingAccessGrants(account.provider, account.email)) ?? []
+      for (const grant of pending) {
+        if (byTeam.has(grant.team)) continue
+        byTeam.set(grant.team, {
           team: grant.team,
           groupAddress: grant.groupAddress,
-          grantedAt: grant.grantedAt.toISOString(),
-        })),
-      })),
+          grantedAt: grant.discoveredAt.toISOString(),
+        })
+      }
     }
+
+    return [...byTeam.values()]
   }
 
   public setPresence(
