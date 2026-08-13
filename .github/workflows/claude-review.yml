@@ -1,23 +1,25 @@
 name: Claude Code Review
 
+# Deliberately not subscribed to pull_request_review or
+# pull_request_review_comment: the review posts each inline comment as its own
+# single-comment review, so both events fire per comment and re-trigger this
+# workflow. GitHub creates a run for every event matching `on:` and only then
+# evaluates `if`, and actors can't be filtered in `on:` — so those triggers
+# produced ~16 skipped runs per review that no guard here could suppress.
+# Summoning @claude therefore works in top-level PR comments, not inline ones.
 on:
   pull_request:
     types: [opened]
     branches: [dev]
   issue_comment:
     types: [created]
-  pull_request_review_comment:
-    types: [created]
-  pull_request_review:
-    types: [submitted]
 
 jobs:
   claude-review:
+    # Keep this guard: without it a review's own comments trigger another review.
     if: |
       github.event_name == 'pull_request' ||
-      (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@claude'))
     concurrency:
       group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.ref }}
       cancel-in-progress: true
@@ -31,7 +33,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
@@ -54,7 +56,6 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY_CODE_REVIEW }}
-          allowed_bots: 'autofix-ci[bot]'
           trigger_phrase: '@claude'
           track_progress: true
           show_full_output: true

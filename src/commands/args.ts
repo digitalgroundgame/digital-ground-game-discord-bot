@@ -131,6 +131,21 @@ export class Args {
     min_value: 1,
     max_value: Rules.ServerRules.length,
   }
+  public static readonly PING_SKILL_ROLE_SKILL: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.skill', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.skill'),
+    description: Lang.getRef('argDescs.pingSkillRoleSkill', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.pingSkillRoleSkill'),
+    type: ApplicationCommandOptionType.Role,
+  }
+  public static readonly PING_SKILL_ROLE_NOTE: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.note', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.note'),
+    description: Lang.getRef('argDescs.pingSkillRoleNote', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.pingSkillRoleNote'),
+    type: ApplicationCommandOptionType.String,
+    max_length: 500,
+  }
   public static readonly ATTENDANCE_TRACK_NAME: APIApplicationCommandBasicOption = {
     name: Lang.getRef('arguments.attendanceEventName', Language.Default),
     name_localizations: Lang.getRefLocalizationMap('arguments.attendanceEventName'),
