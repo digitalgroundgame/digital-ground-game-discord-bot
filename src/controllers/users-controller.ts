@@ -11,8 +11,7 @@ const SNOWFLAKE_PATTERN = /^\d{17,20}$/
 export class UsersController implements Controller {
   public path = '/users'
   public router: Router = Router()
-  // Sibling controllers read `Config.api.secret`, which config.json no longer
-  // defines; this endpoint serves member PII, so it takes the env var directly.
+  public requiresAuth = true
   public authToken: string = process.env.DISCORD_BOT_API_SECRET
 
   constructor(private shardManager: ShardingManager) {}

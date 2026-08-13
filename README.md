@@ -118,11 +118,12 @@ that must live on persistent storage with the main database file. The Docker
 startup command runs `npm run db:push` when `SQLITE_PATH` is set, so schema
 changes are applied to the mounted runtime database before the bot starts.
 
-### Required: users API secret
+### Required: internal API secret
 
 `GET /users/:userId` lets other internal services look up a member's roles,
-linked Google account and recorded access grants. It is guarded solely by this
-shared secret, checked against the request's `Authorization` header:
+linked Google account and recorded access grants. It — along with `GET /guilds`,
+`GET /shards` and `PUT /shards/presence` — is guarded solely by this shared
+secret, checked against the request's `Authorization` header:
 
 ```
 DISCORD_BOT_API_SECRET="generate-a-long-random-string"
