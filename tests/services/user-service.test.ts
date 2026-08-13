@@ -49,7 +49,7 @@ describe('UserService.getActiveRoles', () => {
     expect(UserService.getActiveRoles(member).map((role) => role.key)).toEqual(['ADMIN'])
     // The reported id must be the guild role the match was made on, not the
     // configured id — that id does not exist in this guild.
-    expect(UserService.getActiveRoles(member)[0].id).toBe('local-admin-role')
+    expect(UserService.getActiveRoles(member)[0]!.id).toBe('local-admin-role')
   })
 
   it('returns an empty list when the member holds no configured roles', () => {
@@ -99,10 +99,10 @@ describe('UserService.listLinkedAccounts', () => {
     const accounts = await service.listLinkedAccounts('user-1')
 
     expect(accounts).toHaveLength(1)
-    expect(accounts[0].provider).toBe('google')
-    expect(accounts[0].email).toBe('a@example.com')
-    expect(accounts[0].displayName).toBe('User One')
-    expect(accounts[0].linkedAt).toBeInstanceOf(Date)
+    expect(accounts[0]!.provider).toBe('google')
+    expect(accounts[0]!.email).toBe('a@example.com')
+    expect(accounts[0]!.displayName).toBe('User One')
+    expect(accounts[0]!.linkedAt).toBeInstanceOf(Date)
   })
 
   it('reflects the upserted row after re-linking the same provider', async () => {
@@ -115,7 +115,7 @@ describe('UserService.listLinkedAccounts', () => {
     const accounts = await service.listLinkedAccounts('user-1')
 
     expect(accounts).toHaveLength(1)
-    expect(accounts[0].externalId).toBe('new@example.com')
+    expect(accounts[0]!.externalId).toBe('new@example.com')
   })
 })
 
@@ -135,7 +135,7 @@ describe('UserService access grants', () => {
       externalId: `${discordUserId}@example.com`,
     })
     const [account] = await service.listLinkedAccounts(discordUserId)
-    return account.id
+    return account!.id
   }
 
   it('returns an empty array for a user with no grants', async () => {
@@ -153,7 +153,7 @@ describe('UserService access grants', () => {
     expect(grants.map((g) => g.team).sort()).toEqual(['organizers', 'welcome'])
     expect(grants.every((g) => g.linkedAccountId === accountId)).toBe(true)
     expect(grants.find((g) => g.team === 'welcome')?.groupAddress).toBe('welcome@example.com')
-    expect(grants[0].grantedAt).toBeInstanceOf(Date)
+    expect(grants[0]!.grantedAt).toBeInstanceOf(Date)
   })
 
   it('upserts on re-granting the same team rather than duplicating', async () => {
@@ -164,7 +164,7 @@ describe('UserService access grants', () => {
     const grants = await service.listAccessGrants('user-1')
 
     expect(grants).toHaveLength(1)
-    expect(grants[0].groupAddress).toBe('welcome-renamed@example.com')
+    expect(grants[0]!.groupAddress).toBe('welcome-renamed@example.com')
   })
 
   it('preserves grantedAt when the same team is re-granted', async () => {
@@ -181,8 +181,8 @@ describe('UserService access grants', () => {
     vi.useRealTimers()
     const [second] = await service.listAccessGrants('user-1')
 
-    expect(second.grantedAt).toEqual(first.grantedAt)
-    expect(second.updatedAt.getTime()).toBeGreaterThan(first.updatedAt.getTime())
+    expect(second!.grantedAt).toEqual(first!.grantedAt)
+    expect(second!.updatedAt.getTime()).toBeGreaterThan(first!.updatedAt.getTime())
   })
 
   it('drops grants when the account is re-linked to a different address', async () => {
@@ -217,6 +217,6 @@ describe('UserService access grants', () => {
     const grants = await service.listAccessGrants('user-1')
 
     expect(grants).toHaveLength(1)
-    expect(grants[0].team).toBe('welcome')
+    expect(grants[0]!.team).toBe('welcome')
   })
 })

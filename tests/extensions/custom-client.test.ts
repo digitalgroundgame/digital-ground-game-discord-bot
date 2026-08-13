@@ -80,13 +80,13 @@ function createClient(options: {
   return client
 }
 
+const MEMBER_ROUTE = 'https://discord.com/api/v10/guilds/1/members/2'
+
 /**
  * A real `DiscordAPIError`, not a hand-rolled `{ code }` stub: the whole fix
  * rests on discord.js putting Discord's numeric body code on `.code`, so the
  * tests must break if that shape ever changes.
  */
-const MEMBER_ROUTE = 'https://discord.com/api/v10/guilds/1/members/2'
-
 function discordError(code: number, message = `Discord error ${code}`): DiscordAPIError {
   // Both unknown-* codes come back as 404 from GET /guilds/:id/members/:id.
   const status =
@@ -111,8 +111,8 @@ function rateLimitError(): RateLimitError {
   })
 }
 
-/** The single linked account under test, asserted to exist so callers get a value. */
-async function onlyLinkedAccount(userService: UserService) {
+/** The member's first linked account, asserted to exist so callers get a value. */
+async function firstLinkedAccount(userService: UserService) {
   const [account] = await userService.listLinkedAccounts(USER_ID)
   if (!account) throw new Error('expected a linked account to have been created')
   return account
@@ -189,7 +189,7 @@ describe('CustomClient.getUserInfo', () => {
       externalId: 'member@example.org',
       displayName: 'Test Member',
     })
-    const account = await onlyLinkedAccount(userService)
+    const account = await firstLinkedAccount(userService)
     await userService.recordAccessGrant(account.id, 'field', 'field@example.org')
     await userService.recordAccessGrant(account.id, 'data', 'data@example.org')
 
@@ -278,7 +278,7 @@ describe('CustomClient.getUserInfo', () => {
       externalId: 'member@example.org',
       displayName: 'Test Member',
     })
-    const account = await onlyLinkedAccount(userService)
+    const account = await firstLinkedAccount(userService)
     await userService.recordAccessGrant(account.id, 'field', 'field@example.org')
 
     const client = createClient({ member: createMember(), userService })

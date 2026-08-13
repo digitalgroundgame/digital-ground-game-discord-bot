@@ -54,15 +54,16 @@ describe('UsersController', () => {
     vi.resetModules()
     loggerError.mockClear()
     loggerWarn.mockClear()
-    process.env.DISCORD_GUILD_ID = GUILD_ID
+    // `stubEnv`, not assignment + `delete`: these are declared non-optional in
+    // `environment.d.ts`, and it restores whatever the ambient env had.
+    vi.stubEnv('DISCORD_GUILD_ID', GUILD_ID)
     // Pinned so `Api.setupControllers` actually installs `checkAuth`; left
     // unset, the auth guard on this PII endpoint would go untested.
-    process.env.DISCORD_BOT_API_SECRET = API_SECRET
+    vi.stubEnv('DISCORD_BOT_API_SECRET', API_SECRET)
   })
 
   afterEach(() => {
-    delete process.env.DISCORD_GUILD_ID
-    delete process.env.DISCORD_BOT_API_SECRET
+    vi.unstubAllEnvs()
     vi.restoreAllMocks()
   })
 
@@ -83,7 +84,7 @@ describe('UsersController', () => {
     await request(app).get(`/users/${USER_ID}`).set('Authorization', API_SECRET)
 
     expect(broadcastEval).toHaveBeenCalledTimes(1)
-    expect(broadcastEval.mock.calls[0][1]).toEqual({
+    expect(broadcastEval.mock.calls[0]![1]).toEqual({
       context: { guildId: GUILD_ID, userId: USER_ID },
     })
   })
@@ -133,7 +134,7 @@ describe('UsersController', () => {
   })
 
   it('returns 500 and does not query shards when DISCORD_GUILD_ID is unset', async () => {
-    delete process.env.DISCORD_GUILD_ID
+    vi.stubEnv('DISCORD_GUILD_ID', '')
     const broadcastEval = vi.fn()
     const app = await buildApp(broadcastEval)
 
