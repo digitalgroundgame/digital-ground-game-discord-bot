@@ -28,9 +28,9 @@ export class UsersController implements Controller {
       return
     }
 
-    // Must be a snowflake: `getUserInfo` resolves the id through
-    // `ClientUtils.findMember`, which falls back to a display-name search for
-    // non-id input and would otherwise return an arbitrary member's data.
+    // Reject anything that isn't a snowflake up front: it can never resolve to
+    // a member, so answer without spending a Discord fetch, and keep the
+    // endpoint a lookup-by-id rather than anything search-shaped.
     const userId = req.params.userId
     if (typeof userId !== 'string' || !SNOWFLAKE_PATTERN.test(userId)) {
       res.sendStatus(400)

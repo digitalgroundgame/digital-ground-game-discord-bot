@@ -91,6 +91,15 @@ Get this from inside of the Discord app. Enable developer mode -> right click us
 DISCORD_BOT_DEVELOPER_IDS="123456789012345678,987654321098765432" # comma-separated list of Discord user IDs
 ```
 
+The primary guild the bot serves — used to resolve members for the `/users` API
+route. Get it the same way: enable developer mode -> right click the server ->
+Copy ID. The bot refuses to start without it, so set it in every environment
+before deploying.
+
+```
+DISCORD_GUILD_ID="123456789012345678"
+```
+
 ### Optional: Google Calendar sync
 
 To mirror Discord scheduled events from **DGG Political Action** into the DGG group calendar, the bot runs an **hourly** job that reconciles with Google Calendar.

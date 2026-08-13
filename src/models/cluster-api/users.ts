@@ -36,5 +36,10 @@ export interface GetUserResponse {
   avatarUrl: string | null
   joinedAt: string | null
   roles: DiscoveredRole[]
-  access: LinkedAccess[]
+  /**
+   * Linked accounts and their grants. Absent (not `[]`) when the bot runs
+   * without a database, since "we cannot know" must not read as "has nothing"
+   * to a consumer using this for authorization.
+   */
+  access?: LinkedAccess[]
 }
