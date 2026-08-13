@@ -136,6 +136,8 @@ async function start(): Promise<void> {
   // Stores the external accounts members link via /link-account, and is read
   // by /grant-access to resolve a member's Google email.
   const userService = database ? new UserService(database) : undefined
+  // Exposes DB-backed linked accounts to the manager's /users route via broadcastEval.
+  client.userService = userService
   // Resolves runtime-editable content. Always available — without a database
   // it serves the registry defaults and rejects edits.
   const contentService = new ContentService(database)
