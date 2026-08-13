@@ -165,6 +165,25 @@ export const ChatCommandMetadata: {
       },
     ],
   },
+  PING_SKILL_ROLE: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.pingSkillRole', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.pingSkillRole'),
+    description: Lang.getRef('commandDescs.pingSkillRole', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.pingSkillRole'),
+    dm_permission: false,
+    default_member_permissions: undefined,
+    options: [
+      {
+        ...Args.PING_SKILL_ROLE_SKILL,
+        required: true,
+      },
+      {
+        ...Args.PING_SKILL_ROLE_NOTE,
+        required: false,
+      },
+    ],
+  },
   LINK_ACCOUNT: {
     type: ApplicationCommandType.ChatInput,
     name: Lang.getRef('chatCommands.linkAccount', Language.Default),
