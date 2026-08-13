@@ -1,9 +1,21 @@
+import { parse } from 'dotenv'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-// Note: importing this module runs `validateEnv()` once at load against the real
-// environment (CI copies `.env.example`). These tests re-invoke the exported
-// function with stubbed values, which is why they can cover the failure paths.
+// Note: importing this module runs `validateEnv()` once at load against the
+// ambient environment. These tests re-invoke the exported function with stubbed
+// values, which is how they reach the failure paths.
 import { validateEnv } from '../../src/config/environment.js'
+
+const REQUIRED_ENV_VARS = [
+  'DISCORD_CLIENT_ID',
+  'DISCORD_BOT_TOKEN',
+  'DISCORD_GUILD_ID',
+  'DISCORD_BOT_API_SECRET',
+  'DISCORD_BOT_MASTER_API_TOKEN',
+  'DISCORD_BOT_DEVELOPER_IDS',
+]
 
 afterEach(() => {
   vi.unstubAllEnvs()
@@ -11,20 +23,26 @@ afterEach(() => {
 
 describe('validateEnv', () => {
   it('accepts the values shipped in .env.example', () => {
-    // Guards the `npm run copyconfig` path CI depends on: if a new required var
-    // or format check lands without updating .env.example, every job breaks at
-    // import time with a stack trace instead of failing here.
+    // Guards the `npm run copyconfig` path CI depends on (`cp .env.example .env`):
+    // a new required var or format check that lands without updating the example
+    // breaks every CI job at import time. Parsed from the file directly rather
+    // than read off `process.env`, which locally holds a developer's own `.env`.
+    const example = parse(
+      readFileSync(fileURLToPath(new URL('../../.env.example', import.meta.url))),
+    )
+
+    for (const envVar of REQUIRED_ENV_VARS) {
+      vi.stubEnv(envVar, example[envVar] ?? '')
+    }
+
     expect(() => validateEnv()).not.toThrow()
   })
 
-  it.each(['DISCORD_CLIENT_ID', 'DISCORD_BOT_TOKEN', 'DISCORD_GUILD_ID', 'DISCORD_BOT_API_SECRET'])(
-    'throws when %s is missing',
-    (envVar) => {
-      vi.stubEnv(envVar, '')
+  it.each(REQUIRED_ENV_VARS)('throws when %s is missing', (envVar) => {
+    vi.stubEnv(envVar, '')
 
-      expect(() => validateEnv()).toThrow(`Missing required environment variable: ${envVar}`)
-    },
-  )
+    expect(() => validateEnv()).toThrow(`Missing required environment variable: ${envVar}`)
+  })
 
   it.each([
     ['not a snowflake', 'my-guild'],

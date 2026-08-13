@@ -85,15 +85,13 @@ function createClient(options: {
  * rests on discord.js putting Discord's numeric body code on `.code`, so the
  * tests must break if that shape ever changes.
  */
+const MEMBER_ROUTE = 'https://discord.com/api/v10/guilds/1/members/2'
+
 function discordError(code: number, message = `Discord error ${code}`): DiscordAPIError {
-  return new DiscordAPIError(
-    { code, message },
-    code,
-    code === RESTJSONErrorCodes.UnknownMember ? 404 : 400,
-    'GET',
-    'https://discord.com/api/v10/guilds/1/members/2',
-    {},
-  )
+  // Both unknown-* codes come back as 404 from GET /guilds/:id/members/:id.
+  const status =
+    code === RESTJSONErrorCodes.UnknownMember || code === RESTJSONErrorCodes.UnknownUser ? 404 : 403
+  return new DiscordAPIError({ code, message }, code, status, 'GET', MEMBER_ROUTE, {})
 }
 
 /** A real rate-limit rejection, which carries no `.code` at all. */
@@ -102,13 +100,22 @@ function rateLimitError(): RateLimitError {
     timeToReset: 1000,
     limit: 5,
     method: 'GET',
-    url: 'https://discord.com/api/v10/guilds/1/members/2',
+    hash: 'abcd1234',
+    url: MEMBER_ROUTE,
     route: '/guilds/:id/members/:id',
     majorParameter: '1',
     global: false,
     retryAfter: 1000,
-    sublimit: undefined,
+    sublimitTimeout: 0,
+    scope: 'user',
   })
+}
+
+/** The single linked account under test, asserted to exist so callers get a value. */
+async function onlyLinkedAccount(userService: UserService) {
+  const [account] = await userService.listLinkedAccounts(USER_ID)
+  if (!account) throw new Error('expected a linked account to have been created')
+  return account
 }
 
 describe('CustomClient.getUserInfo', () => {
@@ -182,30 +189,32 @@ describe('CustomClient.getUserInfo', () => {
       externalId: 'member@example.org',
       displayName: 'Test Member',
     })
-    const [account] = await userService.listLinkedAccounts(USER_ID)
+    const account = await onlyLinkedAccount(userService)
     await userService.recordAccessGrant(account.id, 'field', 'field@example.org')
     await userService.recordAccessGrant(account.id, 'data', 'data@example.org')
 
     const client = createClient({ member: createMember(), userService })
     const info = await client.getUserInfo(GUILD_ID, USER_ID)
 
+    const [linked] = info?.access ?? []
     expect(info?.access).toHaveLength(1)
-    expect(info?.access?.[0].externalId).toBe('member@example.org')
-    expect(info?.access?.[0].grants.map((grant) => grant.team).sort()).toEqual(['data', 'field'])
-    expect(info?.access?.[0].grants[0].grantedAt).toEqual(expect.any(String))
+    expect(linked?.externalId).toBe('member@example.org')
+    expect(linked?.grants.map((grant) => grant.team).sort()).toEqual(['data', 'field'])
+    expect(linked?.grants[0]?.grantedAt).toEqual(expect.any(String))
   })
 
   it('reports a linked account with no grants as an empty grant list', async () => {
     await userService.linkAccount(USER_ID, 'google', {
       externalId: 'member@example.org',
-      displayName: null,
     })
 
     const client = createClient({ member: createMember(), userService })
     const info = await client.getUserInfo(GUILD_ID, USER_ID)
 
     expect(info?.access).toHaveLength(1)
-    expect(info?.access?.[0].grants).toEqual([])
+    expect(info?.access?.[0]?.grants).toEqual([])
+    // `displayName` was never supplied, so it must round-trip as null, not undefined.
+    expect(info?.access?.[0]?.displayName).toBeNull()
   })
 
   it('omits `access` entirely when there is no userService, rather than reporting none', async () => {
@@ -217,7 +226,7 @@ describe('CustomClient.getUserInfo', () => {
     // for authorization; absence is the honest answer for a DB-less deployment.
     expect(info).not.toBeNull()
     expect(info?.access).toBeUndefined()
-    expect(Object.hasOwn(info!, 'access')).toBe(false)
+    expect('access' in info!).toBe(false)
     // Still a complete answer for everything that doesn't need the DB.
     expect(info?.userId).toBe(USER_ID)
   })
@@ -269,7 +278,7 @@ describe('CustomClient.getUserInfo', () => {
       externalId: 'member@example.org',
       displayName: 'Test Member',
     })
-    const [account] = await userService.listLinkedAccounts(USER_ID)
+    const account = await onlyLinkedAccount(userService)
     await userService.recordAccessGrant(account.id, 'field', 'field@example.org')
 
     const client = createClient({ member: createMember(), userService })
