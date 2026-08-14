@@ -33,7 +33,12 @@ export class Manager {
       Logger.info(Logs.info.managerAllShardsSpawned)
     } catch (error) {
       Logger.error(Logs.error.managerSpawningShards, error)
-      return
+      // Kill any shards that did spawn so the process can exit instead of
+      // lingering with a partial fleet.
+      for (const shard of this.shardManager.shards.values()) {
+        shard.kill()
+      }
+      throw error
     }
 
     if (Debug.dummyMode.enabled) {

@@ -54,11 +54,18 @@ async function start(): Promise<void> {
     }
   } catch (error) {
     Logger.error(Logs.error.retrieveShards, error)
+    process.exitCode = 1
     return
   }
 
   if (shardList.length === 0) {
     Logger.warn(Logs.warn.managerNoShards)
+    if (!Config.clustering.enabled) {
+      // Without clustering the shard list comes from Discord's recommended
+      // count, so an empty list means something is broken. With clustering the
+      // master can legitimately assign zero shards during a rebalance.
+      process.exitCode = 1
+    }
     return
   }
 
@@ -108,4 +115,5 @@ process.on('unhandledRejection', (reason, _promise) => {
 
 start().catch((error) => {
   Logger.error(Logs.error.unspecified, error)
+  process.exitCode = 1
 })

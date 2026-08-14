@@ -70,10 +70,11 @@ async function start(): Promise<void> {
       await runCalendarSyncCli()
     } catch (error) {
       Logger.error(Logs.error.unspecified, error)
-      process.exit(1)
+      process.exitCode = 1
     }
+    // Wait for any final logs to be written.
     await new Promise((resolve) => setTimeout(resolve, 1000))
-    process.exit(0)
+    process.exit()
   }
 
   // Register
@@ -89,6 +90,7 @@ async function start(): Promise<void> {
       await commandRegistrationService.process(localCmds, process.argv)
     } catch (error) {
       Logger.error(Logs.error.commandAction, error)
+      process.exitCode = 1
     }
     // Wait for any final logs to be written.
     await new Promise((resolve) => setTimeout(resolve, 1000))
@@ -241,4 +243,5 @@ process.on('unhandledRejection', (reason, _promise) => {
 
 start().catch((error) => {
   Logger.error(Logs.error.unspecified, error)
+  process.exitCode = 1
 })

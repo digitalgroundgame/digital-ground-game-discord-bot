@@ -117,7 +117,9 @@ export class Bot {
       await this.client.login(token)
     } catch (error) {
       Logger.error(Logs.error.clientLogin, error)
-      return
+      // Tear down the client's sockets and timers so the process can exit.
+      await this.client.destroy()
+      throw error
     }
   }
 
