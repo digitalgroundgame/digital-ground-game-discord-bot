@@ -22,6 +22,7 @@ const REASON_TO_LANG_KEY: Record<CrmDisabledReason, string> = {
   not_authorized: 'displayEmbeds.attendanceNotAuthorized',
   unlinked_discord_id: 'displayEmbeds.attendanceUnlinkedDiscordId',
   check_failed: 'displayEmbeds.attendancePermissionCheckFailed',
+  crm_disabled: 'displayEmbeds.attendanceCrmDisabled',
 }
 
 export class AttendanceTrackCommand implements Command {
@@ -32,7 +33,7 @@ export class AttendanceTrackCommand implements Command {
 
   constructor(
     private readonly attendanceService: AttendanceService,
-    private readonly crmService: CrmService,
+    private readonly crmService?: CrmService,
   ) {}
 
   public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
@@ -68,17 +69,21 @@ export class AttendanceTrackCommand implements Command {
     }
 
     let crmDisabledReason: CrmDisabledReason | undefined
-    try {
-      const permission = await this.crmService.checkAttendancePermission(intr.user.id)
-      if (!permission.authorized) {
-        crmDisabledReason =
-          permission.reason === 'not_authorized' || permission.reason === 'unlinked_discord_id'
-            ? permission.reason
-            : 'check_failed'
+    if (!this.crmService) {
+      crmDisabledReason = 'crm_disabled'
+    } else {
+      try {
+        const permission = await this.crmService.checkAttendancePermission(intr.user.id)
+        if (!permission.authorized) {
+          crmDisabledReason =
+            permission.reason === 'not_authorized' || permission.reason === 'unlinked_discord_id'
+              ? permission.reason
+              : 'check_failed'
+        }
+      } catch (error) {
+        Logger.error('CRM can-record-attendance check failed', error)
+        crmDisabledReason = 'check_failed'
       }
-    } catch (error) {
-      Logger.error('CRM can-record-attendance check failed', error)
-      crmDisabledReason = 'check_failed'
     }
 
     const customName = intr.options.getString(

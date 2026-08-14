@@ -9,6 +9,7 @@ import {
   RootController,
   ShardsController,
 } from './controllers/index.js'
+import { validateEnv } from './config/environment.js'
 import {
   DmProxyIntegration,
   type Integration,
@@ -26,6 +27,8 @@ const Debug = require('../config/debug.json')
 const Logs = require('../lang/logs.json')
 
 async function start(): Promise<void> {
+  validateEnv('manager')
+
   Logger.info(Logs.info.appStarted)
 
   // Dependencies

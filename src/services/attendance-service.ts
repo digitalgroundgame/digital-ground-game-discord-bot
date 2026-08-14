@@ -139,7 +139,11 @@ export async function resolveVoiceChannelMeetingSubject(
  * permission check rejects or errors. Tracking still proceeds; the handler skips the CRM call
  * at session end and tells the user why.
  */
-export type CrmDisabledReason = 'not_authorized' | 'unlinked_discord_id' | 'check_failed'
+export type CrmDisabledReason =
+  | 'not_authorized'
+  | 'unlinked_discord_id'
+  | 'check_failed'
+  | 'crm_disabled'
 
 interface AttendanceSession {
   /** Synthetic identifier used as event_id when no Discord scheduled event is linked.
