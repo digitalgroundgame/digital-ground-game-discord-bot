@@ -34,9 +34,15 @@ export class Manager {
     } catch (error) {
       Logger.error(Logs.error.managerSpawningShards, error)
       // Kill any shards that did spawn so the process can exit instead of
-      // lingering with a partial fleet.
+      // lingering with a partial fleet. kill() can throw on a shard caught
+      // mid-respawn (no process or worker attached yet); keep going so one
+      // bad shard doesn't leave the rest alive or mask the spawn error.
       for (const shard of this.shardManager.shards.values()) {
-        shard.kill()
+        try {
+          shard.kill()
+        } catch (killError) {
+          Logger.error(Logs.error.managerSpawningShards, killError)
+        }
       }
       throw error
     }

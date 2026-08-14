@@ -65,4 +65,14 @@ describe('Bot', () => {
 
     expect(client.destroy).toHaveBeenCalledOnce()
   })
+
+  it('rethrows the login failure even when destroying the client fails', async () => {
+    const error = new Error('invalid token')
+    const login = vi.fn().mockRejectedValue(error)
+    const client = createMockClient(login)
+    vi.mocked(client.destroy).mockRejectedValue(new Error('destroy failed'))
+    const bot = createBot(client)
+
+    await expect(bot.start()).rejects.toBe(error)
+  })
 })

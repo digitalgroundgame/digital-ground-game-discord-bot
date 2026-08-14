@@ -59,13 +59,11 @@ async function start(): Promise<void> {
   }
 
   if (shardList.length === 0) {
+    // The process exits here without starting the API either way, so an
+    // empty shard list is fatal to the deployment regardless of clustering —
+    // report it as a failure instead of exiting 0.
     Logger.warn(Logs.warn.managerNoShards)
-    if (!Config.clustering.enabled) {
-      // Without clustering the shard list comes from Discord's recommended
-      // count, so an empty list means something is broken. With clustering the
-      // master can legitimately assign zero shards during a rebalance.
-      process.exitCode = 1
-    }
+    process.exitCode = 1
     return
   }
 

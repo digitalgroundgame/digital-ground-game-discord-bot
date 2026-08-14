@@ -241,7 +241,11 @@ process.on('unhandledRejection', (reason, _promise) => {
   Logger.error(Logs.error.unhandledRejection, reason)
 })
 
-start().catch((error) => {
+start().catch(async (error) => {
   Logger.error(Logs.error.unspecified, error)
-  process.exitCode = 1
+  // Wait for any final logs to be written, then exit hard: as a sharding
+  // child the open IPC channel to the manager would otherwise keep the
+  // event loop alive and the process would hang instead of exiting.
+  await new Promise((resolve) => setTimeout(resolve, 1000))
+  process.exit(1)
 })

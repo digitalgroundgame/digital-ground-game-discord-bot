@@ -70,4 +70,26 @@ describe('Manager', () => {
 
     expect(shard.kill).toHaveBeenCalledOnce()
   })
+
+  it('keeps killing shards and rethrows the spawn error when a kill throws', async () => {
+    const error = new Error('spawn timed out')
+    const spawn = vi.fn().mockRejectedValue(error)
+    const throwingShard = createMockShard()
+    throwingShard.kill.mockImplementation(() => {
+      throw new TypeError('no process or worker')
+    })
+    const shard = createMockShard()
+    const shardManager = createMockShardManager(
+      spawn,
+      new Map([
+        [0, throwingShard],
+        [1, shard],
+      ]),
+    )
+    const manager = new Manager(shardManager, createMockJobService())
+
+    await expect(manager.start()).rejects.toBe(error)
+
+    expect(shard.kill).toHaveBeenCalledOnce()
+  })
 })
