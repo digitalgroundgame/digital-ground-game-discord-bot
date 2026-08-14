@@ -7,20 +7,27 @@ import {
   Routes,
 } from 'discord.js'
 
-import '../config/environment.js'
 import { Logger } from './logger.js'
 
 import Logs from '../../lang/logs.json' with { type: 'json' }
 
 export class CommandRegistrationService {
-  constructor(private rest: REST) {}
+  private clientId: string
+
+  constructor(private rest: REST) {
+    const clientId = process.env.DISCORD_CLIENT_ID
+    if (!clientId) {
+      throw new Error('DISCORD_CLIENT_ID must be set to manage commands')
+    }
+    this.clientId = clientId
+  }
 
   public async process(
     localCmds: RESTPostAPIApplicationCommandsJSONBody[],
     args: string[],
   ): Promise<void> {
     const remoteCmds = (await this.rest.get(
-      Routes.applicationCommands(process.env.DISCORD_CLIENT_ID),
+      Routes.applicationCommands(this.clientId),
     )) as RESTGetAPIApplicationCommandsResult
 
     const localCmdsOnRemote = localCmds.filter((localCmd) =>
@@ -52,7 +59,7 @@ export class CommandRegistrationService {
             ),
           )
           for (const localCmd of localCmdsOnly) {
-            await this.rest.post(Routes.applicationCommands(process.env.DISCORD_CLIENT_ID), {
+            await this.rest.post(Routes.applicationCommands(this.clientId), {
               body: localCmd,
             })
           }
@@ -67,7 +74,7 @@ export class CommandRegistrationService {
             ),
           )
           for (const localCmd of localCmdsOnRemote) {
-            await this.rest.post(Routes.applicationCommands(process.env.DISCORD_CLIENT_ID), {
+            await this.rest.post(Routes.applicationCommands(this.clientId), {
               body: localCmd,
             })
           }
@@ -98,12 +105,9 @@ export class CommandRegistrationService {
         const body: RESTPatchAPIApplicationCommandJSONBody = {
           name: newName,
         }
-        await this.rest.patch(
-          Routes.applicationCommand(process.env.DISCORD_CLIENT_ID, remoteCmd.id),
-          {
-            body,
-          },
-        )
+        await this.rest.patch(Routes.applicationCommand(this.clientId, remoteCmd.id), {
+          body,
+        })
         Logger.info(Logs.info.commandActionRenamed)
         return
       }
@@ -121,9 +125,7 @@ export class CommandRegistrationService {
         }
 
         Logger.info(Logs.info.commandActionDeleting.replaceAll('{COMMAND_NAME}', remoteCmd.name))
-        await this.rest.delete(
-          Routes.applicationCommand(process.env.DISCORD_CLIENT_ID, remoteCmd.id),
-        )
+        await this.rest.delete(Routes.applicationCommand(this.clientId, remoteCmd.id))
         Logger.info(Logs.info.commandActionDeleted)
         return
       }
@@ -134,7 +136,7 @@ export class CommandRegistrationService {
             this.formatCommandList(remoteCmds),
           ),
         )
-        await this.rest.put(Routes.applicationCommands(process.env.DISCORD_CLIENT_ID), { body: [] })
+        await this.rest.put(Routes.applicationCommands(this.clientId), { body: [] })
         Logger.info(Logs.info.commandActionCleared)
         return
       }

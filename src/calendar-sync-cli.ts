@@ -1,7 +1,6 @@
 import { Events, Options, Partials } from 'discord.js'
 import { createRequire } from 'node:module'
 
-import './config/environment.js'
 import { CustomClient } from './extensions/index.js'
 import { GoogleCalendarService } from './services/index.js'
 import { syncDggpScheduledEventsToGoogle } from './services/sync-dggp-google-calendar.js'

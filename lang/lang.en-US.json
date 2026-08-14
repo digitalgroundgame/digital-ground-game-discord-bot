@@ -158,6 +158,9 @@
       "attendancePermissionCheckFailed": {
         "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ Couldn't reach the CRM to verify your permissions, so attendance won't be synced. Leave the channel or run `/stop-attendance-track` to get the list."
       },
+      "attendanceCrmDisabled": {
+        "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ CRM attendance recording is disabled on this bot, so attendance won't be synced. Leave the channel or run `/stop-attendance-track` to get the list."
+      },
       "grantAccessAdded": {
         "description": "{{USER}} was added to the **{{TEAM_LABEL}}** Google Group."
       },

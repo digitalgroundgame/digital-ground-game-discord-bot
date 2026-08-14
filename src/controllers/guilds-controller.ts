@@ -8,7 +8,8 @@ export class GuildsController implements Controller {
   public path = '/guilds'
   public router: Router = Router()
   public requiresAuth = true
-  public authToken: string = process.env.DISCORD_BOT_API_SECRET
+  // Validated in manager mode; an empty token fails closed in checkAuth.
+  public authToken: string = process.env.DISCORD_BOT_API_SECRET ?? ''
 
   constructor(private shardManager: ShardingManager) {}
 
