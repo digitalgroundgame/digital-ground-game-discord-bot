@@ -120,7 +120,7 @@ export class Bot {
       // Tear down the client's sockets and timers so the process can exit.
       // A destroy failure must not mask the login error being rethrown.
       await this.client.destroy().catch((destroyError) => {
-        Logger.error(Logs.error.clientLogin, destroyError)
+        Logger.error(Logs.error.unspecified, destroyError)
       })
       throw error
     }

@@ -64,6 +64,15 @@ const require = createRequire(import.meta.url)
 const Config = require('../config/config.json')
 const Logs = require('../lang/logs.json')
 
+// Wait for any final logs to be written, then exit with the code already set
+// on process.exitCode. Exiting hard matters: as a sharding child the open IPC
+// channel to the manager would otherwise keep the event loop alive and the
+// process would hang instead of exiting.
+async function flushLogsAndExit(): Promise<never> {
+  await new Promise((resolve) => setTimeout(resolve, 1000))
+  process.exit()
+}
+
 async function start(): Promise<void> {
   if (process.argv[2] === 'calendar' && process.argv[3] === 'sync') {
     try {
@@ -72,9 +81,7 @@ async function start(): Promise<void> {
       Logger.error(Logs.error.unspecified, error)
       process.exitCode = 1
     }
-    // Wait for any final logs to be written.
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    process.exit()
+    await flushLogsAndExit()
   }
 
   // Register
@@ -92,9 +99,7 @@ async function start(): Promise<void> {
       Logger.error(Logs.error.commandAction, error)
       process.exitCode = 1
     }
-    // Wait for any final logs to be written.
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    process.exit()
+    await flushLogsAndExit()
   }
 
   // Services
@@ -243,9 +248,6 @@ process.on('unhandledRejection', (reason, _promise) => {
 
 start().catch(async (error) => {
   Logger.error(Logs.error.unspecified, error)
-  // Wait for any final logs to be written, then exit hard: as a sharding
-  // child the open IPC channel to the manager would otherwise keep the
-  // event loop alive and the process would hang instead of exiting.
-  await new Promise((resolve) => setTimeout(resolve, 1000))
-  process.exit(1)
+  process.exitCode = 1
+  await flushLogsAndExit()
 })

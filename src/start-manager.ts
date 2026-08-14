@@ -111,7 +111,12 @@ process.on('unhandledRejection', (reason, _promise) => {
   Logger.error(Logs.error.unhandledRejection, reason)
 })
 
-start().catch((error) => {
+start().catch(async (error) => {
   Logger.error(Logs.error.unspecified, error)
-  process.exitCode = 1
+  // A failure after shards spawn (e.g. the master API ready call) leaves
+  // shard child processes and the API server keeping the event loop alive,
+  // so wait for logs to flush and exit hard instead of waiting for a drain
+  // that never comes.
+  await new Promise((resolve) => setTimeout(resolve, 1000))
+  process.exit(1)
 })

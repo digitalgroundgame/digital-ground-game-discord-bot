@@ -15,6 +15,7 @@ function createMockShardManager(
   return {
     shardList: [0],
     totalShards: 1,
+    respawn: true,
     on: vi.fn(),
     spawn,
     shards,
@@ -69,6 +70,7 @@ describe('Manager', () => {
     await expect(manager.start()).rejects.toBe(error)
 
     expect(shard.kill).toHaveBeenCalledOnce()
+    expect(shardManager.respawn).toBe(false)
   })
 
   it('keeps killing shards and rethrows the spawn error when a kill throws', async () => {
