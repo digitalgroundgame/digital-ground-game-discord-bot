@@ -1,9 +1,9 @@
 import { REST } from '@discordjs/rest'
-import { Options, Partials } from 'discord.js'
+import { Options, Partials, type RESTPostAPIApplicationCommandsJSONBody } from 'discord.js'
 import { createRequire } from 'node:module'
+import { parentPort } from 'node:worker_threads'
 
 import { type Button } from './buttons/index.js'
-import { runCalendarSyncCli } from './calendar-sync-cli.js'
 import {
   AttendanceTrackCommand,
   CensusCommand,
@@ -43,11 +43,19 @@ import {
 import { CustomClient } from './extensions/index.js'
 import { AutoCloseWelcomeThreadsJob, SyncDggpGoogleCalendarJob, type Job } from './jobs/index.js'
 import { Bot } from './models/bot.js'
+import {
+  CalendarSyncInProgressError,
+  CalendarSyncSkippedError,
+} from './models/control-api/calendar-sync.js'
+import { type CommandRegistrationSummary } from './models/control-api/command-registration.js'
 import { type Reaction } from './reactions/index.js'
 import { syncDggpScheduledEventsToGoogle } from './services/sync-dggp-google-calendar.js'
 import {
   AttendanceService,
+  CalendarSyncRunner,
   CommandRegistrationService,
+  ControlRequestHandler,
+  type ControlRequestResult,
   ContentService,
   CrmService,
   EventDataService,
@@ -64,37 +72,21 @@ const require = createRequire(import.meta.url)
 const Config = require('../config/config.json')
 const Logs = require('../lang/logs.json')
 
+function getLocalCommands(): RESTPostAPIApplicationCommandsJSONBody[] {
+  return [
+    ...Object.values(ChatCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
+    ...Object.values(MessageCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
+    ...Object.values(UserCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
+  ]
+}
+
+async function registerCommands(args: string[]): Promise<CommandRegistrationSummary> {
+  const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN)
+  const commandRegistrationService = new CommandRegistrationService(rest)
+  return await commandRegistrationService.process(getLocalCommands(), args)
+}
+
 async function start(): Promise<void> {
-  if (process.argv[2] === 'calendar' && process.argv[3] === 'sync') {
-    try {
-      await runCalendarSyncCli()
-    } catch (error) {
-      Logger.error(Logs.error.unspecified, error)
-      process.exit(1)
-    }
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    process.exit(0)
-  }
-
-  // Register
-  if (process.argv[2] == 'commands') {
-    try {
-      const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN)
-      const commandRegistrationService = new CommandRegistrationService(rest)
-      const localCmds = [
-        ...Object.values(ChatCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
-        ...Object.values(MessageCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
-        ...Object.values(UserCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
-      ]
-      await commandRegistrationService.process(localCmds, process.argv)
-    } catch (error) {
-      Logger.error(Logs.error.commandAction, error)
-    }
-    // Wait for any final logs to be written.
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    process.exit()
-  }
-
   // Services
   const eventDataService = new EventDataService()
   const attendanceService = new AttendanceService()
@@ -186,6 +178,32 @@ async function start(): Promise<void> {
     process.env.GOOGLE_CALENDAR_CREDENTIALS ?? process.env.GOOGLE_APPLICATION_CREDENTIALS,
     process.env.GOOGLE_CALENDAR_IMPERSONATION_SUBJECT,
   )
+  const calendarSyncRunner = new CalendarSyncRunner(async (): Promise<void> => {
+    await syncDggpScheduledEventsToGoogle(client, googleCalendarService)
+  })
+
+  const sendControlResult = async (result: ControlRequestResult): Promise<void> => {
+    if (!client.shard) {
+      return
+    }
+
+    try {
+      await client.shard.send(result)
+    } catch (error) {
+      await Logger.error('Unable to report control request result to the manager.', error)
+    }
+  }
+  const controlRequestHandler = new ControlRequestHandler(
+    sendControlResult,
+    registerCommands,
+    calendarSyncRunner,
+  )
+  process.on('message', (message) => {
+    void controlRequestHandler.handle(message)
+  })
+  parentPort?.on('message', (message) => {
+    void controlRequestHandler.handle(message)
+  })
   // Event handlers
   const guildJoinHandler = new GuildJoinHandler(eventDataService)
   const guildLeaveHandler = new GuildLeaveHandler()
@@ -201,7 +219,7 @@ async function start(): Promise<void> {
   // Jobs
   const jobs: Job[] = [
     new AutoCloseWelcomeThreadsJob(client),
-    new SyncDggpGoogleCalendarJob(client, googleCalendarService),
+    new SyncDggpGoogleCalendarJob(calendarSyncRunner),
   ]
 
   // Bot
@@ -222,8 +240,20 @@ async function start(): Promise<void> {
     // onBotReady callback: run immediate Google Calendar sync once after bot is ready
     async () => {
       try {
-        await syncDggpScheduledEventsToGoogle(client, googleCalendarService)
+        await calendarSyncRunner.run()
       } catch (error) {
+        if (error instanceof CalendarSyncInProgressError) {
+          Logger.info(
+            'Calendar sync: startup sync skipped because another sync is already in progress.',
+          )
+          return
+        }
+
+        if (error instanceof CalendarSyncSkippedError) {
+          Logger.info(`Calendar sync: startup sync skipped — ${error.message}`)
+          return
+        }
+
         Logger.error(
           Logs.error.calendarSync.replace('{EVENT_NAME}', 'immediate startup sync'),
           error,

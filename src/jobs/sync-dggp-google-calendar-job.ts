@@ -1,9 +1,12 @@
-import { type Client } from 'discord.js'
 import { createRequire } from 'node:module'
 
+import {
+  CalendarSyncInProgressError,
+  CalendarSyncSkippedError,
+} from '../models/control-api/calendar-sync.js'
 import { Job } from './job.js'
-import type { GoogleCalendarService } from '../services/google-calendar-service.js'
-import { syncDggpScheduledEventsToGoogle } from '../services/sync-dggp-google-calendar.js'
+import { type CalendarSyncRunner } from '../services/calendar-sync-runner.js'
+import { Logger } from '../services/logger.js'
 
 const require = createRequire(import.meta.url)
 const Config = require('../../config/config.json')
@@ -17,14 +20,25 @@ export class SyncDggpGoogleCalendarJob extends Job {
   public override initialDelaySecs: number =
     Config.jobs.syncDggpGoogleCalendar?.initialDelaySecs ?? 60
 
-  constructor(
-    private client: Client,
-    private calendarService: GoogleCalendarService,
-  ) {
+  public constructor(private calendarSyncRunner: CalendarSyncRunner) {
     super()
   }
 
   public async run(): Promise<void> {
-    await syncDggpScheduledEventsToGoogle(this.client, this.calendarService)
+    try {
+      await this.calendarSyncRunner.run()
+    } catch (error) {
+      if (error instanceof CalendarSyncInProgressError) {
+        Logger.info('Calendar sync: skipped because another sync is already in progress.')
+        return
+      }
+
+      if (error instanceof CalendarSyncSkippedError) {
+        Logger.info(`Calendar sync: skipped — ${error.message}`)
+        return
+      }
+
+      throw error
+    }
   }
 }

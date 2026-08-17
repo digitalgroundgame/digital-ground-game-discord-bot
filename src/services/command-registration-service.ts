@@ -8,6 +8,11 @@ import {
 } from 'discord.js'
 
 import '../config/environment.js'
+import {
+  CommandRegistrationInvalidArgumentError,
+  CommandRegistrationNotFoundError,
+  type CommandRegistrationSummary,
+} from '../models/control-api/command-registration.js'
 import { Logger } from './logger.js'
 
 import Logs from '../../lang/logs.json' with { type: 'json' }
@@ -18,7 +23,7 @@ export class CommandRegistrationService {
   public async process(
     localCmds: RESTPostAPIApplicationCommandsJSONBody[],
     args: string[],
-  ): Promise<void> {
+  ): Promise<CommandRegistrationSummary> {
     const remoteCmds = (await this.rest.get(
       Routes.applicationCommands(process.env.DISCORD_CLIENT_ID),
     )) as RESTGetAPIApplicationCommandsResult
@@ -32,6 +37,11 @@ export class CommandRegistrationService {
     const remoteCmdsOnly = remoteCmds.filter(
       (remoteCmd) => !localCmds.some((localCmd) => localCmd.name === remoteCmd.name),
     )
+    const commands: CommandRegistrationSummary = {
+      localAndRemote: localCmdsOnRemote.map((cmd) => cmd.name),
+      localOnly: localCmdsOnly.map((cmd) => cmd.name),
+      remoteOnly: remoteCmdsOnly.map((cmd) => cmd.name),
+    }
 
     switch (args[3]) {
       case 'view': {
@@ -41,7 +51,7 @@ export class CommandRegistrationService {
             .replaceAll('{LOCAL_ONLY_LIST}', this.formatCommandList(localCmdsOnly))
             .replaceAll('{REMOTE_ONLY_LIST}', this.formatCommandList(remoteCmdsOnly)),
         )
-        return
+        return commands
       }
       case 'register': {
         if (localCmdsOnly.length > 0) {
@@ -74,20 +84,22 @@ export class CommandRegistrationService {
           Logger.info(Logs.info.commandActionUpdated)
         }
 
-        return
+        return commands
       }
       case 'rename': {
         const oldName = args[4]
         const newName = args[5]
         if (!(oldName && newName)) {
-          Logger.error(Logs.error.commandActionRenameMissingArg)
-          return
+          throw new CommandRegistrationInvalidArgumentError(
+            Logs.error.commandActionRenameMissingArg,
+          )
         }
 
         const remoteCmd = remoteCmds.find((cmd) => cmd.name == oldName)
         if (!remoteCmd) {
-          Logger.error(Logs.error.commandActionNotFound.replaceAll('{COMMAND_NAME}', oldName))
-          return
+          throw new CommandRegistrationNotFoundError(
+            Logs.error.commandActionNotFound.replaceAll('{COMMAND_NAME}', oldName),
+          )
         }
 
         Logger.info(
@@ -105,19 +117,21 @@ export class CommandRegistrationService {
           },
         )
         Logger.info(Logs.info.commandActionRenamed)
-        return
+        return commands
       }
       case 'delete': {
         const name = args[4]
         if (!name) {
-          Logger.error(Logs.error.commandActionDeleteMissingArg)
-          return
+          throw new CommandRegistrationInvalidArgumentError(
+            Logs.error.commandActionDeleteMissingArg,
+          )
         }
 
         const remoteCmd = remoteCmds.find((cmd) => cmd.name == name)
         if (!remoteCmd) {
-          Logger.error(Logs.error.commandActionNotFound.replaceAll('{COMMAND_NAME}', name))
-          return
+          throw new CommandRegistrationNotFoundError(
+            Logs.error.commandActionNotFound.replaceAll('{COMMAND_NAME}', name),
+          )
         }
 
         Logger.info(Logs.info.commandActionDeleting.replaceAll('{COMMAND_NAME}', remoteCmd.name))
@@ -125,7 +139,7 @@ export class CommandRegistrationService {
           Routes.applicationCommand(process.env.DISCORD_CLIENT_ID, remoteCmd.id),
         )
         Logger.info(Logs.info.commandActionDeleted)
-        return
+        return commands
       }
       case 'clear': {
         Logger.info(
@@ -136,9 +150,11 @@ export class CommandRegistrationService {
         )
         await this.rest.put(Routes.applicationCommands(process.env.DISCORD_CLIENT_ID), { body: [] })
         Logger.info(Logs.info.commandActionCleared)
-        return
+        return commands
       }
     }
+
+    return commands
   }
 
   private formatCommandList(

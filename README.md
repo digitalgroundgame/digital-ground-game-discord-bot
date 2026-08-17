@@ -36,13 +36,22 @@ This template for a Discord bot was based upon this public template. https://git
    - Use `npm ci` for normal development and CI (preferred).
    - Use `npm install` only when you intentionally add/update/remove dependencies.
 
-4. Register commands.
+4. Start the bot.
+   - `npm run start:manager` builds and runs the sharding manager, which spawns the bot shards and exposes the authenticated [bot control API](docs/CommandControlApi.md).
+   - `npm start` runs a single unsharded bot instead. It does not expose the control API, so use the manager if you need to register commands.
+
+5. Register commands.
    - In order to use slash commands, they first [have to be registered](https://discordjs.guide/creating-your-bot/command-deployment.html).
-   - Type `npm run commands:register` to register the bot's commands.
-     - Run this script any time you change a command name, structure, or add/remove commands.
+   - With the manager running, use the authenticated bot control API:
+
+     ```sh
+     curl -X POST http://localhost:3000/commands/register \
+       -H "Authorization: $DISCORD_BOT_CONTROL_API_SECRET"
+     ```
+
+     - Run this after deploying a command name, structure, or add/remove command change.
      - This is so Discord knows what your commands look like.
      - It may take up to an hour for command changes to appear.
-5. `npm start`
 
 Docker builds use the cached Node major-version image and verify that it matches
 the major version pinned in `.nvmrc`:
@@ -99,7 +108,7 @@ To mirror Discord scheduled events from **DGG Political Action** into the DGG gr
 
 2. Create a **service account**, download its JSON key, and share the target Google Calendar with the service account email (**Make changes to events**).
 
-3. In `.env`: `GOOGLE_CALENDAR_ID` and `GOOGLE_APPLICATION_CREDENTIALS` (path to that JSON), or `GOOGLE_CALENDAR_CREDENTIALS` instead of `GOOGLE_APPLICATION_CREDENTIALS` if you prefer. Share the target calendar with the **service account email** from that JSON (`client_email`), unless you use Workspace delegation (then set `GOOGLE_CALENDAR_IMPERSONATION_SUBJECT` and share the calendar with that user instead).
+3. In `.env`: `DISCORD_GUILD_ID` for the server whose events are synced, plus `GOOGLE_CALENDAR_ID` and `GOOGLE_APPLICATION_CREDENTIALS` (path to that JSON), or `GOOGLE_CALENDAR_CREDENTIALS` instead of `GOOGLE_APPLICATION_CREDENTIALS` if you prefer. Share the target calendar with the **service account email** from that JSON (`client_email`), unless you use Workspace delegation (then set `GOOGLE_CALENDAR_IMPERSONATION_SUBJECT` and share the calendar with that user instead).
 
 The bot lists Google Calendar events in a fixed time window and compares them to Discord scheduled events. Discord is the source of truth: each new Google event’s description includes the Discord scheduled event id so the next run can tell what is already synced—no separate state file on disk.
 
@@ -128,6 +137,7 @@ DISCORD_BOT_MASTER_API_TOKEN="token"
 
 ```
 DISCORD_BOT_API_SECRET="secret"
+DISCORD_BOT_CONTROL_API_SECRET="different-control-secret"
 ```
 
 ## Bot reference
@@ -136,7 +146,7 @@ This section lists slash and context-menu commands, which Discord events the bot
 
 ### Commands
 
-All commands below are registered with Discord via `npm run commands:register` (see [Setup](#setup)). Slash names shown are the default English values from the lang file.
+All commands below are registered with Discord through the authenticated [bot control API](docs/CommandControlApi.md) (see [Setup](#setup)). Slash names shown are the default English values from the lang file.
 
 | Command               | Type      | What it does                                                                                                                                                                                                                                                                                                      | Code                                                                                                                                                                         |
 | --------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

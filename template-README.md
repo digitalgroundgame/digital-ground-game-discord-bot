@@ -95,10 +95,16 @@ A welcome message is sent to the server and owner when the bot is added.
      - `client.token` - Your discord bot's token.
 4. Install packages.
    - Navigate into the downloaded source files and type `npm install`.
-5. Register commands.
+5. Start the manager and register commands.
    - In order to use slash commands, they first [have to be registered](https://discordjs.guide/creating-your-bot/command-deployment.html).
-   - Type `npm run commands:register` to register the bot's commands.
-     - Run this script any time you change a command name, structure, or add/remove commands.
+   - Start the manager with `npm run start:manager`, then use the authenticated bot control API:
+
+     ```sh
+     curl -X POST http://localhost:3000/commands/register \
+       -H "Authorization: $DISCORD_BOT_CONTROL_API_SECRET"
+     ```
+
+     - Run this after deploying a command name, structure, or add/remove command change.
      - This is so Discord knows what your commands look like.
      - It may take up to an hour for command changes to appear.
 
@@ -130,6 +136,7 @@ DISCORD_BOT_DEVELOPER_IDS="123456789012345678,987654321098765432" # comma-separa
 
 # API Configuration
 DISCORD_BOT_API_SECRET="00000000-0000-0000-0000-000000000000"
+DISCORD_BOT_CONTROL_API_SECRET="11111111-1111-1111-1111-111111111111"
 
 # Clustering Configuration (only needed if clustering.enabled is true)
 DISCORD_BOT_MASTER_API_TOKEN="00000000-0000-0000-0000-000000000000"

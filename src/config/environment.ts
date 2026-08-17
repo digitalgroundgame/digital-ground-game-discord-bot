@@ -8,6 +8,7 @@ const requiredEnvVars = [
   'DISCORD_CLIENT_ID',
   'DISCORD_BOT_TOKEN',
   'DISCORD_BOT_API_SECRET',
+  'DISCORD_BOT_CONTROL_API_SECRET',
   'DISCORD_BOT_MASTER_API_TOKEN',
   'DISCORD_BOT_DEVELOPER_IDS',
 ] as const
@@ -17,6 +18,12 @@ export function validateEnv(): void {
     if (!process.env[envVar]) {
       throw new Error(`Missing required environment variable: ${envVar}`)
     }
+  }
+
+  if (process.env.DISCORD_BOT_CONTROL_API_SECRET === process.env.DISCORD_BOT_API_SECRET) {
+    throw new Error(
+      'DISCORD_BOT_CONTROL_API_SECRET must differ from DISCORD_BOT_API_SECRET; the control routes are a separate privilege tier.',
+    )
   }
 
   const snowflakePattern = /^\d{17,19}$/

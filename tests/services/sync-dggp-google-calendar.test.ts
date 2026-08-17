@@ -12,6 +12,7 @@ import {
 } from 'discord.js'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { CalendarSyncSkippedError } from '../../src/models/control-api/calendar-sync.js'
 import type { GoogleCalendarService } from '../../src/services/google-calendar-service.js'
 import {
   buildCalendarInputFromDiscordEvent,
@@ -69,22 +70,25 @@ function mockScheduledEvent(partial: MockScheduledEventOverrides = {}): GuildSch
   } as GuildScheduledEvent
 }
 
-function mockClientWithGuild(events: GuildScheduledEvent[]): Client {
+function mockClientWithGuild(events: GuildScheduledEvent[], fetchError?: Error): Client {
   const collection = new Collection<string, GuildScheduledEvent>()
   for (const e of events) {
     collection.set(e.id, e)
   }
   const guild = {
+    id: '123456789012345678',
     name: 'DGGPATestServer',
     scheduledEvents: {
-      fetch: vi.fn().mockResolvedValue(collection),
+      fetch: fetchError
+        ? vi.fn().mockRejectedValue(fetchError)
+        : vi.fn().mockResolvedValue(collection),
     },
   }
   return {
     guilds: {
       cache: {
-        find: (pred: (g: { name: string }) => boolean) =>
-          pred(guild as { name: string }) ? guild : undefined,
+        find: (pred: (g: { id: string; name: string }) => boolean) =>
+          pred(guild) ? guild : undefined,
       },
     },
   } as unknown as Client
@@ -202,6 +206,14 @@ describe('listWindowForDiscordEvents', () => {
 })
 
 describe('syncDggpScheduledEventsToGoogle', () => {
+  beforeEach(() => {
+    vi.stubEnv('DISCORD_GUILD_ID', '123456789012345678')
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
   it('updates when list misses the link but findEventByDiscordId resolves the Google event', async () => {
     const ev = mockScheduledEvent({ name: 'From find' })
     const client = mockClientWithGuild([ev])
@@ -354,9 +366,55 @@ describe('syncDggpScheduledEventsToGoogle', () => {
       isConfigured: vi.fn().mockReturnValue(false),
     })
 
-    await syncDggpScheduledEventsToGoogle(client, calendar)
+    await expect(syncDggpScheduledEventsToGoogle(client, calendar)).rejects.toBeInstanceOf(
+      CalendarSyncSkippedError,
+    )
 
     expect(calendar.ensureInitialized).not.toHaveBeenCalled()
+    expect(calendar.listEventsBetween).not.toHaveBeenCalled()
+  })
+
+  it('reports a skipped sync when calendar initialization fails', async () => {
+    const client = mockClientWithGuild([mockScheduledEvent()])
+    const calendar = createCalendarServiceMock({
+      ensureInitialized: vi.fn().mockResolvedValue(false),
+    })
+
+    await expect(syncDggpScheduledEventsToGoogle(client, calendar)).rejects.toThrow(
+      CalendarSyncSkippedError,
+    )
+    expect(calendar.listEventsBetween).not.toHaveBeenCalled()
+  })
+
+  it('reports a skipped sync when DISCORD_GUILD_ID is missing', async () => {
+    vi.stubEnv('DISCORD_GUILD_ID', '')
+    const client = mockClientWithGuild([mockScheduledEvent()])
+    const calendar = createCalendarServiceMock()
+
+    await expect(syncDggpScheduledEventsToGoogle(client, calendar)).rejects.toThrow(
+      'DISCORD_GUILD_ID is not configured.',
+    )
+    expect(calendar.listEventsBetween).not.toHaveBeenCalled()
+  })
+
+  it('reports a skipped sync when the configured guild is unavailable', async () => {
+    vi.stubEnv('DISCORD_GUILD_ID', '999999999999999999')
+    const client = mockClientWithGuild([mockScheduledEvent()])
+    const calendar = createCalendarServiceMock()
+
+    await expect(syncDggpScheduledEventsToGoogle(client, calendar)).rejects.toThrow(
+      'Discord guild "999999999999999999" is not available to this shard.',
+    )
+    expect(calendar.listEventsBetween).not.toHaveBeenCalled()
+  })
+
+  it('fails when Discord scheduled events cannot be fetched', async () => {
+    const client = mockClientWithGuild([], new Error('Discord unavailable'))
+    const calendar = createCalendarServiceMock()
+
+    await expect(syncDggpScheduledEventsToGoogle(client, calendar)).rejects.toThrow(
+      'Discord unavailable',
+    )
     expect(calendar.listEventsBetween).not.toHaveBeenCalled()
   })
 })

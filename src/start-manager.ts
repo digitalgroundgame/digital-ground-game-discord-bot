@@ -3,6 +3,8 @@ import { createRequire } from 'node:module'
 import 'reflect-metadata'
 
 import {
+  CalendarController,
+  CommandsController,
   type Controller,
   GuildsController,
   IntegrationsController,
@@ -17,7 +19,14 @@ import {
 import { type Job } from './jobs/index.js'
 import { Api } from './models/api.js'
 import { Manager } from './models/manager.js'
-import { HttpService, JobService, Logger, MasterApiService } from './services/index.js'
+import {
+  CalendarSyncControlService,
+  CommandRegistrationControlService,
+  HttpService,
+  JobService,
+  Logger,
+  MasterApiService,
+} from './services/index.js'
 import { MathUtils, ShardUtils } from './utils/index.js'
 
 const require = createRequire(import.meta.url)
@@ -78,24 +87,28 @@ async function start(): Promise<void> {
 
   const manager = new Manager(shardManager, new JobService(jobs))
 
+  // Start the shards before constructing control services, which register listeners on them.
+  await manager.start()
+
   // API
   const guildsController = new GuildsController(shardManager)
   const shardsController = new ShardsController(shardManager)
   const rootController = new RootController()
   const integrations: Integration[] = [new PragmaticPapersIntegration(), new DmProxyIntegration()]
   const integrationsController = new IntegrationsController(integrations, shardManager)
+  const commandRegistrationControlService = new CommandRegistrationControlService(shardManager)
+  const calendarSyncControlService = new CalendarSyncControlService(shardManager)
 
   const controllers: Controller[] = [
     guildsController,
     shardsController,
+    new CommandsController(commandRegistrationControlService),
+    new CalendarController(calendarSyncControlService),
     integrationsController,
     rootController,
   ]
 
   const api = new Api(controllers)
-
-  // Start
-  await manager.start()
   await api.start()
   if (Config.clustering.enabled) {
     await masterApiService.ready()
