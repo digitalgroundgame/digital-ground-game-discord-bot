@@ -50,6 +50,7 @@ import {
   ContentService,
   CrmService,
   EventDataService,
+  GitHubTeamsService,
   GoogleCalendarService,
   GoogleGroupsService,
   JobService,
@@ -119,9 +120,18 @@ async function start(): Promise<void> {
   )
   if (!googleGroupsService.isConfigured()) {
     Logger.warn(
-      '/grant-access: disabled — set GOOGLE_APPLICATION_CREDENTIALS (or GOOGLE_CALENDAR_CREDENTIALS) and GOOGLE_WORKSPACE_ADMIN_SUBJECT (or GOOGLE_CALENDAR_IMPERSONATION_SUBJECT) — the Workspace admin email the service account impersonates. /link-account remains available.',
+      '/grant-access: disabled for service:google — set GOOGLE_APPLICATION_CREDENTIALS (or GOOGLE_CALENDAR_CREDENTIALS) and GOOGLE_WORKSPACE_ADMIN_SUBJECT (or GOOGLE_CALENDAR_IMPERSONATION_SUBJECT) — the Workspace admin email the service account impersonates. /link-account remains available.',
     )
   }
+
+  // Token used by /grant-access to manage GitHub team membership.
+  const githubTeamsService = new GitHubTeamsService(process.env.GITHUB_TEAMS_TOKEN)
+  if (!githubTeamsService.isConfigured()) {
+    Logger.warn(
+      '/grant-access: disabled for service:github — set GITHUB_TEAMS_TOKEN (a token from an org owner or team maintainer with the read:org scope / Members permission). /link-account remains available.',
+    )
+  }
+
   let database: Database | undefined
   if (process.env.SQLITE_PATH) {
     try {
@@ -154,7 +164,7 @@ async function start(): Promise<void> {
     new CensusCommand(),
     new AttendanceTrackCommand(attendanceService, crmService),
     new StopAttendanceTrackCommand(attendanceService, voiceStateUpdateHandler),
-    new GrantAccessCommand(googleGroupsService, userService),
+    new GrantAccessCommand(googleGroupsService, userService, githubTeamsService),
     new LinkAccountCommand(userService),
     new ContentCommand(contentService),
 

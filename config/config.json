@@ -105,7 +105,7 @@
     "inactivityDays": 2
   },
   "grantAccess": {
-    "// NOTE": "Maps a /grant-access team shortname to the Google Group address in the Workspace account.",
+    "// NOTE": "Maps a /grant-access team shortname to the Google Group address in the Workspace account, and/or the GitHub org + team slug.",
     "allowedRoleKeys": ["DIRECTOR", "COORDINATOR"],
     "groups": {
       "Event Team": "event-team@digitalgroundgame.org",
@@ -121,6 +121,20 @@
       "Northeast Squad": "northeast-squad@digitalgroundgame.org",
       "South Squad": "south-squad@digitalgroundgame.org",
       "West Squad": "west-squad@digitalgroundgame.org"
+    },
+    "githubTeams": {
+      "Blue Book": { "org": "digitalgroundgame", "team": "blue-book" },
+      "CRM": { "org": "digitalgroundgame", "team": "crm" },
+      "DGG Website": { "org": "digitalgroundgame", "team": "dgg-website" },
+      "Digital Ground Game": { "org": "digitalgroundgame", "team": "digital-ground-game" },
+      "Discord Bot": { "org": "digitalgroundgame", "team": "discord-bot" },
+      "Local Creator Map": { "org": "digitalgroundgame", "team": "local-creator-map" },
+      "Pragmatic Papers Website": {
+        "org": "digitalgroundgame",
+        "team": "pragmatic-papers-website"
+      },
+      "Social Media Responder": { "org": "digitalgroundgame", "team": "social-media-responder" },
+      "SSO Hub": { "org": "digitalgroundgame", "team": "sso-hub" }
     }
   },
   "managedContent": {

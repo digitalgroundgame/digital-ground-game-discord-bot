@@ -4,7 +4,12 @@ import { DevCommandName, HelpOption, InfoOption } from '../enums/index.js'
 import { Language } from '../models/enum-helpers/index.js'
 import { Lang } from '../services/index.js'
 import { Rules } from '../constants/rules.js'
-import { GoogleGroups, LinkableAccounts } from '../constants/index.js'
+import { GitHubTeams, GoogleGroups, LinkableAccounts } from '../constants/index.js'
+
+/** Team shortnames configured for any grant-access service, deduped and sorted. */
+const GRANT_ACCESS_TEAM_SHORTNAMES = Array.from(
+  new Set([...Object.keys(GoogleGroups), ...Object.keys(GitHubTeams)]),
+).sort()
 
 export class Args {
   public static readonly DEV_COMMAND: APIApplicationCommandBasicOption = {
@@ -76,7 +81,7 @@ export class Args {
     description: Lang.getRef('argDescs.grantAccessTeam', Language.Default),
     description_localizations: Lang.getRefLocalizationMap('argDescs.grantAccessTeam'),
     type: ApplicationCommandOptionType.String,
-    choices: Object.keys(GoogleGroups).map((shortname) => ({
+    choices: GRANT_ACCESS_TEAM_SHORTNAMES.map((shortname) => ({
       name: shortname,
       value: shortname,
     })),

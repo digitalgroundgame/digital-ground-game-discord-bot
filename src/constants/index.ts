@@ -14,4 +14,5 @@ export {
   GrantAccessAllowedRoleKeys,
   getGoogleGroupAddress,
 } from './google-groups.js'
+export { type GitHubTeamRef, GitHubTeams, getGitHubTeam } from './github-teams.js'
 export { type LinkableAccount, LinkableAccounts, getLinkableAccount } from './linkable-accounts.js'
