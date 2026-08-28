@@ -8,6 +8,7 @@ import {
   IntegrationsController,
   RootController,
   ShardsController,
+  UsersController,
 } from './controllers/index.js'
 import {
   DmProxyIntegration,
@@ -81,6 +82,7 @@ async function start(): Promise<void> {
   // API
   const guildsController = new GuildsController(shardManager)
   const shardsController = new ShardsController(shardManager)
+  const usersController = new UsersController(shardManager)
   const rootController = new RootController()
   const integrations: Integration[] = [new PragmaticPapersIntegration(), new DmProxyIntegration()]
   const integrationsController = new IntegrationsController(integrations, shardManager)
@@ -88,6 +90,7 @@ async function start(): Promise<void> {
   const controllers: Controller[] = [
     guildsController,
     shardsController,
+    usersController,
     integrationsController,
     rootController,
   ]
