@@ -5,3 +5,5 @@ allowBuilds:
   better-sqlite3: true
   canvas: true
   esbuild: true
+overrides:
+  esbuild: 0.25.12
