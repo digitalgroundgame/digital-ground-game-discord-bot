@@ -30,6 +30,8 @@ const regionRoles = [
   'West Coast Squad',
   'International Squad',
 ]
+// authors whose posts should never get a completion thread
+const ignoredAuthorNames = ['stickybot']
 const finishedEmoji = '✅'
 const oneHour = 3_600_000
 const activeCollectors = new Map()
@@ -40,6 +42,10 @@ export class CTAPostTrigger implements Trigger {
   chanThreadsByMsg = new Map()
 
   public triggered(msg: Message): boolean {
+    if (this.isIgnoredAuthor(msg)) {
+      return false
+    }
+
     /* eslint-disable @typescript-eslint/no-shadow */
     const ctaChannel = msg.guild?.channels.cache.find(
       (ctaChannel) => ctaChannel?.name === channelName,
@@ -85,6 +91,15 @@ export class CTAPostTrigger implements Trigger {
     if (thread) {
       await this.startCTAReactionCollector(msg, thread)
     }
+  }
+
+  private isIgnoredAuthor(msg: Message): boolean {
+    const names = [msg.author.username, msg.author.globalName, msg.member?.displayName]
+
+    return names.some(
+      (name) =>
+        name !== undefined && name !== null && ignoredAuthorNames.includes(name.toLowerCase()),
+    )
   }
 
   private async getFinishedReactions(msg: Message): Promise<object> {
