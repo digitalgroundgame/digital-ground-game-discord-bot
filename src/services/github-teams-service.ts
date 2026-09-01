@@ -14,9 +14,12 @@ export type AddTeamMemberResult =
 /**
  * Adds members to GitHub organization teams via the REST API.
  *
- * Requires a token belonging to an organization owner or team maintainer
- * (the `read:org` OAuth scope, or the "Members" org permission for a
- * fine-grained PAT / GitHub App installation token).
+ * Requires a token that is *both* owned by an organization owner or team
+ * maintainer *and* scoped to write team membership: the "Members" org
+ * permission for a fine-grained PAT / GitHub App installation token, or the
+ * `admin:org` scope for a classic PAT (`write:org` is not enough — GitHub
+ * rejects it with the same "must be an organization owner or team
+ * maintainer" message it uses for an under-privileged account).
  *
  * See: https://docs.github.com/en/rest/teams/members#add-or-update-team-membership-for-a-user
  */

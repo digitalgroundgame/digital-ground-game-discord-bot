@@ -128,7 +128,7 @@ async function start(): Promise<void> {
   const githubTeamsService = new GitHubTeamsService(process.env.GITHUB_TEAMS_TOKEN)
   if (!githubTeamsService.isConfigured()) {
     Logger.warn(
-      '/grant-access: disabled for service:github — set GITHUB_TEAMS_TOKEN (a token from an org owner or team maintainer with the read:org scope / Members permission). /link-account remains available.',
+      '/grant-access: disabled for service:github — set GITHUB_TEAMS_TOKEN (a token from an org owner or team maintainer with the Members org permission / admin:org scope). /link-account remains available.',
     )
   }
 
