@@ -4,6 +4,8 @@ import { Logger } from './logger.js'
 
 const GITHUB_API_BASE = 'https://api.github.com'
 const GITHUB_API_VERSION = '2022-11-28'
+/** Without this a stalled connection never settles, leaving the deferred interaction hanging. */
+const REQUEST_TIMEOUT_MS = 10_000
 
 export type AddTeamMemberResult =
   | { status: 'active' }
@@ -57,6 +59,7 @@ export class GitHubTeamsService {
           'X-GitHub-Api-Version': GITHUB_API_VERSION,
         },
         body: JSON.stringify({ role: 'member' }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       })
 
       if (res.ok) {
@@ -69,7 +72,12 @@ export class GitHubTeamsService {
       Logger.error(`GitHub Teams: failed to add ${username} to ${org}/${team}: ${message}`)
       return { status: 'error', message }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err)
+      const message =
+        err instanceof Error && err.name === 'TimeoutError'
+          ? `no response after ${REQUEST_TIMEOUT_MS}ms`
+          : err instanceof Error
+            ? err.message
+            : String(err)
       Logger.error(`GitHub Teams: request failed for ${username} -> ${org}/${team}: ${message}`, err)
       return { status: 'error', message }
     }

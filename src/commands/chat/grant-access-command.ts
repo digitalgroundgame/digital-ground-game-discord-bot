@@ -8,6 +8,7 @@ import {
   type ServerRole,
   ServerRoles,
 } from '../../constants/index.js'
+import { type LinkedAccount } from '../../database/schema.js'
 import { Language } from '../../models/enum-helpers/index.js'
 import { type EventData } from '../../models/internal-models.js'
 import {
@@ -99,7 +100,7 @@ export class GrantAccessCommand implements Command {
       return
     }
 
-    let linked
+    let linked: LinkedAccount | undefined
     try {
       linked = await userService.findLinkedAccount(targetUser.id, 'google')
     } catch (err: unknown) {
@@ -204,7 +205,7 @@ export class GrantAccessCommand implements Command {
       return
     }
 
-    let linked
+    let linked: LinkedAccount | undefined
     try {
       linked = await userService.findLinkedAccount(targetUser.id, 'github')
     } catch (err: unknown) {
@@ -260,6 +261,8 @@ export class GrantAccessCommand implements Command {
           USER: targetUser.toString(),
           TEAM_LABEL: teamShortname,
           RESOURCE_LABEL: 'GitHub team',
+          // Named so a mistyped link is visible before the stranger accepts.
+          IDENTIFIER: username,
         }),
         false,
       )

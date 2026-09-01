@@ -48,7 +48,10 @@ export const LinkableAccounts: LinkableAccount[] = [
     validate: (identifier: string): boolean =>
       /^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$/.test(identifier.trim()),
     normalize: (identifier: string): { externalId: string; email?: string } => {
-      const externalId = identifier.trim()
+      // Lowercased because GitHub usernames are case-insensitive but the
+      // (provider, external_id) unique index is not — without this, `octocat`
+      // and `OctoCat` are two rows for one GitHub account.
+      const externalId = identifier.trim().toLowerCase()
       return { externalId, email: undefined }
     },
   },
