@@ -1,9 +1,19 @@
-import { type ChatInputCommandInteraction, type PermissionsString, type User } from 'discord.js'
+import {
+  type ApplicationCommandOptionChoiceData,
+  type AutocompleteFocusedOption,
+  type AutocompleteInteraction,
+  type ChatInputCommandInteraction,
+  type PermissionsString,
+  type User,
+} from 'discord.js'
 import { RateLimiter } from 'discord.js-rate-limiter'
 
 import {
+  DiscordLimits,
   getGitHubTeam,
   getGoogleGroupAddress,
+  GitHubTeams,
+  GoogleGroups,
   GrantAccessAllowedRoleKeys,
   type ServerRole,
   ServerRoles,
@@ -20,6 +30,22 @@ import {
 } from '../../services/index.js'
 import { InteractionUtils } from '../../utils/index.js'
 import { type Command, CommandDeferType } from '../index.js'
+
+/**
+ * Team shortnames configured for `service`, sorted. Falls back to every
+ * configured team while `service` is still unset, since Discord sends
+ * autocomplete requests before the other options are filled in.
+ */
+function teamShortnames(service: string | null): string[] {
+  switch (service) {
+    case 'google':
+      return Object.keys(GoogleGroups).sort()
+    case 'github':
+      return Object.keys(GitHubTeams).sort()
+    default:
+      return Array.from(new Set([...Object.keys(GoogleGroups), ...Object.keys(GitHubTeams)])).sort()
+  }
+}
 
 /**
  * Grants a Discord member access to a team's resources for a given service.
@@ -41,6 +67,18 @@ export class GrantAccessCommand implements Command {
     private readonly userService?: UserService,
     private readonly githubTeamsService?: GitHubTeamsService,
   ) {}
+
+  public async autocomplete(
+    intr: AutocompleteInteraction,
+    option: AutocompleteFocusedOption,
+  ): Promise<ApplicationCommandOptionChoiceData[]> {
+    const service = intr.options.getString(Lang.getRef('arguments.service', Language.Default))
+    const search = option.value.toLowerCase()
+    return teamShortnames(service)
+      .filter((shortname) => shortname.toLowerCase().includes(search))
+      .slice(0, DiscordLimits.CHOICES_PER_AUTOCOMPLETE)
+      .map((shortname) => ({ name: shortname, value: shortname }))
+  }
 
   public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
     const service = intr.options.getString(Lang.getRef('arguments.service', Language.Default), true)

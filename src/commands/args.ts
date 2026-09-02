@@ -4,12 +4,7 @@ import { DevCommandName, HelpOption, InfoOption } from '../enums/index.js'
 import { Language } from '../models/enum-helpers/index.js'
 import { Lang } from '../services/index.js'
 import { Rules } from '../constants/rules.js'
-import { GitHubTeams, GoogleGroups, LinkableAccounts } from '../constants/index.js'
-
-/** Team shortnames configured for any grant-access service, deduped and sorted. */
-const GRANT_ACCESS_TEAM_SHORTNAMES = Array.from(
-  new Set([...Object.keys(GoogleGroups), ...Object.keys(GitHubTeams)]),
-).sort()
+import { LinkableAccounts } from '../constants/index.js'
 
 export class Args {
   public static readonly DEV_COMMAND: APIApplicationCommandBasicOption = {
@@ -81,10 +76,10 @@ export class Args {
     description: Lang.getRef('argDescs.grantAccessTeam', Language.Default),
     description_localizations: Lang.getRefLocalizationMap('argDescs.grantAccessTeam'),
     type: ApplicationCommandOptionType.String,
-    choices: GRANT_ACCESS_TEAM_SHORTNAMES.map((shortname) => ({
-      name: shortname,
-      value: shortname,
-    })),
+    // Autocomplete rather than static choices: Discord caps an option at 25
+    // choices, and the team list grows with `grantAccess` config. It also lets
+    // the suggestions narrow to the teams the picked service actually has.
+    autocomplete: true,
   }
   public static readonly GRANT_ACCESS_USER: APIApplicationCommandBasicOption = {
     name: Lang.getRef('arguments.user', Language.Default),

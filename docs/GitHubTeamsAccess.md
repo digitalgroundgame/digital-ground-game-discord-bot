@@ -63,9 +63,11 @@ authenticates it as — check that it is the account you granted the role to.
 
 ## 2. Map team shortnames to GitHub org + team
 
-In `config.json`, under `grantAccess`, fill in `githubTeams` — the same
-shortnames used for `groups` (Google) can be reused so `/grant-access` offers
-one team list regardless of which service is picked:
+In `config.json`, under `grantAccess`, fill in `githubTeams`. The `team:`
+option is autocompleted from this config, narrowed to the teams the picked
+`service:` actually has — so a shortname only needs an entry under the
+service it is used with. Reusing the same shortname under `groups` (Google)
+and `githubTeams` is fine, and makes the team offered for either service:
 
 ```json
 "grantAccess": {
