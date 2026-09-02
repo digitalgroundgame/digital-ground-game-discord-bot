@@ -13,6 +13,7 @@ import {
   HelpCommand,
   InfoCommand,
   LinkAccountCommand,
+  PingSkillRoleCommand,
   PragPapersCommand,
   RulesCommand,
   StopAttendanceTrackCommand,
@@ -167,6 +168,7 @@ async function start(): Promise<void> {
     new GrantAccessCommand(googleGroupsService, userService, githubTeamsService),
     new LinkAccountCommand(userService),
     new ContentCommand(contentService),
+    new PingSkillRoleCommand(),
 
     // User Context Commands
     ...ONBOARDING_CONFIGS.map((config) => new SendOnboarding(config, contentService)),

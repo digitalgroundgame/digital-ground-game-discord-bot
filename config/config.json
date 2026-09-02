@@ -16,6 +16,7 @@
       "GuildScheduledEvents"
     ],
     "partials": ["Message", "Channel", "Reaction", "GuildScheduledEvent"],
+    "// NOTE": "caches is passed to discord.js cacheWithLimits, so only manager names belong inside it. PresenceManager is intentionally NOT capped so /ping-skill-role can filter by online status.",
     "caches": {
       "AutoModerationRuleManager": 0,
       "BaseGuildEmojiManager": 0,
@@ -24,7 +25,6 @@
       "GuildInviteManager": 0,
       "GuildStickerManager": 0,
       "MessageManager": 0,
-      "PresenceManager": 0,
       "StageInstanceManager": 0,
       "ThreadManager": 0,
       "ThreadMemberManager": 0
@@ -140,6 +140,10 @@
   "managedContent": {
     "// NOTE": "Role config keys (see roles below) allowed to run /content.",
     "allowedRoleKeys": ["ADMIN", "DIRECTOR", "WELCOME_SUPERVISOR"]
+  },
+  "pingSkillRole": {
+    "// NOTE": "Role config keys (see roles below) allowed to run /ping-skill-role.",
+    "allowedRoleKeys": ["ADMIN", "DIRECTOR", "COORDINATOR"]
   },
   "roles": {
     "COORDINATOR": {

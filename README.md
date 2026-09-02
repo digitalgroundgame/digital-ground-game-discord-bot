@@ -10,7 +10,7 @@ This template for a Discord bot was based upon this public template. https://git
 
 0. Use the pinned Node version.
 
-   This repo expects the Node version pinned in `.nvmrc` for consistent npm/lockfile behavior.
+   This repo expects the Node version pinned in `.nvmrc` for consistent pnpm lockfile behavior.
 
    ```
    nvm use
@@ -22,38 +22,44 @@ This template for a Discord bot was based upon this public template. https://git
    nvm install
    ```
 
+   Enable Corepack so the pinned pnpm version from `package.json` is used:
+
+   ```
+   corepack enable
+   ```
+
 1. Copy example config files.
 
    Run this command to create your local config and .env files:
 
    ```
-   npm run copyconfig
+   pnpm run copyconfig
    ```
 
 2. Fill your .env - see below.
 
 3. Install dependencies with a lockfile-stable workflow:
-   - Use `npm ci` for normal development and CI (preferred).
-   - Use `npm install` only when you intentionally add/update/remove dependencies.
+   - Use `pnpm install --frozen-lockfile` for normal development and CI (preferred).
+   - Use `pnpm install` only when you intentionally add/update/remove dependencies.
 
 4. Register commands.
    - In order to use slash commands, they first [have to be registered](https://discordjs.guide/creating-your-bot/command-deployment.html).
-   - Type `npm run commands:register` to register the bot's commands.
+   - Type `pnpm run commands:register` to register the bot's commands.
      - Run this script any time you change a command name, structure, or add/remove commands.
      - This is so Discord knows what your commands look like.
      - It may take up to an hour for command changes to appear.
-5. `npm start`
+5. `pnpm start`
 
 Docker builds use the cached Node major-version image and verify that it matches
 the major version pinned in `.nvmrc`:
 
 ```
-npm run docker:build
+pnpm run docker:build
 ```
 
 ## Contributing With Low Lockfile Noise
 
-When contributors use different Node/npm versions, `package-lock.json` often churns (including platform/libc metadata). To reduce noise:
+When contributors use different Node/pnpm versions, `pnpm-lock.yaml` can churn. To reduce noise:
 
 1. Use the pinned runtime in `.nvmrc`:
 
@@ -61,9 +67,9 @@ When contributors use different Node/npm versions, `package-lock.json` often chu
    nvm use
    ```
 
-2. Keep dependency installs on consistent tooling (`npm` bundled with that Node version).
-3. In CI, use the same Node version and run `npm ci` (not `npm install`).
-4. If you changed only app code but `package-lock.json` is noisy, re-run install after `nvm use` and re-check the diff.
+2. Enable Corepack and use the `packageManager` version pinned in `package.json`.
+3. In CI, use the same Node version and run `pnpm install --frozen-lockfile` (not a lockfile-mutating install).
+4. If you changed only app code but `pnpm-lock.yaml` is noisy, re-run install after `nvm use` and `corepack enable`, then re-check the diff.
 
 ## Environment Variables
 
@@ -115,7 +121,7 @@ SQLITE_PATH=/app/db/dggbot.sqlite
 Persist the whole `/app/db` directory, not only `/app/db/dggbot.sqlite`. The
 app enables SQLite WAL mode, which creates adjacent `-wal` and `-shm` files
 that must live on persistent storage with the main database file. The Docker
-startup command runs `npm run db:push` when `SQLITE_PATH` is set, so schema
+startup command runs `pnpm run db:push` when `SQLITE_PATH` is set, so schema
 changes are applied to the mounted runtime database before the bot starts.
 
 ### Not used
@@ -136,7 +142,7 @@ This section lists slash and context-menu commands, which Discord events the bot
 
 ### Commands
 
-All commands below are registered with Discord via `npm run commands:register` (see [Setup](#setup)). Slash names shown are the default English values from the lang file.
+All commands below are registered with Discord via `pnpm run commands:register` (see [Setup](#setup)). Slash names shown are the default English values from the lang file.
 
 | Command               | Type      | What it does                                                                                                                                                                                                                                                                                                      | Code                                                                                                                                                                         |
 | --------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
