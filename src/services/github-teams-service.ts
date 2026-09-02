@@ -44,7 +44,11 @@ export class GitHubTeamsService {
    * organization instead gets an emailed invite and comes back `pending`
    * until they accept it.
    */
-  public async addMember(org: string, team: string, username: string): Promise<AddTeamMemberResult> {
+  public async addMember(
+    org: string,
+    team: string,
+    username: string,
+  ): Promise<AddTeamMemberResult> {
     const token = this.token
     if (!token) return { status: 'not-configured' }
 
@@ -78,7 +82,10 @@ export class GitHubTeamsService {
           : err instanceof Error
             ? err.message
             : String(err)
-      Logger.error(`GitHub Teams: request failed for ${username} -> ${org}/${team}: ${message}`, err)
+      Logger.error(
+        `GitHub Teams: request failed for ${username} -> ${org}/${team}: ${message}`,
+        err,
+      )
       return { status: 'error', message }
     }
   }
