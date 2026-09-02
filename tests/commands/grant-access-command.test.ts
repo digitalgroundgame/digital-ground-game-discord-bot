@@ -250,6 +250,21 @@ describe('GrantAccessCommand', () => {
       expect(sent.ephemeral).toBe(true)
     })
 
+    it('rejects a typed inherited key instead of calling GitHub with an undefined team', async () => {
+      // `team` is autocompleted, so anything can be typed into it.
+      const addMember = vi.fn(async () => ({ status: 'active' as const }))
+      const command = new GrantAccessCommand(
+        undefined,
+        userService(linkedAccount({})),
+        githubService(addMember),
+      )
+
+      await command.execute(createInteraction('github', 'constructor'), data)
+
+      expect(addMember).not.toHaveBeenCalled()
+      expect(lastSent().description).toContain('Unknown team')
+    })
+
     it('reports a missing GitHub token', async () => {
       const command = new GrantAccessCommand(
         undefined,
@@ -376,6 +391,19 @@ describe('GrantAccessCommand', () => {
       const sent = lastSent()
       expect(sent.description).toContain('Unknown team')
       expect(sent.description).toContain('Google Group')
+    })
+
+    it('rejects a typed inherited key instead of calling Google with a bogus address', async () => {
+      const addMember = vi.fn(async () => ({ status: 'added' as const }))
+      const command = new GrantAccessCommand(
+        googleService(addMember),
+        userService(linkedAccount({ provider: 'google', email: 'you@example.com' })),
+      )
+
+      await command.execute(createInteraction('google', 'toString'), data)
+
+      expect(addMember).not.toHaveBeenCalled()
+      expect(lastSent().description).toContain('Unknown team')
     })
 
     it('reports a failed API call', async () => {

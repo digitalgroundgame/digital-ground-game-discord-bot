@@ -25,4 +25,13 @@ describe('GitHubTeams', () => {
   it('returns null for an unknown shortname', () => {
     expect(getGitHubTeam('Not A Team')).toBeNull()
   })
+
+  it.each(['constructor', 'toString', 'hasOwnProperty', '__proto__'])(
+    'returns null for the inherited key %j',
+    (key) => {
+      // The `team` option is autocompleted, not choice-restricted, so any of
+      // these can arrive as typed input.
+      expect(getGitHubTeam(key)).toBeNull()
+    },
+  )
 })

@@ -26,12 +26,17 @@ const rawConfig = (Config.grantAccess ?? {}) as Partial<GrantAccessConfig>
 
 /** `/grant-access` team shortname -> GitHub org + team slug. */
 export const GitHubTeams: Record<string, GitHubTeamRef> = Object.fromEntries(
-  Object.entries(rawConfig.githubTeams ?? {}).filter(
-    (entry): entry is [string, GitHubTeamRef] => isGitHubTeamRef(entry[1]),
+  Object.entries(rawConfig.githubTeams ?? {}).filter((entry): entry is [string, GitHubTeamRef] =>
+    isGitHubTeamRef(entry[1]),
   ),
 )
 
 /** Resolve a team shortname to its GitHub org + team slug, or null if unknown. */
 export function getGitHubTeam(shortname: string): GitHubTeamRef | null {
+  // Own-property check rather than a plain lookup: the `team` option is
+  // autocompleted, not choice-restricted, so a typed `constructor` would
+  // otherwise resolve to an inherited `Object.prototype` value and sail past
+  // the unknown-team check.
+  if (!Object.prototype.hasOwnProperty.call(GitHubTeams, shortname)) return null
   return GitHubTeams[shortname] ?? null
 }
