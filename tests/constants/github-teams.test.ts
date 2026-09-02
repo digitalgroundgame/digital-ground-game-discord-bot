@@ -1,0 +1,28 @@
+import { describe, expect, it } from 'vitest'
+
+import { getGitHubTeam, GitHubTeams } from '../../src/constants/github-teams.js'
+
+describe('GitHubTeams', () => {
+  it('loads every configured team as an org + team slug pair', () => {
+    const entries = Object.entries(GitHubTeams)
+
+    expect(entries.length).toBeGreaterThan(0)
+    for (const [shortname, ref] of entries) {
+      expect(shortname, 'team shortname').not.toBe('')
+      expect(typeof ref.org, `${shortname}.org`).toBe('string')
+      expect(typeof ref.team, `${shortname}.team`).toBe('string')
+      expect(ref.org).not.toBe('')
+      expect(ref.team).not.toBe('')
+    }
+  })
+
+  it('resolves a configured shortname to its team ref', () => {
+    const [shortname, ref] = Object.entries(GitHubTeams)[0]!
+
+    expect(getGitHubTeam(shortname)).toEqual(ref)
+  })
+
+  it('returns null for an unknown shortname', () => {
+    expect(getGitHubTeam('Not A Team')).toBeNull()
+  })
+})
