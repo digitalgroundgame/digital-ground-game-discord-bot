@@ -7,6 +7,12 @@ export { GoogleCalendarService } from './google-calendar-service.js'
 export { GoogleGroupsService, type AddMemberResult } from './google-groups-service.js'
 export { HttpService } from './http-service.js'
 export { JobService } from './job-service.js'
+export {
+  KudosService,
+  type GiveKudosResult,
+  type KudosLeaderboardEntry,
+  type KudosLeaderboardPeriod,
+} from './kudos-service.js'
 export { Lang } from './lang.js'
 export { Logger } from './logger.js'
 export { MasterApiService } from './master-api-service.js'

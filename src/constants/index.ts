@@ -16,3 +16,4 @@ export {
 } from './google-groups.js'
 export { type LinkableAccount, LinkableAccounts, getLinkableAccount } from './linkable-accounts.js'
 export { PingSkillRoleAllowedRoleKeys } from './skill-roles.js'
+export { KudosGiveAllowedRoleKeys, KudosGiveCooldownDays } from './kudos.js'
