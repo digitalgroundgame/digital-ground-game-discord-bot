@@ -1,6 +1,7 @@
 import { type APIApplicationCommandBasicOption, ApplicationCommandOptionType } from 'discord.js'
 
 import { DevCommandName, HelpOption, InfoOption } from '../enums/index.js'
+import { type KudosLeaderboardPeriod } from '../services/kudos-service.js'
 import { Language } from '../models/enum-helpers/index.js'
 import { Lang } from '../services/index.js'
 import { Rules } from '../constants/rules.js'
@@ -145,6 +146,47 @@ export class Args {
     description_localizations: Lang.getRefLocalizationMap('argDescs.pingSkillRoleNote'),
     type: ApplicationCommandOptionType.String,
     max_length: 500,
+  }
+  public static readonly KUDOS_GIVE_USER: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.user', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.user'),
+    description: Lang.getRef('argDescs.kudosGiveUser', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.kudosGiveUser'),
+    type: ApplicationCommandOptionType.User,
+  }
+  public static readonly KUDOS_GIVE_REASON: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.reason', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.reason'),
+    description: Lang.getRef('argDescs.kudosGiveReason', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.kudosGiveReason'),
+    type: ApplicationCommandOptionType.String,
+    max_length: 200,
+  }
+  public static readonly KUDOS_VIEW_USER: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.user', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.user'),
+    description: Lang.getRef('argDescs.kudosViewUser', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.kudosViewUser'),
+    type: ApplicationCommandOptionType.User,
+  }
+  public static readonly KUDOS_LEADERBOARD_PERIOD: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.period', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.period'),
+    description: Lang.getRef('argDescs.kudosLeaderboardPeriod', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.kudosLeaderboardPeriod'),
+    type: ApplicationCommandOptionType.String,
+    choices: [
+      {
+        name: Lang.getRef('kudosPeriods.weekly', Language.Default),
+        name_localizations: Lang.getRefLocalizationMap('kudosPeriods.weekly'),
+        value: 'weekly' satisfies KudosLeaderboardPeriod,
+      },
+      {
+        name: Lang.getRef('kudosPeriods.monthly', Language.Default),
+        name_localizations: Lang.getRefLocalizationMap('kudosPeriods.monthly'),
+        value: 'monthly' satisfies KudosLeaderboardPeriod,
+      },
+    ],
   }
   public static readonly ATTENDANCE_TRACK_NAME: APIApplicationCommandBasicOption = {
     name: Lang.getRef('arguments.attendanceEventName', Language.Default),

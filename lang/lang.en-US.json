@@ -264,6 +264,39 @@
       "pingSkillRoleNoneOnline": {
         "description": "No other members of **{{SKILL}}** are online right now, so nobody was pinged.",
         "color": "{{COM:colors.warning}}"
+      },
+      "kudosGiven": {
+        "description": "You gave {{USER}} kudos! They now have **{{TOTAL}}** kudos.",
+        "color": "{{COM:colors.success}}"
+      },
+      "kudosReceived": {
+        "description": "{{GIVER}} gave you kudos{{REASON}}! You now have **{{TOTAL}}** kudos."
+      },
+      "kudosSelf": {
+        "description": "You can't give yourself kudos.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "kudosBotTarget": {
+        "description": "You can't give a bot kudos.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "kudosCooldown": {
+        "description": "You already gave {{USER}} kudos recently. You can give them kudos again <t:{{RETRY_TIMESTAMP}}:R>.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "kudosView": {
+        "description": "{{USER}} has **{{TOTAL}}** kudos."
+      },
+      "kudosLeaderboard": {
+        "title": "🏆 {{PERIOD_LABEL}} Kudos Leaderboard",
+        "description": ["{{ENTRIES}}"]
+      },
+      "kudosLeaderboardEmpty": {
+        "description": "No kudos have been given yet this {{PERIOD_LABEL_LOWER}}."
+      },
+      "kudosNotConfigured": {
+        "description": "Kudos isn't configured on this bot. The database connection must be set.",
+        "color": "{{COM:colors.warning}}"
       }
     },
     "validationEmbeds": {
@@ -356,7 +389,8 @@
       "stopAttendanceTrack": "stop-attendance-track",
       "grantAccess": "grant-access",
       "linkAccount": "link-account",
-      "pingSkillRole": "ping-skill-role"
+      "pingSkillRole": "ping-skill-role",
+      "kudos": "kudos"
     },
     "userCommands": {
       "sendDevOnboarding": "Send Dev Onboarding",
@@ -377,7 +411,9 @@
       "user": "user",
       "identifier": "identifier",
       "skill": "skill",
-      "note": "note"
+      "note": "note",
+      "reason": "reason",
+      "period": "period"
     },
     "commandDescs": {
       "content": "View or edit bot-managed content (welcome, onboarding, rules text).",
@@ -394,7 +430,11 @@
       "stopAttendanceTrack": "Stops your active attendance tracker and sends the results immediately.",
       "grantAccess": "Grant a member access to a team's service (e.g. a Google Group).",
       "linkAccount": "Link an external account (e.g. your Google email) to a Discord profile.",
-      "pingSkillRole": "Ping the online members of a skill role (works in forum posts)."
+      "pingSkillRole": "Ping the online members of a skill role (works in forum posts).",
+      "kudos": "Give kudos, view a member's kudos, or check the leaderboard.",
+      "kudosGive": "Give a member kudos for something they did well.",
+      "kudosView": "View a member's total kudos.",
+      "kudosLeaderboard": "View the weekly or monthly kudos leaderboard."
     },
     "argDescs": {
       "contentKey": "The content entry to manage.",
@@ -410,7 +450,11 @@
       "linkAccountIdentifier": "The account identifier (e.g. a Google email address).",
       "linkAccountUser": "Coordinators only: the member to link an account for (defaults to you).",
       "pingSkillRoleSkill": "The skill role whose online members should be pinged.",
-      "pingSkillRoleNote": "An optional note to include with the ping."
+      "pingSkillRoleNote": "An optional note to include with the ping.",
+      "kudosGiveUser": "The member to give kudos to.",
+      "kudosGiveReason": "Optional: what you're giving kudos for.",
+      "kudosViewUser": "The member to view kudos for (defaults to you).",
+      "kudosLeaderboardPeriod": "Weekly or monthly leaderboard."
     },
     "fields": {
       "commands": "Commands",
@@ -502,6 +546,10 @@
     "pingSkillRole": {
       "header": "📣 Paging online **{{SKILL}}** members (requested by {{USER}})",
       "headerWithNote": "📣 Paging online **{{SKILL}}** members (requested by {{USER}}): {{NOTE}}"
+    },
+    "kudosPeriods": {
+      "weekly": "Weekly",
+      "monthly": "Monthly"
     },
     "links": {
       "authorEmbed": "[{{COM:bot.author}}]({{COM:links.author}})",

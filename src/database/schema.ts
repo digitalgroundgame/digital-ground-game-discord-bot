@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 /** External account providers a Discord user can link. Add new services here. */
 export const ACCOUNT_PROVIDERS = ['google'] as const
@@ -69,8 +69,40 @@ export const contentOverride = sqliteTable(
   (t) => [uniqueIndex('content_override_key_field_uq').on(t.key, t.field)],
 )
 
+/**
+ * A single kudos "give" from one member to another. Kept as an append-only
+ * ledger (rather than a running total column) so totals, weekly/monthly
+ * leaderboard windows, and the give cooldown can all be derived from the same
+ * rows instead of kept in sync by hand.
+ */
+export const kudosTransaction = sqliteTable(
+  'kudos_transaction',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    guildId: text('guild_id').notNull(),
+    giverDiscordId: text('giver_discord_id').notNull(),
+    receiverDiscordId: text('receiver_discord_id').notNull(),
+    reason: text('reason'),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => [
+    // Leaderboard queries: sum/group by receiver within a time window.
+    index('kudos_transaction_receiver_idx').on(t.receiverDiscordId, t.createdAt),
+    // Cooldown check: has this giver already given to this receiver recently.
+    index('kudos_transaction_giver_receiver_idx').on(
+      t.giverDiscordId,
+      t.receiverDiscordId,
+      t.createdAt,
+    ),
+  ],
+)
+
 export type User = typeof user.$inferSelect
 export type NewUser = typeof user.$inferInsert
 export type LinkedAccount = typeof linkedAccount.$inferSelect
 export type NewLinkedAccount = typeof linkedAccount.$inferInsert
 export type ContentOverride = typeof contentOverride.$inferSelect
+export type KudosTransaction = typeof kudosTransaction.$inferSelect
+export type NewKudosTransaction = typeof kudosTransaction.$inferInsert
