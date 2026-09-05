@@ -159,17 +159,26 @@
         "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ Couldn't reach the CRM to verify your permissions, so attendance won't be synced. Leave the channel or run `/stop-attendance-track` to get the list."
       },
       "grantAccessAdded": {
-        "description": "{{USER}} was added to the **{{TEAM_LABEL}}** Google Group."
+        "description": "{{USER}} was added to the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}}."
+      },
+      "grantAccessAddedRole": {
+        "description": "{{USER}} was added to the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}} as **{{ROLE_LABEL}}**."
+      },
+      "grantAccessPendingRole": {
+        "description": "{{USER}} was invited to the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}} as `{{IDENTIFIER}}` (**{{ROLE_LABEL}}**). They\u0027ll be added once they accept the invite."
       },
       "grantAccessAlreadyMember": {
-        "description": "{{USER}} is already a member of the **{{TEAM_LABEL}}** Google Group."
+        "description": "{{USER}} is already a member of the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}}."
+      },
+      "grantAccessPending": {
+        "description": "{{USER}} was invited to the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}} as `{{IDENTIFIER}}`. They'll be added once they accept the invite."
       },
       "grantAccessFailed": {
         "description": "Couldn't add {{USER}} to the **{{TEAM_LABEL}}** team. Please try again or contact an administrator.",
         "color": "{{COM:colors.warning}}"
       },
       "grantAccessNotLinked": {
-        "description": "{{USER}} hasn't linked a Google account yet. Have them run `/link-account`, or run `/link-account` with their `user` to link it for them.",
+        "description": "{{USER}} hasn't linked a {{ACCOUNT_LABEL}} account yet. Have them run `/link-account`, or run `/link-account` with their `user` to link it for them.",
         "color": "{{COM:colors.warning}}"
       },
       "grantAccessUnknownService": {
@@ -177,11 +186,11 @@
         "color": "{{COM:colors.warning}}"
       },
       "grantAccessUnknownTeam": {
-        "description": "Unknown team `{{TEAM}}`. No matching Google Group is configured.",
+        "description": "Unknown team `{{TEAM}}`. No matching {{RESOURCE_LABEL}} is configured.",
         "color": "{{COM:colors.warning}}"
       },
       "grantAccessNotConfigured": {
-        "description": "Google group management isn't configured on this bot. The service account credentials and database connection must be set.",
+        "description": "{{RESOURCE_LABEL}} management isn't configured on this bot. {{REQUIREMENT}}",
         "color": "{{COM:colors.warning}}"
       },
       "linkAccountSuccess": {
@@ -366,6 +375,10 @@
       "sendWelcomeOnboarding": "Send Welcome Onboarding"
     },
     "messageCommands": {},
+    "githubTeamRoles": {
+      "member": "Member",
+      "maintainer": "Maintainer (can add and remove this team's members on GitHub)"
+    },
     "arguments": {
       "command": "command",
       "contentKey": "key",
@@ -374,6 +387,7 @@
       "attendanceEventName": "name",
       "service": "service",
       "team": "team",
+      "role": "role",
       "user": "user",
       "identifier": "identifier",
       "skill": "skill",
@@ -392,8 +406,8 @@
       "census": "Gives a link to the Census form.",
       "attendanceTrack": "Tracks voice-channel attendance until you leave or stop tracking.",
       "stopAttendanceTrack": "Stops your active attendance tracker and sends the results immediately.",
-      "grantAccess": "Grant a member access to a team's service (e.g. a Google Group).",
-      "linkAccount": "Link an external account (e.g. your Google email) to a Discord profile.",
+      "grantAccess": "Grant a member access to a team's service (e.g. a Google Group or GitHub team).",
+      "linkAccount": "Link an external account (e.g. your Google email or GitHub username) to a Discord profile.",
       "pingSkillRole": "Ping the online members of a skill role (works in forum posts)."
     },
     "argDescs": {
@@ -406,6 +420,7 @@
       "grantAccessService": "The service to grant access to.",
       "grantAccessTeam": "The team whose service the member should be added to.",
       "grantAccessUser": "The member to grant access to.",
+      "grantAccessRole": "GitHub only: the team role to grant. Defaults to member.",
       "linkAccountService": "The service to link an account for.",
       "linkAccountIdentifier": "The account identifier (e.g. a Google email address).",
       "linkAccountUser": "Coordinators only: the member to link an account for (defaults to you).",
