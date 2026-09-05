@@ -16,7 +16,11 @@ GitHub org teams:
 | --- | --- |
 | SQLite database (`SQLITE_PATH`) | `/link-account`, `/grant-access` |
 | `GITHUB_TEAMS_TOKEN` | `/grant-access service:github` |
-| Team shortname → org/team mapping in `config.json` | `/grant-access service:github` |
+| `GITHUB_TEAMS_ORG` | `/grant-access service:github` |
+
+Teams themselves are **not** configured. They are discovered from the org, so
+creating a team on GitHub is all it takes to make it grantable — see
+[Which teams are offered](#2-which-teams-are-offered).
 
 `/link-account` only needs the database. Everything below is for
 `/grant-access service:github`.
@@ -61,28 +65,43 @@ curl -s -i -H "Authorization: Bearer $GITHUB_TEAMS_TOKEN" https://api.github.com
 for fine-grained tokens), and `login` in the body is the account GitHub
 authenticates it as — check that it is the account you granted the role to.
 
-## 2. Map team shortnames to GitHub org + team
+## 2. Which teams are offered
 
-In `config.json`, under `grantAccess`, fill in `githubTeams`. The `team:`
-option is autocompleted from this config, narrowed to the teams the picked
-`service:` actually has — so a shortname only needs an entry under the
-service it is used with. Reusing the same shortname under `groups` (Google)
-and `githubTeams` is fine, and makes the team offered for either service:
+Every team in `GITHUB_TEAMS_ORG` is grantable, except those you deny. There is
+no team list in `config.json` to maintain: `RefreshGitHubTeamsJob` calls
+[`GET /orgs/{org}/teams`](https://docs.github.com/en/rest/teams/teams#list-teams)
+hourly and caches the result in memory, and the `team:` option autocompletes
+from that cache. A team created on GitHub becomes selectable at the next
+refresh — no code change, no redeploy.
+
+To keep a team out of reach, list its slug under `grantAccess.excludeTeams`:
 
 ```json
 "grantAccess": {
   "allowedRoleKeys": ["DIRECTOR", "COORDINATOR"],
   "groups": { "Dev Team": "dev-team@digitalgroundgame.org" },
-  "githubTeams": {
-      "Pragmatic Papers Website": { "org": "digitalgroundgame", "team": "pragmatic-papers-website" },
-  }
+  "excludeTeams": ["leadership", "security"]
 }
 ```
 
-`team` is the team's **slug** (visible in its GitHub URL,
-`github.com/orgs/<org>/teams/<slug>`), not its display name.
+Use the team's **slug** (visible in its GitHub URL,
+`github.com/orgs/<org>/teams/<slug>`), not its display name. Exclusions apply
+to what autocomplete offers *and* to what `/grant-access` will act on, so a
+denied team cannot be reached by typing its name instead of picking it.
 
-## 3. Environment variable
+Google groups are unaffected: they are still mapped by hand under
+`grantAccess.groups`, and a shortname listed there is offered for
+`service:google` regardless of what exists on GitHub.
+
+### On a stale cache
+
+The cache is a convenience, not the authority. If someone creates a team and
+grants access to it before the next refresh, typing the team's name still
+works — the name is converted to a slug the way GitHub does it, and the
+membership call itself decides whether that team exists. A failed refresh
+costs suggestions in the dropdown, never a grant.
+
+## 3. Environment variables
 
 ```bash
 # Token from an org owner or team maintainer, scoped to write team membership:
@@ -90,17 +109,28 @@ and `githubTeams` is fine, and makes the team offered for either service:
 # token, preferred) or the admin:org scope (classic PAT — write:org is not
 # enough).
 GITHUB_TEAMS_TOKEN="ghp_..."
+# The organization teams are discovered from and granted in.
+GITHUB_TEAMS_ORG="digitalgroundgame"
 ```
+
+Reading the team list needs no scope beyond what the membership write already
+requires, so a token that can grant can also enumerate. Pointing
+`GITHUB_TEAMS_ORG` at a scratch org is the way to test against throwaway
+teams without touching committed config.
 
 ## 4. Verify
 
 Start the bot and watch the logs:
 
-- If `GITHUB_TEAMS_TOKEN` is unset, you'll see:
+- If `GITHUB_TEAMS_TOKEN` or `GITHUB_TEAMS_ORG` is unset, you'll see:
   > `/grant-access: disabled for service:github — set GITHUB_TEAMS_TOKEN …`
-- If a team shortname has no entry under `githubTeams`, `/grant-access` tells
-  the caller the team is unknown for that service — check the `config.json`
-  mapping.
+- On a successful refresh, at startup and hourly after:
+  > `GitHub Teams: cached <n> team(s) from <org>`
+- If that count is 0 or the team dropdown is empty, the refresh failed — the
+  status and body are logged. A token that cannot see the org's teams gets a
+  404 here even though the org name is right.
+- If `/grant-access` reports the team as unknown, it is either on
+  `excludeTeams` or the name slugs to nothing usable.
 - If the API call fails, the error (HTTP status + body) is logged. Common
   causes:
   - **404** — the org or team slug is wrong, or the token's owner can't see
@@ -134,10 +164,22 @@ the Discord side, by `grantAccess.allowedRoleKeys` in `config.json`.
 
 That makes the Discord role the real access control on your GitHub org
 membership: anyone holding it is exercising the token account's authority,
-bounded only by what the command exposes — the teams listed under
-`githubTeams`, always at `role: member`, and only against usernames someone
-has linked with `/link-account`. This is the main argument for the
-fine-grained token above.
+bounded only by what the command exposes — any team in the org that is not on
+`excludeTeams`, always at `role: member`, and only against usernames someone
+has linked with `/link-account`.
+
+Note what discovery changed here. The old team map in `config.json` doubled as
+an allowlist, so the reachable set was whatever someone had deliberately typed
+in. It is now the whole org by default, and `excludeTeams` is the only thing
+narrowing it. Two consequences worth sitting with:
+
+- A team created on GitHub is grantable the moment it is discovered, by
+  whoever holds the Discord role. Nobody reviews a config change first.
+- A sensitive team is protected only if someone remembers to add its slug to
+  `excludeTeams`. That is a standing obligation, not a one-time setup step.
+
+This is the main argument for the fine-grained token above, and for keeping
+`grantAccess.allowedRoleKeys` tight.
 
 It also means GitHub's org audit log attributes every one of these additions
 to the token's account, not to the person who ran the command. The Discord

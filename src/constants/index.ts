@@ -14,6 +14,13 @@ export {
   GrantAccessAllowedRoleKeys,
   getGoogleGroupAddress,
 } from './google-groups.js'
-export { type GitHubTeamRef, GitHubTeams, getGitHubTeam } from './github-teams.js'
+export {
+  type GitHubTeam,
+  GitHubExcludedTeamSlugs,
+  isExcludedGitHubTeam,
+  resolveGitHubTeamSlug,
+  selectableGitHubTeams,
+  toGitHubTeamSlug,
+} from './github-teams.js'
 export { type LinkableAccount, LinkableAccounts, getLinkableAccount } from './linkable-accounts.js'
 export { PingSkillRoleAllowedRoleKeys } from './skill-roles.js'

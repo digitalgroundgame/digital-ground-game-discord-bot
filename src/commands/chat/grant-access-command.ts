@@ -10,11 +10,12 @@ import { RateLimiter } from 'discord.js-rate-limiter'
 
 import {
   DiscordLimits,
-  getGitHubTeam,
+  type GitHubTeam,
   getGoogleGroupAddress,
-  GitHubTeams,
   GoogleGroups,
   GrantAccessAllowedRoleKeys,
+  resolveGitHubTeamSlug,
+  selectableGitHubTeams,
   type ServerRole,
   ServerRoles,
 } from '../../constants/index.js'
@@ -32,18 +33,23 @@ import { InteractionUtils } from '../../utils/index.js'
 import { type Command, CommandDeferType } from '../index.js'
 
 /**
- * Team shortnames configured for `service`, sorted. Falls back to every
- * configured team while `service` is still unset, since Discord sends
- * autocomplete requests before the other options are filled in.
+ * Team shortnames selectable for `service`, sorted. Falls back to every known
+ * team while `service` is still unset, since Discord sends autocomplete
+ * requests before the other options are filled in.
+ *
+ * GitHub names come from the cached org team list rather than config, so this
+ * stays a synchronous in-memory read — Discord gives autocomplete about three
+ * seconds, which is no budget for a round trip to GitHub.
  */
-function teamShortnames(service: string | null): string[] {
+function teamShortnames(service: string | null, githubTeams: readonly GitHubTeam[]): string[] {
+  const github = (): string[] => selectableGitHubTeams(githubTeams).map((team) => team.name)
   switch (service) {
     case 'google':
       return Object.keys(GoogleGroups).sort()
     case 'github':
-      return Object.keys(GitHubTeams).sort()
+      return github()
     default:
-      return Array.from(new Set([...Object.keys(GoogleGroups), ...Object.keys(GitHubTeams)])).sort()
+      return Array.from(new Set([...Object.keys(GoogleGroups), ...github()])).sort()
   }
 }
 
@@ -73,8 +79,11 @@ export class GrantAccessCommand implements Command {
     option: AutocompleteFocusedOption,
   ): Promise<ApplicationCommandOptionChoiceData[]> {
     const service = intr.options.getString(Lang.getRef('arguments.service', Language.Default))
+    // Non-blocking: fills an empty cache for the *next* keystroke if the
+    // startup refresh has not landed yet, rather than stalling this one.
+    this.githubTeamsService?.warmTeams()
     const search = option.value.toLowerCase()
-    return teamShortnames(service)
+    return teamShortnames(service, this.githubTeamsService?.getTeams() ?? [])
       .filter((shortname) => shortname.toLowerCase().includes(search))
       .slice(0, DiscordLimits.CHOICES_PER_AUTOCOMPLETE)
       .map((shortname) => ({ name: shortname, value: shortname }))
@@ -216,8 +225,14 @@ export class GrantAccessCommand implements Command {
     teamShortname: string,
     targetUser: User,
   ): Promise<void> {
-    const githubTeam = getGitHubTeam(teamShortname)
-    if (!githubTeam) {
+    const githubTeamsService = this.githubTeamsService
+    const userService = this.userService
+
+    // Resolved against the cached org teams, falling back to GitHub's own
+    // slug rule so a team created since the last refresh can still be granted
+    // by typing its name. Returns null for a team on the exclusion list.
+    const teamSlug = resolveGitHubTeamSlug(teamShortname, githubTeamsService?.getTeams() ?? [])
+    if (!teamSlug) {
       await InteractionUtils.send(
         intr,
         Lang.getEmbed('displayEmbeds.grantAccessUnknownTeam', data.lang, {
@@ -229,14 +244,13 @@ export class GrantAccessCommand implements Command {
       return
     }
 
-    const githubTeamsService = this.githubTeamsService
-    const userService = this.userService
     if (!githubTeamsService?.isConfigured() || !userService) {
       await InteractionUtils.send(
         intr,
         Lang.getEmbed('displayEmbeds.grantAccessNotConfigured', data.lang, {
           RESOURCE_LABEL: 'GitHub team',
-          REQUIREMENT: 'A GitHub API token and database connection must be set.',
+          REQUIREMENT:
+            'A GitHub API token, an organization, and a database connection must be set.',
         }),
         true,
       )
@@ -252,7 +266,8 @@ export class GrantAccessCommand implements Command {
         intr,
         Lang.getEmbed('displayEmbeds.grantAccessNotConfigured', data.lang, {
           RESOURCE_LABEL: 'GitHub team',
-          REQUIREMENT: 'A GitHub API token and database connection must be set.',
+          REQUIREMENT:
+            'A GitHub API token, an organization, and a database connection must be set.',
         }),
         true,
       )
@@ -272,13 +287,14 @@ export class GrantAccessCommand implements Command {
       return
     }
 
-    const addResult = await githubTeamsService.addMember(githubTeam.org, githubTeam.team, username)
+    const addResult = await githubTeamsService.addMember(teamSlug, username)
     if (addResult.status === 'not-configured') {
       await InteractionUtils.send(
         intr,
         Lang.getEmbed('displayEmbeds.grantAccessNotConfigured', data.lang, {
           RESOURCE_LABEL: 'GitHub team',
-          REQUIREMENT: 'A GitHub API token and database connection must be set.',
+          REQUIREMENT:
+            'A GitHub API token, an organization, and a database connection must be set.',
         }),
         true,
       )

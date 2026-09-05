@@ -41,7 +41,12 @@ import {
   VoiceStateUpdateHandler,
 } from './events/index.js'
 import { CustomClient } from './extensions/index.js'
-import { AutoCloseWelcomeThreadsJob, SyncDggpGoogleCalendarJob, type Job } from './jobs/index.js'
+import {
+  AutoCloseWelcomeThreadsJob,
+  RefreshGitHubTeamsJob,
+  SyncDggpGoogleCalendarJob,
+  type Job,
+} from './jobs/index.js'
 import { Bot } from './models/bot.js'
 import { type Reaction } from './reactions/index.js'
 import { syncDggpScheduledEventsToGoogle } from './services/sync-dggp-google-calendar.js'
@@ -125,11 +130,15 @@ async function start(): Promise<void> {
     )
   }
 
-  // Token used by /grant-access to manage GitHub team membership.
-  const githubTeamsService = new GitHubTeamsService(process.env.GITHUB_TEAMS_TOKEN)
+  // Token and org used by /grant-access to discover GitHub teams and manage
+  // their membership.
+  const githubTeamsService = new GitHubTeamsService(
+    process.env.GITHUB_TEAMS_TOKEN,
+    process.env.GITHUB_TEAMS_ORG,
+  )
   if (!githubTeamsService.isConfigured()) {
     Logger.warn(
-      '/grant-access: disabled for service:github — set GITHUB_TEAMS_TOKEN (a token from an org owner or team maintainer with the Members org permission / admin:org scope). /link-account remains available.',
+      '/grant-access: disabled for service:github — set GITHUB_TEAMS_TOKEN (a token from an org owner or team maintainer with the Members org permission / admin:org scope) and GITHUB_TEAMS_ORG (the organization its teams are read from). /link-account remains available.',
     )
   }
 
@@ -213,6 +222,11 @@ async function start(): Promise<void> {
     new AutoCloseWelcomeThreadsJob(client),
     new SyncDggpGoogleCalendarJob(client, googleCalendarService),
   ]
+  // Keeps the /grant-access GitHub team list current. Pointless without a
+  // token and org, and the service would no-op anyway.
+  if (githubTeamsService.isConfigured()) {
+    jobs.push(new RefreshGitHubTeamsJob(githubTeamsService))
+  }
 
   // Bot
   const bot = new Bot(

@@ -6,7 +6,7 @@ import {
 } from 'discord.js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { DiscordLimits, GitHubTeams, GoogleGroups } from '../../src/constants/index.js'
+import { DiscordLimits, type GitHubTeam, GoogleGroups } from '../../src/constants/index.js'
 import { type LinkedAccount } from '../../src/database/schema.js'
 import { Language } from '../../src/models/enum-helpers/index.js'
 import { EventData } from '../../src/models/internal-models.js'
@@ -32,8 +32,14 @@ function firstEntry<T>(record: Record<string, T>, label: string): [string, T] {
   return entry
 }
 
-// Taken from config rather than hard-coded so renaming a team doesn't break these tests.
-const [GITHUB_TEAM, GITHUB_TEAM_REF] = firstEntry(GitHubTeams, 'GitHub team')
+// Google teams still come from config; GitHub teams are discovered at runtime,
+// so they are stubbed here the way the service would have cached them.
+const GITHUB_TEAMS: GitHubTeam[] = [
+  { name: 'Discord Bot', slug: 'discord-bot' },
+  { name: 'Blue Book', slug: 'blue-book' },
+]
+const GITHUB_TEAM = 'Discord Bot'
+const GITHUB_TEAM_SLUG = 'discord-bot'
 const [GOOGLE_TEAM, GOOGLE_GROUP] = firstEntry(GoogleGroups, 'Google group')
 
 const data = new EventData(Language.Default, Language.Default)
@@ -71,8 +77,14 @@ function lastSent(): { description: string; ephemeral: boolean } {
 function githubService(
   addMember: GitHubTeamsService['addMember'],
   isConfigured = true,
+  teams: GitHubTeam[] = GITHUB_TEAMS,
 ): GitHubTeamsService {
-  return { isConfigured: () => isConfigured, addMember } as unknown as GitHubTeamsService
+  return {
+    isConfigured: () => isConfigured,
+    addMember,
+    getTeams: () => teams,
+    warmTeams: vi.fn(),
+  } as unknown as GitHubTeamsService
 }
 
 function googleService(
@@ -107,7 +119,13 @@ describe('GrantAccessCommand', () => {
   })
 
   describe('autocomplete', () => {
-    const command = new GrantAccessCommand()
+    const command = new GrantAccessCommand(
+      undefined,
+      undefined,
+      githubService(vi.fn(async () => ({ status: 'active' as const }))),
+    )
+    // Team names as autocomplete offers them: discovered, then sorted by name.
+    const githubNames = ['Blue Book', 'Discord Bot']
 
     it('suggests only the Google teams once google is picked', async () => {
       const choices = await command.autocomplete(
@@ -124,7 +142,7 @@ describe('GrantAccessCommand', () => {
         focusedTeam(''),
       )
 
-      expect(choices.map((choice) => choice.value)).toEqual(Object.keys(GitHubTeams).sort())
+      expect(choices.map((choice) => choice.value)).toEqual(githubNames)
     })
 
     it('suggests every team while the service is still unset', async () => {
@@ -135,7 +153,7 @@ describe('GrantAccessCommand', () => {
       )
 
       expect(choices.map((choice) => choice.value)).toEqual(
-        Array.from(new Set([...Object.keys(GoogleGroups), ...Object.keys(GitHubTeams)])).sort(),
+        Array.from(new Set([...Object.keys(GoogleGroups), ...githubNames])).sort(),
       )
     })
 
@@ -149,7 +167,7 @@ describe('GrantAccessCommand', () => {
     })
 
     it('matches the typed text anywhere in the name, ignoring case', async () => {
-      const [firstGitHubTeam] = firstEntry(GitHubTeams, 'GitHub team')
+      const firstGitHubTeam = githubNames[0]!
       const fragment = firstGitHubTeam.slice(1, 4).toUpperCase()
 
       const choices = await command.autocomplete(
@@ -183,6 +201,26 @@ describe('GrantAccessCommand', () => {
       }
     })
 
+    it('offers nothing for GitHub while the discovered team list is still cold', async () => {
+      // A cold cache costs suggestions only; the team can still be typed.
+      const coldCommand = new GrantAccessCommand(
+        undefined,
+        undefined,
+        githubService(
+          vi.fn(async () => ({ status: 'active' as const })),
+          true,
+          [],
+        ),
+      )
+
+      const choices = await coldCommand.autocomplete(
+        createAutocompleteInteraction('github'),
+        focusedTeam(''),
+      )
+
+      expect(choices).toEqual([])
+    })
+
     it('never returns more choices than Discord accepts', async () => {
       const choices = await command.autocomplete(
         createAutocompleteInteraction(null),
@@ -212,7 +250,7 @@ describe('GrantAccessCommand', () => {
 
       await command.execute(createInteraction('github', GITHUB_TEAM), data)
 
-      expect(addMember).toHaveBeenCalledWith(GITHUB_TEAM_REF.org, GITHUB_TEAM_REF.team, 'octocat')
+      expect(addMember).toHaveBeenCalledWith(GITHUB_TEAM_SLUG, 'octocat')
       const sent = lastSent()
       expect(sent.description).toContain('was added')
       expect(sent.ephemeral).toBe(false)
@@ -233,7 +271,35 @@ describe('GrantAccessCommand', () => {
       expect(sent.ephemeral).toBe(false)
     })
 
-    it('reports an unknown team without calling GitHub', async () => {
+    it('resolves a team the caller typed as a slug', async () => {
+      const addMember = vi.fn(async () => ({ status: 'active' as const }))
+      const command = new GrantAccessCommand(
+        undefined,
+        userService(linkedAccount({ externalId: 'octocat' })),
+        githubService(addMember),
+      )
+
+      await command.execute(createInteraction('github', GITHUB_TEAM_SLUG), data)
+
+      expect(addMember).toHaveBeenCalledWith(GITHUB_TEAM_SLUG, 'octocat')
+    })
+
+    it('attempts a team the cache has not seen, letting GitHub decide', async () => {
+      // A team created since the last refresh must still be grantable by
+      // typing its name; GitHub rejects the slug if it truly does not exist.
+      const addMember = vi.fn(async () => ({ status: 'active' as const }))
+      const command = new GrantAccessCommand(
+        undefined,
+        userService(linkedAccount({ externalId: 'octocat' })),
+        githubService(addMember, true, []),
+      )
+
+      await command.execute(createInteraction('github', 'Brand New Team'), data)
+
+      expect(addMember).toHaveBeenCalledWith('brand-new-team', 'octocat')
+    })
+
+    it('reports an unusable team name without calling GitHub', async () => {
       const addMember = vi.fn(async () => ({ status: 'active' as const }))
       const command = new GrantAccessCommand(
         undefined,
@@ -241,7 +307,7 @@ describe('GrantAccessCommand', () => {
         githubService(addMember),
       )
 
-      await command.execute(createInteraction('github', 'Not A Team'), data)
+      await command.execute(createInteraction('github', '---'), data)
 
       expect(addMember).not.toHaveBeenCalled()
       const sent = lastSent()
@@ -250,19 +316,19 @@ describe('GrantAccessCommand', () => {
       expect(sent.ephemeral).toBe(true)
     })
 
-    it('rejects a typed inherited key instead of calling GitHub with an undefined team', async () => {
-      // `team` is autocompleted, so anything can be typed into it.
+    it('passes a typed inherited key through as an ordinary slug', async () => {
+      // `team` is autocompleted, so anything can be typed into it. Teams are
+      // matched over an array now, so no prototype value can be reached.
       const addMember = vi.fn(async () => ({ status: 'active' as const }))
       const command = new GrantAccessCommand(
         undefined,
-        userService(linkedAccount({})),
+        userService(linkedAccount({ externalId: 'octocat' })),
         githubService(addMember),
       )
 
-      await command.execute(createInteraction('github', 'constructor'), data)
+      await command.execute(createInteraction('github', '__proto__'), data)
 
-      expect(addMember).not.toHaveBeenCalled()
-      expect(lastSent().description).toContain('Unknown team')
+      expect(addMember).toHaveBeenCalledWith('proto', 'octocat')
     })
 
     it('reports a missing GitHub token', async () => {
