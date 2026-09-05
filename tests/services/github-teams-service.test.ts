@@ -90,6 +90,24 @@ describe('GitHubTeamsService', () => {
       expect(init.signal).toBeInstanceOf(AbortSignal)
     })
 
+    it('defaults to the member role when none is given', async () => {
+      fetchMock.mockResolvedValue(membershipResponse('active'))
+
+      await new GitHubTeamsService('t', 'dgg').addMember('dev-team', 'octocat')
+
+      const [, init] = fetchMock.mock.calls[0] as [string, Record<string, unknown>]
+      expect(init.body).toBe(JSON.stringify({ role: 'member' }))
+    })
+
+    it('sends the requested role in the body', async () => {
+      fetchMock.mockResolvedValue(membershipResponse('active'))
+
+      await new GitHubTeamsService('t', 'dgg').addMember('dev-team', 'octocat', 'maintainer')
+
+      const [, init] = fetchMock.mock.calls[0] as [string, Record<string, unknown>]
+      expect(init.body).toBe(JSON.stringify({ role: 'maintainer' }))
+    })
+
     it('returns active when the membership is live', async () => {
       fetchMock.mockResolvedValue(membershipResponse('active'))
 

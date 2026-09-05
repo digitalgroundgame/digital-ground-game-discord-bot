@@ -15,11 +15,15 @@ export {
   getGoogleGroupAddress,
 } from './google-groups.js'
 export {
+  DEFAULT_GITHUB_TEAM_ROLE,
   type GitHubTeam,
+  type GitHubTeamRole,
+  GITHUB_TEAM_ROLES,
   GitHubExcludedTeamSlugs,
   isExcludedGitHubTeam,
   resolveGitHubTeamSlug,
   selectableGitHubTeams,
+  toGitHubTeamRole,
   toGitHubTeamSlug,
 } from './github-teams.js'
 export { type LinkableAccount, LinkableAccounts, getLinkableAccount } from './linkable-accounts.js'

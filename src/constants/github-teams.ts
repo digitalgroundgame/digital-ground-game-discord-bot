@@ -89,3 +89,16 @@ export function resolveGitHubTeamSlug(
   if (slug === '') return null
   return isExcludedGitHubTeam(slug, excluded) ? null : slug
 }
+
+/** The roles GitHub accepts in a team membership upsert. */
+export const GITHUB_TEAM_ROLES = ['member', 'maintainer'] as const
+export type GitHubTeamRole = (typeof GITHUB_TEAM_ROLES)[number]
+
+/** What a grant defaults to when the caller does not pick a role. */
+export const DEFAULT_GITHUB_TEAM_ROLE: GitHubTeamRole = 'member'
+
+/** Narrow free text to a role GitHub accepts, falling back to the default. */
+export function toGitHubTeamRole(value: string | null | undefined): GitHubTeamRole {
+  const needle = value?.trim().toLowerCase()
+  return GITHUB_TEAM_ROLES.find((role) => role === needle) ?? DEFAULT_GITHUB_TEAM_ROLE
+}

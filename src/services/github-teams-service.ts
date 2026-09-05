@@ -1,7 +1,11 @@
 import fetch from 'node-fetch'
 
 import { Logger } from './logger.js'
-import { type GitHubTeam } from '../constants/github-teams.js'
+import {
+  DEFAULT_GITHUB_TEAM_ROLE,
+  type GitHubTeam,
+  type GitHubTeamRole,
+} from '../constants/github-teams.js'
 
 const GITHUB_API_BASE = 'https://api.github.com'
 const GITHUB_API_VERSION = '2022-11-28'
@@ -163,14 +167,19 @@ export class GitHubTeamsService {
   }
 
   /**
-   * Add `username` to the `team` slug in the configured org. The endpoint is
-   * an idempotent upsert, so GitHub doesn't distinguish "already a member"
-   * from "newly added" — both come back as `active`. A user who isn't yet in
+   * Add `username` to the `team` slug in the configured org at `role`. The
+   * endpoint is an idempotent upsert, so GitHub doesn't distinguish "already a
+   * member" from "newly added" — both come back as `active`, and re-running
+   * with a different role promotes or demotes in place. A user who isn't yet in
    * the organization instead gets an emailed invite and comes back `pending`
    * until they accept it. An unknown slug comes back as an `error`, which is
    * what keeps a stale team cache from mattering.
    */
-  public async addMember(team: string, username: string): Promise<AddTeamMemberResult> {
+  public async addMember(
+    team: string,
+    username: string,
+    role: GitHubTeamRole = DEFAULT_GITHUB_TEAM_ROLE,
+  ): Promise<AddTeamMemberResult> {
     const token = this.token
     const org = this.org
     if (!token || !org) return { status: 'not-configured' }
@@ -185,7 +194,7 @@ export class GitHubTeamsService {
           'Content-Type': 'application/json',
           'X-GitHub-Api-Version': GITHUB_API_VERSION,
         },
-        body: JSON.stringify({ role: 'member' }),
+        body: JSON.stringify({ role }),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       })
 
@@ -196,12 +205,14 @@ export class GitHubTeamsService {
 
       const text = await res.text().catch(() => '')
       const message = `${res.status} ${text}`.trim()
-      Logger.error(`GitHub Teams: failed to add ${username} to ${org}/${team}: ${message}`)
+      Logger.error(
+        `GitHub Teams: failed to add ${username} to ${org}/${team} as ${role}: ${message}`,
+      )
       return { status: 'error', message }
     } catch (err: unknown) {
       const message = describeError(err)
       Logger.error(
-        `GitHub Teams: request failed for ${username} -> ${org}/${team}: ${message}`,
+        `GitHub Teams: request failed for ${username} -> ${org}/${team} as ${role}: ${message}`,
         err,
       )
       return { status: 'error', message }

@@ -11,12 +11,14 @@ import { RateLimiter } from 'discord.js-rate-limiter'
 import {
   DiscordLimits,
   type GitHubTeam,
+  type GitHubTeamRole,
   getGoogleGroupAddress,
   GoogleGroups,
   GrantAccessAllowedRoleKeys,
   resolveGitHubTeamSlug,
   selectableGitHubTeams,
   type ServerRole,
+  toGitHubTeamRole,
   ServerRoles,
 } from '../../constants/index.js'
 import { type LinkedAccount } from '../../database/schema.js'
@@ -98,12 +100,17 @@ export class GrantAccessCommand implements Command {
     const targetUser = intr.options.getUser(Lang.getRef('arguments.user', Language.Default), true)
 
     if (service === 'google') {
+      // `role` is a GitHub concept; a Google Group membership has no equivalent.
       await this.grantGoogleAccess(intr, data, teamShortname, targetUser)
       return
     }
 
     if (service === 'github') {
-      await this.grantGitHubAccess(intr, data, teamShortname, targetUser)
+      // The option is choice-restricted, so this only defaults when it is unset.
+      const role = toGitHubTeamRole(
+        intr.options.getString(Lang.getRef('arguments.role', Language.Default)),
+      )
+      await this.grantGitHubAccess(intr, data, teamShortname, targetUser, role)
       return
     }
 
@@ -224,6 +231,7 @@ export class GrantAccessCommand implements Command {
     data: EventData,
     teamShortname: string,
     targetUser: User,
+    role: GitHubTeamRole,
   ): Promise<void> {
     const githubTeamsService = this.githubTeamsService
     const userService = this.userService
@@ -287,7 +295,7 @@ export class GrantAccessCommand implements Command {
       return
     }
 
-    const addResult = await githubTeamsService.addMember(teamSlug, username)
+    const addResult = await githubTeamsService.addMember(teamSlug, username, role)
     if (addResult.status === 'not-configured') {
       await InteractionUtils.send(
         intr,
@@ -304,10 +312,10 @@ export class GrantAccessCommand implements Command {
     if (addResult.status === 'active' || addResult.status === 'pending') {
       const ref =
         addResult.status === 'active'
-          ? 'displayEmbeds.grantAccessAdded'
-          : 'displayEmbeds.grantAccessPending'
+          ? 'displayEmbeds.grantAccessAddedRole'
+          : 'displayEmbeds.grantAccessPendingRole'
       Logger.info(
-        `${intr.user.tag} granted ${targetUser.tag} access to team '${teamShortname}' — ${addResult.status}`,
+        `${intr.user.tag} granted ${targetUser.tag} access to team '${teamShortname}' as ${role} — ${addResult.status}`,
       )
       await InteractionUtils.send(
         intr,
@@ -315,6 +323,9 @@ export class GrantAccessCommand implements Command {
           USER: targetUser.toString(),
           TEAM_LABEL: teamShortname,
           RESOURCE_LABEL: 'GitHub team',
+          // Spelled out rather than left implicit: a maintainer grant hands the
+          // target the same team-membership authority the bot's token has.
+          ROLE_LABEL: Lang.getRef(`githubTeamRoles.${role}`, Language.Default),
           // Named so a mistyped link is visible before the stranger accepts.
           IDENTIFIER: username,
         }),
@@ -324,7 +335,7 @@ export class GrantAccessCommand implements Command {
     }
 
     Logger.error(
-      `/grant-access: failed to add ${targetUser.tag} to team '${teamShortname}': ${addResult.message}`,
+      `/grant-access: failed to add ${targetUser.tag} to team '${teamShortname}' as ${role}: ${addResult.message}`,
     )
     await InteractionUtils.send(
       intr,

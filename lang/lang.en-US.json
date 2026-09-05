@@ -161,6 +161,12 @@
       "grantAccessAdded": {
         "description": "{{USER}} was added to the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}}."
       },
+      "grantAccessAddedRole": {
+        "description": "{{USER}} was added to the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}} as **{{ROLE_LABEL}}**."
+      },
+      "grantAccessPendingRole": {
+        "description": "{{USER}} was invited to the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}} as `{{IDENTIFIER}}` (**{{ROLE_LABEL}}**). They\u0027ll be added once they accept the invite."
+      },
       "grantAccessAlreadyMember": {
         "description": "{{USER}} is already a member of the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}}."
       },
@@ -369,6 +375,10 @@
       "sendWelcomeOnboarding": "Send Welcome Onboarding"
     },
     "messageCommands": {},
+    "githubTeamRoles": {
+      "member": "Member",
+      "maintainer": "Maintainer (can add and remove this team's members on GitHub)"
+    },
     "arguments": {
       "command": "command",
       "contentKey": "key",
@@ -377,6 +387,7 @@
       "attendanceEventName": "name",
       "service": "service",
       "team": "team",
+      "role": "role",
       "user": "user",
       "identifier": "identifier",
       "skill": "skill",
@@ -409,6 +420,7 @@
       "grantAccessService": "The service to grant access to.",
       "grantAccessTeam": "The team whose service the member should be added to.",
       "grantAccessUser": "The member to grant access to.",
+      "grantAccessRole": "GitHub only: the team role to grant. Defaults to member.",
       "linkAccountService": "The service to link an account for.",
       "linkAccountIdentifier": "The account identifier (e.g. a Google email address).",
       "linkAccountUser": "Coordinators only: the member to link an account for (defaults to you).",

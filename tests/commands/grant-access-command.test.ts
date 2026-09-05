@@ -45,11 +45,19 @@ const [GOOGLE_TEAM, GOOGLE_GROUP] = firstEntry(GoogleGroups, 'Google group')
 const data = new EventData(Language.Default, Language.Default)
 const targetUser = createMockUser({ id: 'target-1', tag: 'Target#0001' })
 
-function createInteraction(service: string, team: string): ChatInputCommandInteraction {
+function createInteraction(
+  service: string,
+  team: string,
+  role: string | null = null,
+): ChatInputCommandInteraction {
   return {
     user: { tag: 'Director#0001' },
     options: {
-      getString: vi.fn((name: string) => (name === 'service' ? service : team)),
+      getString: vi.fn((name: string) => {
+        if (name === 'service') return service
+        if (name === 'role') return role
+        return team
+      }),
       getUser: vi.fn(() => targetUser),
     },
   } as unknown as ChatInputCommandInteraction
@@ -250,10 +258,67 @@ describe('GrantAccessCommand', () => {
 
       await command.execute(createInteraction('github', GITHUB_TEAM), data)
 
-      expect(addMember).toHaveBeenCalledWith(GITHUB_TEAM_SLUG, 'octocat')
+      expect(addMember).toHaveBeenCalledWith(GITHUB_TEAM_SLUG, 'octocat', 'member')
       const sent = lastSent()
       expect(sent.description).toContain('was added')
       expect(sent.ephemeral).toBe(false)
+    })
+
+    it('grants the member role when none is picked', async () => {
+      const addMember = vi.fn(async () => ({ status: 'active' as const }))
+      const command = new GrantAccessCommand(
+        undefined,
+        userService(linkedAccount({ externalId: 'octocat' })),
+        githubService(addMember),
+      )
+
+      await command.execute(createInteraction('github', GITHUB_TEAM), data)
+
+      expect(addMember).toHaveBeenCalledWith(GITHUB_TEAM_SLUG, 'octocat', 'member')
+      expect(lastSent().description).toContain('Member')
+    })
+
+    it('passes the maintainer role through and names it in the reply', async () => {
+      // A maintainer grant must not read the same as a member grant: it hands
+      // the target the ability to manage that team's membership on GitHub.
+      const addMember = vi.fn(async () => ({ status: 'active' as const }))
+      const command = new GrantAccessCommand(
+        undefined,
+        userService(linkedAccount({ externalId: 'octocat' })),
+        githubService(addMember),
+      )
+
+      await command.execute(createInteraction('github', GITHUB_TEAM, 'maintainer'), data)
+
+      expect(addMember).toHaveBeenCalledWith(GITHUB_TEAM_SLUG, 'octocat', 'maintainer')
+      expect(lastSent().description).toContain('Maintainer')
+    })
+
+    it('falls back to member for a role it does not recognize', async () => {
+      const addMember = vi.fn(async () => ({ status: 'active' as const }))
+      const command = new GrantAccessCommand(
+        undefined,
+        userService(linkedAccount({ externalId: 'octocat' })),
+        githubService(addMember),
+      )
+
+      await command.execute(createInteraction('github', GITHUB_TEAM, 'owner'), data)
+
+      expect(addMember).toHaveBeenCalledWith(GITHUB_TEAM_SLUG, 'octocat', 'member')
+    })
+
+    it('names the role on a pending invite too', async () => {
+      const command = new GrantAccessCommand(
+        undefined,
+        userService(linkedAccount({ externalId: 'octocat' })),
+        githubService(vi.fn(async () => ({ status: 'pending' as const }))),
+      )
+
+      await command.execute(createInteraction('github', GITHUB_TEAM, 'maintainer'), data)
+
+      const sent = lastSent()
+      expect(sent.description).toContain('Maintainer')
+      expect(sent.description).toContain('octocat')
     })
 
     it('names the invited username while the invite is pending', async () => {
@@ -281,7 +346,7 @@ describe('GrantAccessCommand', () => {
 
       await command.execute(createInteraction('github', GITHUB_TEAM_SLUG), data)
 
-      expect(addMember).toHaveBeenCalledWith(GITHUB_TEAM_SLUG, 'octocat')
+      expect(addMember).toHaveBeenCalledWith(GITHUB_TEAM_SLUG, 'octocat', 'member')
     })
 
     it('attempts a team the cache has not seen, letting GitHub decide', async () => {
@@ -296,7 +361,7 @@ describe('GrantAccessCommand', () => {
 
       await command.execute(createInteraction('github', 'Brand New Team'), data)
 
-      expect(addMember).toHaveBeenCalledWith('brand-new-team', 'octocat')
+      expect(addMember).toHaveBeenCalledWith('brand-new-team', 'octocat', 'member')
     })
 
     it('reports an unusable team name without calling GitHub', async () => {
@@ -328,7 +393,7 @@ describe('GrantAccessCommand', () => {
 
       await command.execute(createInteraction('github', '__proto__'), data)
 
-      expect(addMember).toHaveBeenCalledWith('proto', 'octocat')
+      expect(addMember).toHaveBeenCalledWith('proto', 'octocat', 'member')
     })
 
     it('reports a missing GitHub token', async () => {

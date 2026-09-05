@@ -155,6 +155,27 @@ service:github team:<shortname> user:@member` to add them to the team. If
 the member isn't yet in the GitHub org, GitHub emails them an invite and
 `/grant-access` reports the membership as pending until they accept it.
 
+## Team roles
+
+The optional `role:` option picks the GitHub team role, `Member` (the default)
+or `Maintainer`. It applies to `service:github` only — a Google Group
+membership has no equivalent, so the option is ignored for `service:google`.
+
+The membership endpoint is an upsert, so running `/grant-access` again with a
+different role promotes or demotes an existing member in place rather than
+failing.
+
+**A maintainer is not just a label.** GitHub team maintainers can add and
+remove that team's members themselves, directly on GitHub. Granting it hands
+someone the same authority the bot's token exercises, scoped to one team — and
+they can then use it outside Discord entirely, where none of the gating in this
+document applies. The confirmation message and the bot's log line both name the
+role for that reason:
+
+```
+<discord-tag> granted <target-tag> access to team '<shortname>' as maintainer — active
+```
+
 ## Who is actually authorized
 
 Nothing about the Discord user reaches GitHub. The only gate on the GitHub
