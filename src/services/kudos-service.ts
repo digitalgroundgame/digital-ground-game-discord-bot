@@ -1,8 +1,13 @@
-import { and, count, desc, eq, gte } from 'drizzle-orm'
+import { and, asc, count, desc, eq, gt, gte } from 'drizzle-orm'
+import { DateTime } from 'luxon'
 
-import { KudosGiveCooldownDays } from '../constants/index.js'
+import {
+  KudosGiveCooldownDays,
+  KudosLeaderboardTimeZone,
+  KudosNotificationWindowMs,
+} from '../constants/index.js'
 import { type Database } from '../database/index.js'
-import { kudosTransaction } from '../database/schema.js'
+import { kudosNotification, kudosTransaction } from '../database/schema.js'
 import { Logger } from './logger.js'
 
 export type KudosLeaderboardPeriod = 'weekly' | 'monthly'
@@ -12,8 +17,19 @@ export interface KudosLeaderboardEntry {
   total: number
 }
 
+export interface KudosNotificationEntry {
+  giverDiscordId: string
+  reason: string | null
+}
+
+export interface KudosNotificationBatch {
+  messageId?: string
+  windowStartedAt: Date
+  entries: KudosNotificationEntry[]
+}
+
 export type GiveKudosResult =
-  | { status: 'given'; total: number }
+  | { status: 'given'; total: number; givenAt: Date }
   | { status: 'self' }
   | { status: 'cooldown'; retryAt: Date }
 
@@ -39,7 +55,8 @@ export class KudosService {
       return { status: 'self' }
     }
 
-    const cooldownStart = this.daysAgo(KudosGiveCooldownDays)
+    const givenAt = new Date()
+    const cooldownStart = new Date(givenAt.getTime() - KudosGiveCooldownDays * 24 * 60 * 60 * 1000)
     const lastGive = await this.db.query.kudosTransaction.findFirst({
       where: and(
         eq(kudosTransaction.guildId, guildId),
@@ -51,8 +68,9 @@ export class KudosService {
     })
 
     if (lastGive) {
-      const retryAt = new Date(lastGive.createdAt)
-      retryAt.setDate(retryAt.getDate() + KudosGiveCooldownDays)
+      const retryAt = new Date(
+        lastGive.createdAt.getTime() + KudosGiveCooldownDays * 24 * 60 * 60 * 1000,
+      )
       return { status: 'cooldown', retryAt }
     }
 
@@ -61,30 +79,89 @@ export class KudosService {
       giverDiscordId,
       receiverDiscordId,
       reason,
+      createdAt: givenAt,
     })
 
-    const total = await this.getTotal(receiverDiscordId)
+    const total = await this.getTotal(guildId, receiverDiscordId)
     Logger.info(`${giverDiscordId} gave kudos to ${receiverDiscordId} in guild ${guildId}`)
-    return { status: 'given', total }
+    return { status: 'given', total, givenAt }
   }
 
-  /** All-time kudos total for a receiver. */
-  public async getTotal(receiverDiscordId: string): Promise<number> {
+  /** All-time kudos total for a receiver within a guild. */
+  public async getTotal(guildId: string, receiverDiscordId: string): Promise<number> {
     const [row] = await this.db
       .select({ total: count() })
       .from(kudosTransaction)
-      .where(eq(kudosTransaction.receiverDiscordId, receiverDiscordId))
+      .where(
+        and(
+          eq(kudosTransaction.guildId, guildId),
+          eq(kudosTransaction.receiverDiscordId, receiverDiscordId),
+        ),
+      )
 
     return row?.total ?? 0
   }
 
-  /** Top receivers in a guild for the current weekly or monthly window. */
+  /**
+   * Returns the receiver's active one-hour DM batch, including the give that
+   * just completed. A missing message ID means a new DM window must be opened.
+   */
+  public async getNotificationBatch(
+    guildId: string,
+    receiverDiscordId: string,
+    givenAt: Date,
+  ): Promise<KudosNotificationBatch> {
+    const activeAfter = new Date(givenAt.getTime() - KudosNotificationWindowMs)
+    const notification = await this.db.query.kudosNotification.findFirst({
+      where: and(
+        eq(kudosNotification.guildId, guildId),
+        eq(kudosNotification.receiverDiscordId, receiverDiscordId),
+        gt(kudosNotification.windowStartedAt, activeAfter),
+      ),
+    })
+    const windowStartedAt = notification?.windowStartedAt ?? givenAt
+
+    const entries = await this.db
+      .select({
+        giverDiscordId: kudosTransaction.giverDiscordId,
+        reason: kudosTransaction.reason,
+      })
+      .from(kudosTransaction)
+      .where(
+        and(
+          eq(kudosTransaction.guildId, guildId),
+          eq(kudosTransaction.receiverDiscordId, receiverDiscordId),
+          gte(kudosTransaction.createdAt, windowStartedAt),
+        ),
+      )
+      .orderBy(asc(kudosTransaction.createdAt), asc(kudosTransaction.id))
+
+    return { messageId: notification?.messageId, windowStartedAt, entries }
+  }
+
+  /** Records the message backing a receiver's current one-hour DM batch. */
+  public async saveNotification(
+    guildId: string,
+    receiverDiscordId: string,
+    messageId: string,
+    windowStartedAt: Date,
+  ): Promise<void> {
+    await this.db
+      .insert(kudosNotification)
+      .values({ guildId, receiverDiscordId, messageId, windowStartedAt })
+      .onConflictDoUpdate({
+        target: [kudosNotification.guildId, kudosNotification.receiverDiscordId],
+        set: { messageId, windowStartedAt },
+      })
+  }
+
+  /** Top receivers in a guild for the current EST calendar week or month. */
   public async getLeaderboard(
     guildId: string,
     period: KudosLeaderboardPeriod,
     limit: number = 10,
   ): Promise<KudosLeaderboardEntry[]> {
-    const windowStart = period === 'weekly' ? this.daysAgo(7) : this.daysAgo(30)
+    const windowStart = this.getLeaderboardWindowStart(period)
 
     return this.db
       .select({ receiverDiscordId: kudosTransaction.receiverDiscordId, total: count() })
@@ -97,9 +174,13 @@ export class KudosService {
       .limit(limit)
   }
 
-  private daysAgo(days: number): Date {
-    const date = new Date()
-    date.setDate(date.getDate() - days)
-    return date
+  private getLeaderboardWindowStart(period: KudosLeaderboardPeriod): Date {
+    const now = DateTime.now().setZone(KudosLeaderboardTimeZone)
+    if (period === 'monthly') {
+      return now.startOf('month').toUTC().toJSDate()
+    }
+
+    const daysSinceSunday = now.weekday % 7
+    return now.startOf('day').minus({ days: daysSinceSunday }).toUTC().toJSDate()
   }
 }

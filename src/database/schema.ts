@@ -88,15 +88,31 @@ export const kudosTransaction = sqliteTable(
       .default(sql`(unixepoch())`),
   },
   (t) => [
-    // Leaderboard queries: sum/group by receiver within a time window.
-    index('kudos_transaction_receiver_idx').on(t.receiverDiscordId, t.createdAt),
+    // Totals: count a receiver's rows within a guild.
+    index('kudos_transaction_guild_receiver_idx').on(t.guildId, t.receiverDiscordId),
+    // Leaderboards: filter a guild's rows to the current calendar window.
+    index('kudos_transaction_guild_created_idx').on(t.guildId, t.createdAt),
     // Cooldown check: has this giver already given to this receiver recently.
-    index('kudos_transaction_giver_receiver_idx').on(
+    index('kudos_transaction_guild_giver_receiver_idx').on(
+      t.guildId,
       t.giverDiscordId,
       t.receiverDiscordId,
       t.createdAt,
     ),
   ],
+)
+
+/** The currently editable one-hour kudos DM for a receiver in a guild. */
+export const kudosNotification = sqliteTable(
+  'kudos_notification',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    guildId: text('guild_id').notNull(),
+    receiverDiscordId: text('receiver_discord_id').notNull(),
+    messageId: text('message_id').notNull(),
+    windowStartedAt: integer('window_started_at', { mode: 'timestamp' }).notNull(),
+  },
+  (t) => [uniqueIndex('kudos_notification_guild_receiver_uq').on(t.guildId, t.receiverDiscordId)],
 )
 
 export type User = typeof user.$inferSelect
@@ -106,3 +122,4 @@ export type NewLinkedAccount = typeof linkedAccount.$inferInsert
 export type ContentOverride = typeof contentOverride.$inferSelect
 export type KudosTransaction = typeof kudosTransaction.$inferSelect
 export type NewKudosTransaction = typeof kudosTransaction.$inferInsert
+export type KudosNotification = typeof kudosNotification.$inferSelect

@@ -12,6 +12,8 @@ export {
   type GiveKudosResult,
   type KudosLeaderboardEntry,
   type KudosLeaderboardPeriod,
+  type KudosNotificationBatch,
+  type KudosNotificationEntry,
 } from './kudos-service.js'
 export { Lang } from './lang.js'
 export { Logger } from './logger.js'

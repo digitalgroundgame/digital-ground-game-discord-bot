@@ -270,7 +270,12 @@
         "color": "{{COM:colors.success}}"
       },
       "kudosReceived": {
-        "description": "{{GIVER}} gave you kudos{{REASON}}! You now have **{{TOTAL}}** kudos."
+        "description": [
+          "You received **{{AMOUNT}}** kudos in the last hour from:",
+          "{{GIVERS}}",
+          "",
+          "You now have **{{TOTAL}}** kudos."
+        ]
       },
       "kudosSelf": {
         "description": "You can't give yourself kudos.",
@@ -292,7 +297,7 @@
         "description": ["{{ENTRIES}}"]
       },
       "kudosLeaderboardEmpty": {
-        "description": "No kudos have been given yet this {{PERIOD_LABEL_LOWER}}."
+        "description": "No kudos have been given yet this {{PERIOD}}."
       },
       "kudosNotConfigured": {
         "description": "Kudos isn't configured on this bot. The database connection must be set.",
@@ -549,7 +554,13 @@
     },
     "kudosPeriods": {
       "weekly": "Weekly",
-      "monthly": "Monthly"
+      "monthly": "Monthly",
+      "week": "week",
+      "month": "month"
+    },
+    "kudosNotification": {
+      "entry": "• {{GIVER}}",
+      "entryWithReason": "• {{GIVER}} — {{REASON}}"
     },
     "links": {
       "authorEmbed": "[{{COM:bot.author}}]({{COM:links.author}})",

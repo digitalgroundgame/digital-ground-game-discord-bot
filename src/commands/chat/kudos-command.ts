@@ -4,6 +4,8 @@ import {
   RESTJSONErrorCodes as DiscordApiErrors,
   type ChatInputCommandInteraction,
   type PermissionsString,
+  type User,
+  escapeMarkdown,
 } from 'discord.js'
 import { RateLimiter } from 'discord.js-rate-limiter'
 
@@ -35,12 +37,13 @@ export class KudosCommand implements Command {
   public cooldown = new RateLimiter(5, 30_000)
   public deferType = CommandDeferType.HIDDEN
   public requireClientPerms: PermissionsString[] = []
+  private readonly notificationQueues = new Map<string, Promise<void>>()
 
   constructor(private readonly kudosService?: KudosService) {}
 
   public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
     if (!this.kudosService) {
-      await InteractionUtils.send(
+      await InteractionUtils.editReply(
         intr,
         Lang.getEmbed('displayEmbeds.kudosNotConfigured', data.lang),
       )
@@ -69,12 +72,12 @@ export class KudosCommand implements Command {
     kudosService: KudosService,
   ): Promise<void> {
     if (!intr.guild || !(intr.member instanceof GuildMember)) {
-      await InteractionUtils.send(intr, Lang.getEmbed('validationEmbeds.guildOnly', data.lang))
+      await InteractionUtils.editReply(intr, Lang.getEmbed('validationEmbeds.guildOnly', data.lang))
       return
     }
 
     if (!RoleUtils.memberHasAnyConfiguredRole(intr.member, GIVE_ALLOWED_ROLE_IDS)) {
-      await InteractionUtils.send(
+      await InteractionUtils.editReply(
         intr,
         Lang.getEmbed('validationEmbeds.missingRole', data.lang, {
           ROLES: GIVE_ALLOWED_ROLE_IDS.map(getRoleNameById).join(', '),
@@ -87,7 +90,10 @@ export class KudosCommand implements Command {
     const reason = intr.options.getString(Lang.getRef('arguments.reason', Language.Default))?.trim()
 
     if (targetUser.bot) {
-      await InteractionUtils.send(intr, Lang.getEmbed('displayEmbeds.kudosBotTarget', data.lang))
+      await InteractionUtils.editReply(
+        intr,
+        Lang.getEmbed('displayEmbeds.kudosBotTarget', data.lang),
+      )
       return
     }
 
@@ -95,11 +101,11 @@ export class KudosCommand implements Command {
 
     switch (result.status) {
       case 'self': {
-        await InteractionUtils.send(intr, Lang.getEmbed('displayEmbeds.kudosSelf', data.lang))
+        await InteractionUtils.editReply(intr, Lang.getEmbed('displayEmbeds.kudosSelf', data.lang))
         return
       }
       case 'cooldown': {
-        await InteractionUtils.send(
+        await InteractionUtils.editReply(
           intr,
           Lang.getEmbed('displayEmbeds.kudosCooldown', data.lang, {
             USER: targetUser.toString(),
@@ -109,7 +115,7 @@ export class KudosCommand implements Command {
         return
       }
       case 'given': {
-        await InteractionUtils.send(
+        await InteractionUtils.editReply(
           intr,
           Lang.getEmbed('displayEmbeds.kudosGiven', data.lang, {
             USER: targetUser.toString(),
@@ -117,30 +123,13 @@ export class KudosCommand implements Command {
           }),
         )
 
-        try {
-          await targetUser.send({
-            embeds: [
-              Lang.getEmbed('displayEmbeds.kudosReceived', data.lang, {
-                GIVER: intr.user.toString(),
-                REASON: reason ? ` for: ${reason}` : '',
-                TOTAL: result.total.toString(),
-              }),
-            ],
-          })
-        } catch (error) {
-          if (
-            error instanceof DiscordAPIError &&
-            error.code === DiscordApiErrors.CannotSendMessagesToThisUser
-          ) {
-            // The receiver has DMs disabled or has blocked the bot; they can
-            // still check their total with `/kudos view`.
-          } else {
-            Logger.error(
-              `/kudos give: failed to DM ${targetUser.tag} their kudos notification`,
-              error,
-            )
-          }
-        }
+        await this.queueReceiverNotification(
+          intr.guild.id,
+          targetUser,
+          result.givenAt,
+          data,
+          kudosService,
+        )
 
         Logger.info(`${intr.user.tag} gave kudos to ${targetUser.tag}`)
         return
@@ -153,11 +142,16 @@ export class KudosCommand implements Command {
     data: EventData,
     kudosService: KudosService,
   ): Promise<void> {
+    if (!intr.guild) {
+      await InteractionUtils.editReply(intr, Lang.getEmbed('validationEmbeds.guildOnly', data.lang))
+      return
+    }
+
     const targetUser =
       intr.options.getUser(Lang.getRef('arguments.user', Language.Default)) ?? intr.user
-    const total = await kudosService.getTotal(targetUser.id)
+    const total = await kudosService.getTotal(intr.guild.id, targetUser.id)
 
-    await InteractionUtils.send(
+    await InteractionUtils.editReply(
       intr,
       Lang.getEmbed('displayEmbeds.kudosView', data.lang, {
         USER: targetUser.toString(),
@@ -172,7 +166,7 @@ export class KudosCommand implements Command {
     kudosService: KudosService,
   ): Promise<void> {
     if (!intr.guild) {
-      await InteractionUtils.send(intr, Lang.getEmbed('validationEmbeds.guildOnly', data.lang))
+      await InteractionUtils.editReply(intr, Lang.getEmbed('validationEmbeds.guildOnly', data.lang))
       return
     }
 
@@ -188,10 +182,13 @@ export class KudosCommand implements Command {
     const entries = await kudosService.getLeaderboard(intr.guild.id, period)
 
     if (entries.length === 0) {
-      await InteractionUtils.send(
+      await InteractionUtils.editReply(
         intr,
         Lang.getEmbed('displayEmbeds.kudosLeaderboardEmpty', data.lang, {
-          PERIOD_LABEL_LOWER: periodLabel.toLowerCase(),
+          PERIOD: Lang.getRef(
+            period === 'weekly' ? 'kudosPeriods.week' : 'kudosPeriods.month',
+            data.lang,
+          ),
         }),
       )
       return
@@ -202,12 +199,91 @@ export class KudosCommand implements Command {
       return `${rank} <@${entry.receiverDiscordId}> — ${entry.total} Kudos`
     })
 
-    await InteractionUtils.send(
+    await InteractionUtils.editReply(
       intr,
       Lang.getEmbed('displayEmbeds.kudosLeaderboard', data.lang, {
         PERIOD_LABEL: periodLabel,
         ENTRIES: lines.join('\n'),
       }),
     )
+  }
+
+  private async queueReceiverNotification(
+    guildId: string,
+    targetUser: User,
+    givenAt: Date,
+    data: EventData,
+    kudosService: KudosService,
+  ): Promise<void> {
+    const key = `${guildId}:${targetUser.id}`
+    const previous = this.notificationQueues.get(key) ?? Promise.resolve()
+    const current = previous
+      .catch(() => undefined)
+      .then(() => this.notifyReceiver(guildId, targetUser, givenAt, data, kudosService))
+    this.notificationQueues.set(key, current)
+
+    try {
+      await current
+    } finally {
+      if (this.notificationQueues.get(key) === current) {
+        this.notificationQueues.delete(key)
+      }
+    }
+  }
+
+  private async notifyReceiver(
+    guildId: string,
+    targetUser: User,
+    givenAt: Date,
+    data: EventData,
+    kudosService: KudosService,
+  ): Promise<void> {
+    try {
+      const batch = await kudosService.getNotificationBatch(guildId, targetUser.id, givenAt)
+      const total = await kudosService.getTotal(guildId, targetUser.id)
+      const givers = batch.entries.map((entry) =>
+        Lang.getRef(
+          entry.reason ? 'kudosNotification.entryWithReason' : 'kudosNotification.entry',
+          data.lang,
+          {
+            GIVER: `<@${entry.giverDiscordId}>`,
+            REASON: entry.reason ? escapeMarkdown(entry.reason, { maskedLink: true }) : '',
+          },
+        ),
+      )
+      const embed = Lang.getEmbed('displayEmbeds.kudosReceived', data.lang, {
+        AMOUNT: batch.entries.length.toString(),
+        GIVERS: givers.join('\n'),
+        TOTAL: total.toString(),
+      })
+
+      if (batch.messageId) {
+        try {
+          const dm = await targetUser.createDM()
+          const message = await dm.messages.fetch(batch.messageId)
+          await message.edit({ embeds: [embed] })
+          return
+        } catch (error) {
+          if (
+            !(error instanceof DiscordAPIError) ||
+            error.code !== DiscordApiErrors.UnknownMessage
+          ) {
+            throw error
+          }
+        }
+      }
+
+      const message = await targetUser.send({ embeds: [embed] })
+      await kudosService.saveNotification(guildId, targetUser.id, message.id, batch.windowStartedAt)
+    } catch (error) {
+      if (
+        error instanceof DiscordAPIError &&
+        error.code === DiscordApiErrors.CannotSendMessagesToThisUser
+      ) {
+        return
+      }
+
+      Logger.error(`/kudos give: failed to notify ${targetUser.tag}`, error)
+    }
   }
 }
