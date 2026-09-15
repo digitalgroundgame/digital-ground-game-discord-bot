@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Collection } from 'discord.js'
+import { Collection, DiscordAPIError, RESTJSONErrorCodes as DiscordApiErrors } from 'discord.js'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { CommandDeferType } from '../../src/commands/index.js'
 import { KudosCommand } from '../../src/commands/chat/kudos-command.js'
 import { ServerRoles } from '../../src/constants/index.js'
 import { Language } from '../../src/models/enum-helpers/index.js'
@@ -61,10 +62,80 @@ describe('KudosCommand', () => {
 
     await command.execute(intr, data)
 
+    expect(command.deferType).toBe(CommandDeferType.HIDDEN)
     expect(intr.editReply).toHaveBeenCalledOnce()
     expect(intr.followUp).not.toHaveBeenCalled()
     expect(target.send).not.toHaveBeenCalled()
     expect(await service.getTotal(GUILD_ID, target.id)).toBe(0)
+
+    const description = intr.editReply.mock.calls[0]?.[0]?.embeds?.[0]?.data?.description
+    expect(description).toContain(ServerRoles.ADMIN.name)
+  })
+
+  it('rejects targeting a bot before recording a give', async () => {
+    const db = createTestDatabase()
+    const service = new KudosService(db)
+    const command = new KudosCommand(service)
+    const giveKudosSpy = vi.spyOn(service, 'giveKudos')
+    const target = createMockUser({ id: '222333444555666777', bot: true })
+    const intr = createGiveInteraction('333444555666777888', target)
+
+    await command.execute(intr, data)
+
+    expect(giveKudosSpy).not.toHaveBeenCalled()
+    expect(intr.editReply).toHaveBeenCalledOnce()
+    expect(await service.getTotal(GUILD_ID, target.id)).toBe(0)
+  })
+
+  it('shows a cooldown message without recording a second give', async () => {
+    const db = createTestDatabase()
+    const service = new KudosService(db)
+    const target = createMockUser({
+      id: '222333444555666777',
+      send: vi.fn().mockResolvedValue({ id: 'dm-message-1' }),
+      createDM: vi.fn().mockResolvedValue({ messages: { fetch: vi.fn() } }),
+      toString: vi.fn().mockReturnValue('<@222333444555666777>'),
+    })
+
+    const first = createGiveInteraction('333444555666777888', target)
+    await new KudosCommand(service).execute(first, data)
+
+    const second = createGiveInteraction('333444555666777888', target)
+    await new KudosCommand(service).execute(second, data)
+
+    expect(await service.getTotal(GUILD_ID, target.id)).toBe(1)
+    const description = second.editReply.mock.calls[0]?.[0]?.embeds?.[0]?.data?.description
+    expect(description).toContain("already gave")
+  })
+
+  it('rejects a self-give without recording it or notifying anyone', async () => {
+    const db = createTestDatabase()
+    const service = new KudosService(db)
+    const command = new KudosCommand(service)
+    const giverId = '333444555666777888'
+    const target = createMockUser({
+      id: giverId,
+      send: vi.fn(),
+      toString: vi.fn().mockReturnValue(`<@${giverId}>`),
+    })
+    const intr = createGiveInteraction(giverId, target)
+
+    await command.execute(intr, data)
+
+    expect(intr.editReply).toHaveBeenCalledOnce()
+    expect(target.send).not.toHaveBeenCalled()
+    expect(await service.getTotal(GUILD_ID, giverId)).toBe(0)
+  })
+
+  it('shows a not-configured message and never touches the database when kudos has no service', async () => {
+    const command = new KudosCommand(undefined)
+    const target = createMockUser({ id: '222333444555666777' })
+    const intr = createGiveInteraction('333444555666777888', target)
+
+    await command.execute(intr, data)
+
+    expect(intr.editReply).toHaveBeenCalledOnce()
+    expect(target.send).not.toHaveBeenCalled()
   })
 
   it('edits one receiver DM when multiple people give kudos within an hour', async () => {
@@ -139,5 +210,33 @@ describe('KudosCommand', () => {
     expect(lines.filter((line) => line.startsWith('•'))).toHaveLength(1)
     expect(lines[1]).toContain('<@333444555666777888>')
     expect(lines[1]).not.toMatch(/^#/m)
+  })
+
+  it('still records the give and tells the giver when the receiver has DMs closed', async () => {
+    const db = createTestDatabase()
+    const service = new KudosService(db)
+    const command = new KudosCommand(service)
+    const blockedError = new DiscordAPIError(
+      { message: 'Cannot send messages to this user', code: DiscordApiErrors.CannotSendMessagesToThisUser },
+      DiscordApiErrors.CannotSendMessagesToThisUser,
+      403,
+      'POST',
+      '/channels/x/messages',
+      { body: {}, files: undefined },
+    )
+    const target = createMockUser({
+      id: '222333444555666777',
+      send: vi.fn().mockRejectedValue(blockedError),
+      createDM: vi.fn().mockResolvedValue({ messages: { fetch: vi.fn() } }),
+      toString: vi.fn().mockReturnValue('<@222333444555666777>'),
+    })
+    const intr = createGiveInteraction('333444555666777888', target)
+
+    await command.execute(intr, data)
+
+    expect(await service.getTotal(GUILD_ID, target.id)).toBe(1)
+    expect(intr.editReply).toHaveBeenCalledOnce()
+    const description = intr.editReply.mock.calls[0]?.[0]?.embeds?.[0]?.data?.description
+    expect(description).toContain("couldn't DM them")
   })
 })

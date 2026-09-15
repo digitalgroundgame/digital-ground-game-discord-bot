@@ -20,11 +20,19 @@ export const KudosGiveAllowedRoleKeys: RoleKey[] = validateAllowedRoleKeys(
 )
 
 /** Days a giver must wait before giving the same receiver kudos again. */
-export const KudosGiveCooldownDays: number =
-  typeof rawConfig.giveCooldownDays === 'number' ? rawConfig.giveCooldownDays : 7
+export const KudosGiveCooldownDays: number = (() => {
+  const raw = rawConfig.giveCooldownDays
+  if (raw === undefined) return 7
+  if (!Number.isFinite(raw) || raw <= 0) {
+    throw new Error(
+      `config.kudos.giveCooldownDays must be a positive number of days (got: ${String(raw)}); a zero or negative value would disable the /kudos give cooldown`,
+    )
+  }
+  return raw
+})()
 
-/** Fixed Eastern Standard Time (UTC−05:00), without daylight-saving changes. */
-export const KudosLeaderboardTimeZone = 'UTC-5'
+/** The community's local time zone; leaderboard weeks/months start at local midnight. */
+export const KudosLeaderboardTimeZone = 'America/New_York'
 
 /** Window in which receiver DMs are combined into one editable notification. */
 export const KudosNotificationWindowMs = 60 * 60 * 1000

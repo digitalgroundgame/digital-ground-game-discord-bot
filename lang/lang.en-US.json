@@ -269,6 +269,10 @@
         "description": "You gave {{USER}} kudos! They now have **{{TOTAL}}** kudos.",
         "color": "{{COM:colors.success}}"
       },
+      "kudosGivenNoDm": {
+        "description": "You gave {{USER}} kudos! They now have **{{TOTAL}}** kudos. I couldn't DM them, so they'll see it via `/kudos view`.",
+        "color": "{{COM:colors.success}}"
+      },
       "kudosReceived": {
         "description": [
           "You received **{{AMOUNT}}** kudos in the last hour from:",

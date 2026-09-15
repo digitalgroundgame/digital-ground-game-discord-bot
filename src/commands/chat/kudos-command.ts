@@ -37,7 +37,7 @@ export class KudosCommand implements Command {
   public cooldown = new RateLimiter(5, 30_000)
   public deferType = CommandDeferType.HIDDEN
   public requireClientPerms: PermissionsString[] = []
-  private readonly notificationQueues = new Map<string, Promise<void>>()
+  private readonly notificationQueues = new Map<string, Promise<boolean>>()
 
   constructor(private readonly kudosService?: KudosService) {}
 
@@ -118,20 +118,20 @@ export class KudosCommand implements Command {
         return
       }
       case 'given': {
-        await InteractionUtils.editReply(
-          intr,
-          Lang.getEmbed('displayEmbeds.kudosGiven', data.lang, {
-            USER: targetUser.toString(),
-            TOTAL: result.total.toString(),
-          }),
-        )
-
-        await this.queueReceiverNotification(
+        const notified = await this.queueReceiverNotification(
           intr.guild.id,
           targetUser,
           result.givenAt,
           data,
           kudosService,
+        )
+
+        await InteractionUtils.editReply(
+          intr,
+          Lang.getEmbed(notified ? 'displayEmbeds.kudosGiven' : 'displayEmbeds.kudosGivenNoDm', data.lang, {
+            USER: targetUser.toString(),
+            TOTAL: result.total.toString(),
+          }),
         )
 
         Logger.info(`${intr.user.tag} gave kudos to ${targetUser.tag}`)
@@ -211,22 +211,23 @@ export class KudosCommand implements Command {
     )
   }
 
+  /** Returns whether the receiver was actually notified (DM sent/edited). */
   private async queueReceiverNotification(
     guildId: string,
     targetUser: User,
     givenAt: Date,
     data: EventData,
     kudosService: KudosService,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const key = `${guildId}:${targetUser.id}`
-    const previous = this.notificationQueues.get(key) ?? Promise.resolve()
+    const previous = this.notificationQueues.get(key) ?? Promise.resolve(true)
     const current = previous
-      .catch(() => undefined)
+      .catch(() => false)
       .then(() => this.notifyReceiver(guildId, targetUser, givenAt, data, kudosService))
     this.notificationQueues.set(key, current)
 
     try {
-      await current
+      return await current
     } finally {
       if (this.notificationQueues.get(key) === current) {
         this.notificationQueues.delete(key)
@@ -234,13 +235,14 @@ export class KudosCommand implements Command {
     }
   }
 
+  /** Returns whether the receiver was actually notified (DM sent/edited). */
   private async notifyReceiver(
     guildId: string,
     targetUser: User,
     givenAt: Date,
     data: EventData,
     kudosService: KudosService,
-  ): Promise<void> {
+  ): Promise<boolean> {
     try {
       const batch = await kudosService.getNotificationBatch(guildId, targetUser.id, givenAt)
       const total = await kudosService.getTotal(guildId, targetUser.id)
@@ -272,7 +274,7 @@ export class KudosCommand implements Command {
           const dm = await targetUser.createDM()
           const message = await dm.messages.fetch(batch.messageId)
           await message.edit({ embeds: [embed] })
-          return
+          return true
         } catch (error) {
           if (
             !(error instanceof DiscordAPIError) ||
@@ -285,15 +287,18 @@ export class KudosCommand implements Command {
 
       const message = await targetUser.send({ embeds: [embed] })
       await kudosService.saveNotification(guildId, targetUser.id, message.id, batch.windowStartedAt)
+      return true
     } catch (error) {
       if (
         error instanceof DiscordAPIError &&
         error.code === DiscordApiErrors.CannotSendMessagesToThisUser
       ) {
-        return
+        Logger.info(`/kudos give: ${targetUser.tag} has DMs closed, skipping notification`)
+        return false
       }
 
       Logger.error(`/kudos give: failed to notify ${targetUser.tag}`, error)
+      return false
     }
   }
 }

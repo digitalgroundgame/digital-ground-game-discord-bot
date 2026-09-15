@@ -57,30 +57,43 @@ export class KudosService {
 
     const givenAt = new Date()
     const cooldownStart = new Date(givenAt.getTime() - KudosGiveCooldownDays * 24 * 60 * 60 * 1000)
-    const lastGive = await this.db.query.kudosTransaction.findFirst({
-      where: and(
-        eq(kudosTransaction.guildId, guildId),
-        eq(kudosTransaction.giverDiscordId, giverDiscordId),
-        eq(kudosTransaction.receiverDiscordId, receiverDiscordId),
-        gte(kudosTransaction.createdAt, cooldownStart),
-      ),
-      orderBy: desc(kudosTransaction.createdAt),
+
+    // The cooldown check and the insert run inside a single synchronous
+    // better-sqlite3 transaction (no `await` in the callback) so a second
+    // concurrent give for the same pair can't be interleaved between the
+    // SELECT and the INSERT - the outcome is decided atomically.
+    const outcome = this.db.transaction((tx) => {
+      const lastGive = tx
+        .select({ createdAt: kudosTransaction.createdAt })
+        .from(kudosTransaction)
+        .where(
+          and(
+            eq(kudosTransaction.guildId, guildId),
+            eq(kudosTransaction.giverDiscordId, giverDiscordId),
+            eq(kudosTransaction.receiverDiscordId, receiverDiscordId),
+            gte(kudosTransaction.createdAt, cooldownStart),
+          ),
+        )
+        .orderBy(desc(kudosTransaction.createdAt))
+        .get()
+
+      if (lastGive) {
+        const retryAt = new Date(
+          lastGive.createdAt.getTime() + KudosGiveCooldownDays * 24 * 60 * 60 * 1000,
+        )
+        return { status: 'cooldown' as const, retryAt }
+      }
+
+      tx.insert(kudosTransaction)
+        .values({ guildId, giverDiscordId, receiverDiscordId, reason, createdAt: givenAt })
+        .run()
+
+      return { status: 'given' as const }
     })
 
-    if (lastGive) {
-      const retryAt = new Date(
-        lastGive.createdAt.getTime() + KudosGiveCooldownDays * 24 * 60 * 60 * 1000,
-      )
-      return { status: 'cooldown', retryAt }
+    if (outcome.status === 'cooldown') {
+      return outcome
     }
-
-    await this.db.insert(kudosTransaction).values({
-      guildId,
-      giverDiscordId,
-      receiverDiscordId,
-      reason,
-      createdAt: givenAt,
-    })
 
     const total = await this.getTotal(guildId, receiverDiscordId)
     Logger.info(`${giverDiscordId} gave kudos to ${receiverDiscordId} in guild ${guildId}`)
@@ -155,7 +168,7 @@ export class KudosService {
       })
   }
 
-  /** Top receivers in a guild for the current EST calendar week or month. */
+  /** Top receivers in a guild for the current local calendar week or month. */
   public async getLeaderboard(
     guildId: string,
     period: KudosLeaderboardPeriod,

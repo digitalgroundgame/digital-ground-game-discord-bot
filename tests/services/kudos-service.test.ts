@@ -67,6 +67,17 @@ describe('KudosService', () => {
     expect(result).toEqual({ status: 'given', total: 2, givenAt: expect.any(Date) })
   })
 
+  it('only records one give when two requests for the same pair race', async () => {
+    const [first, second] = await Promise.all([
+      service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1'),
+      service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1'),
+    ])
+
+    const statuses = [first.status, second.status].sort()
+    expect(statuses).toEqual(['cooldown', 'given'])
+    expect(await service.getTotal(GUILD_ID, 'receiver-1')).toBe(1)
+  })
+
   it('does not let a cooldown against one receiver block giving to another', async () => {
     await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1')
     const result = await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-2')
@@ -81,22 +92,24 @@ describe('KudosService', () => {
     expect(await service.getTotal(GUILD_ID, 'receiver-1')).toBe(1)
   })
 
-  it('starts the weekly leaderboard Sunday at midnight EST', async () => {
+  it('starts the weekly leaderboard Sunday at local midnight (DST-aware)', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-16T16:00:00Z'))
 
+    // 2026-09-13 is during Eastern Daylight Time (UTC-4), so local midnight
+    // is 04:00Z, not the fixed 05:00Z a plain UTC-5 offset would use.
     await db.insert(kudosTransaction).values([
       {
         guildId: GUILD_ID,
         giverDiscordId: 'before-boundary',
         receiverDiscordId: 'excluded',
-        createdAt: new Date('2026-09-13T04:59:59Z'),
+        createdAt: new Date('2026-09-13T03:59:59Z'),
       },
       {
         guildId: GUILD_ID,
         giverDiscordId: 'at-boundary',
         receiverDiscordId: 'included',
-        createdAt: new Date('2026-09-13T05:00:00Z'),
+        createdAt: new Date('2026-09-13T04:00:00Z'),
       },
     ])
 
@@ -105,22 +118,24 @@ describe('KudosService', () => {
     expect(leaderboard).toEqual([{ receiverDiscordId: 'included', total: 1 }])
   })
 
-  it('starts the monthly leaderboard on the first at midnight EST', async () => {
+  it('starts the monthly leaderboard on the first at local midnight (DST-aware)', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-16T16:00:00Z'))
 
+    // 2026-09-01 is during Eastern Daylight Time (UTC-4), so local midnight
+    // is 04:00Z, not the fixed 05:00Z a plain UTC-5 offset would use.
     await db.insert(kudosTransaction).values([
       {
         guildId: GUILD_ID,
         giverDiscordId: 'before-boundary',
         receiverDiscordId: 'excluded',
-        createdAt: new Date('2026-09-01T04:59:59Z'),
+        createdAt: new Date('2026-09-01T03:59:59Z'),
       },
       {
         guildId: GUILD_ID,
         giverDiscordId: 'at-boundary',
         receiverDiscordId: 'included',
-        createdAt: new Date('2026-09-01T05:00:00Z'),
+        createdAt: new Date('2026-09-01T04:00:00Z'),
       },
     ])
 
