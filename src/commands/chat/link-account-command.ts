@@ -18,13 +18,13 @@ import {
 import { Language } from '../../models/enum-helpers/index.js'
 import { type EventData } from '../../models/internal-models.js'
 import { Lang, Logger, type UserService } from '../../services/index.js'
-import { InteractionUtils } from '../../utils/index.js'
+import { InteractionUtils, RoleUtils } from '../../utils/index.js'
 import { type Command, CommandDeferType } from '../index.js'
 
 /** How long the issuer has to confirm replacing an existing account. */
 const CONFIRM_TIMEOUT_MS = 60_000
 
-/** Role IDs allowed to link an account on another member's behalf. */
+/** Configured role IDs allowed to link an account on another member's behalf. */
 const COORDINATOR_ROLE_IDS = GrantAccessAllowedRoleKeys.map(
   (key) => (ServerRoles as Record<string, ServerRole | undefined>)[key]?.id,
 ).filter((id): id is string => typeof id === 'string')
@@ -71,7 +71,7 @@ export class LinkAccountCommand implements Command {
       const member = intr.member
       const hasRole =
         member instanceof GuildMember &&
-        COORDINATOR_ROLE_IDS.some((id) => member.roles.cache.has(id))
+        RoleUtils.memberHasAnyConfiguredRole(member, COORDINATOR_ROLE_IDS)
       if (!hasRole) {
         await InteractionUtils.send(
           intr,

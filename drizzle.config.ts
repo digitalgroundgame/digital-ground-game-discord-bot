@@ -7,6 +7,6 @@ export default defineConfig({
   dbCredentials: {
     url: process.env.SQLITE_PATH,
   },
-  strict: true,
+  strict: process.env.DRIZZLE_STRICT !== 'false',
   verbose: true,
 })

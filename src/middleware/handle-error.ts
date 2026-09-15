@@ -12,6 +12,12 @@ export function handleError(): ErrorRequestHandler {
       Logs.error.apiRequest.replaceAll('{HTTP_METHOD}', req.method).replaceAll('{URL}', req.url),
       error,
     )
-    res.status(500).json({ error: true, message: error.message })
+    // `express.json()` rejects a malformed or oversized body with a 4xx status before any
+    // controller runs. Answering 500 there tells a retrying caller to retry a request that
+    // can never succeed.
+    const status = error.status || error.statusCode
+    const clientError = typeof status === 'number' && status >= 400 && status < 500
+
+    res.status(clientError ? status : 500).json({ error: true, message: error.message })
   }
 }

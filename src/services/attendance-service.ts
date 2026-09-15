@@ -160,10 +160,22 @@ interface AttendanceSession {
   crmDisabledReason?: CrmDisabledReason
 }
 
+export interface CompletedAttendanceSession {
+  userId: string
+  guildId: string
+  channelId: string
+  channelName: string
+  sessionId: string
+  defaultEventName: string
+  customEventName?: string
+  entries: AttendanceEntry[]
+  crmDisabledReason?: CrmDisabledReason
+}
+
 /**
  * Tracks VC attendance for `/attendance-track`: seeds with everyone currently in the channel when
  * the command runs; anyone who joins after that is added and never removed when they leave. When
- * the tracker leaves, the session ends and the list is sent by DM.
+ * the tracker leaves or runs `/stop-attendance-track`, the session ends and the list is sent by DM.
  */
 export class AttendanceService {
   /** Tracker user id -> session for that user's VC */
@@ -216,17 +228,7 @@ export class AttendanceService {
   handleVoiceStateUpdate(
     oldState: VoiceState,
     newState: VoiceState,
-  ): {
-    userId: string
-    guildId: string
-    channelId: string
-    channelName: string
-    sessionId: string
-    defaultEventName: string
-    customEventName?: string
-    entries: AttendanceEntry[]
-    crmDisabledReason?: CrmDisabledReason
-  } | null {
+  ): CompletedAttendanceSession | null {
     const memberId = newState.member?.id ?? oldState.member?.id
     if (!memberId) return null
 
@@ -249,21 +251,7 @@ export class AttendanceService {
     // If this user was a tracker and they left their tracked channel, finalize and return
     const session = this.sessions.get(memberId)
     if (session && oldChannelId === session.channelId && newChannelId !== session.channelId) {
-      this.sessions.delete(memberId)
-      const entries: AttendanceEntry[] = Array.from(session.members.entries()).map(
-        ([id, name]) => ({ id, displayName: name }),
-      )
-      return {
-        userId: memberId,
-        guildId: session.guildId,
-        channelId: session.channelId,
-        channelName: session.channelName,
-        sessionId: session.sessionId,
-        defaultEventName: session.defaultEventName,
-        customEventName: session.customEventName,
-        entries,
-        crmDisabledReason: session.crmDisabledReason,
-      }
+      return this.stopTracking(memberId)
     }
 
     return null
@@ -273,7 +261,24 @@ export class AttendanceService {
     return this.sessions.has(userId)
   }
 
-  stopTracking(userId: string): void {
+  stopTracking(userId: string): CompletedAttendanceSession | null {
+    const session = this.sessions.get(userId)
+    if (!session) return null
+
     this.sessions.delete(userId)
+    return {
+      userId,
+      guildId: session.guildId,
+      channelId: session.channelId,
+      channelName: session.channelName,
+      sessionId: session.sessionId,
+      defaultEventName: session.defaultEventName,
+      customEventName: session.customEventName,
+      entries: Array.from(session.members.entries()).map(([id, displayName]) => ({
+        id,
+        displayName,
+      })),
+      crmDisabledReason: session.crmDisabledReason,
+    }
   }
 }

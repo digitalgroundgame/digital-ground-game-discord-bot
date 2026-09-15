@@ -13,6 +13,7 @@ import { getRoleNameById } from '../constants/index.js'
 import { Permission } from '../models/enum-helpers/index.js'
 import { type EventData } from '../models/internal-models.js'
 import { Lang, Logger } from '../services/index.js'
+import { RoleUtils } from './role-utils.js'
 
 export class CommandUtils {
   public static findCommand(commands: Command[], commandParts: string[]): Command | null {
@@ -96,8 +97,8 @@ export class CommandUtils {
         return false
       }
 
-      // Compare user roles to allowed roles
-      const hasRole = command.requireRoles.some((role) => guildMem.roles.cache.has(role))
+      // Compare user roles to allowed configured roles
+      const hasRole = RoleUtils.memberHasAnyConfiguredRole(guildMem, command.requireRoles)
 
       // Handle incorrect role case
       if (!hasRole) {

@@ -5,7 +5,6 @@ import { createRequire } from 'node:module'
 import { type Button } from './buttons/index.js'
 import { runCalendarSyncCli } from './calendar-sync-cli.js'
 import {
-  AttendanceCommand,
   AttendanceTrackCommand,
   CensusCommand,
   ContentCommand,
@@ -14,9 +13,11 @@ import {
   HelpCommand,
   InfoCommand,
   LinkAccountCommand,
+  PingSkillRoleCommand,
   PragPapersCommand,
   RulesAdminCommand,
   RulesCommand,
+  StopAttendanceTrackCommand,
   TestCommand,
 } from './commands/chat/index.js'
 import {
@@ -41,14 +42,10 @@ import {
   VoiceStateUpdateHandler,
 } from './events/index.js'
 import { CustomClient } from './extensions/index.js'
-import {
-  AutoCloseWelcomeThreadsJob,
-  ImmediateSyncDggpGoogleCalendarJob,
-  SyncDggpGoogleCalendarJob,
-  type Job,
-} from './jobs/index.js'
+import { AutoCloseWelcomeThreadsJob, SyncDggpGoogleCalendarJob, type Job } from './jobs/index.js'
 import { Bot } from './models/bot.js'
 import { type Reaction } from './reactions/index.js'
+import { syncDggpScheduledEventsToGoogle } from './services/sync-dggp-google-calendar.js'
 import {
   AttendanceService,
   CommandRegistrationService,
@@ -156,6 +153,8 @@ async function start(): Promise<void> {
     }
   }
 
+  const voiceStateUpdateHandler = new VoiceStateUpdateHandler(attendanceService, crmService, client)
+
   // Commands
   const commands: Command[] = [
     // Chat Commands
@@ -167,11 +166,12 @@ async function start(): Promise<void> {
     new RulesAdminCommand(ruleService),
     new PragPapersCommand(),
     new CensusCommand(),
-    new AttendanceCommand(),
     new AttendanceTrackCommand(attendanceService, crmService),
+    new StopAttendanceTrackCommand(attendanceService, voiceStateUpdateHandler),
     new GrantAccessCommand(googleGroupsService, userService),
     new LinkAccountCommand(userService),
     new ContentCommand(contentService),
+    new PingSkillRoleCommand(),
 
     // User Context Commands
     ...ONBOARDING_CONFIGS.map((config) => new SendOnboarding(config, contentService)),
@@ -210,13 +210,10 @@ async function start(): Promise<void> {
   const messageHandler = new MessageHandler(triggerHandler)
   const reactionHandler = new ReactionHandler(reactions, eventDataService)
   const guildScheduledEventHandler = new GuildScheduledEventHandler(googleCalendarService)
-  const voiceStateUpdateHandler = new VoiceStateUpdateHandler(attendanceService, crmService, client)
 
   // Jobs
-  // Google Calendar sync jobs temporarily disabled (see ImmediateSyncDggpGoogleCalendarJob, SyncDggpGoogleCalendarJob).
   const jobs: Job[] = [
     new AutoCloseWelcomeThreadsJob(client),
-    new ImmediateSyncDggpGoogleCalendarJob(client, googleCalendarService),
     new SyncDggpGoogleCalendarJob(client, googleCalendarService),
   ]
 
@@ -235,6 +232,17 @@ async function start(): Promise<void> {
     guildScheduledEventHandler,
     new JobService(jobs),
     voiceStateUpdateHandler,
+    // onBotReady callback: run immediate Google Calendar sync once after bot is ready
+    async () => {
+      try {
+        await syncDggpScheduledEventsToGoogle(client, googleCalendarService)
+      } catch (error) {
+        Logger.error(
+          Logs.error.calendarSync.replace('{EVENT_NAME}', 'immediate startup sync'),
+          error,
+        )
+      }
+    },
   )
 
   await bot.start()

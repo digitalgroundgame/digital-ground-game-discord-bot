@@ -52,7 +52,7 @@ Payload:
 ### Volume release (multiple articles)
 
 ```bash
-curl -X POST http://localhost:9010/integrations/pp-event \
+curl -X POST http://localhost:3000/integrations/pp-event \
   -H "Content-Type: application/json" \
   -H "Authorization: abc123" \
   -d '{
@@ -79,7 +79,7 @@ curl -X POST http://localhost:9010/integrations/pp-event \
 ### Standalone article (no volume)
 
 ```bash
-curl -X POST http://localhost:9010/integrations/pp-event \
+curl -X POST http://localhost:3000/integrations/pp-event \
   -H "Content-Type: application/json" \
   -H "Authorization: abc123" \
   -d '{

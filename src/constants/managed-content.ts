@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 
-import { ServerRoles, type RoleKey } from './server-roles.js'
+import { type RoleKey, validateAllowedRoleKeys } from './server-roles.js'
 
 const require = createRequire(import.meta.url)
 const Config = require('../../config/config.json')
@@ -153,7 +153,7 @@ function onboardingEntry(team: string, title: string, message: string): ManagedC
 
 /**
  * Registry of all runtime-editable content. The single source of truth for
- * what `/content` can show/edit/reset; hardcoded defaults live here and are
+ * what `/content` can show/edit; hardcoded defaults live here and are
  * used whenever no database override exists.
  */
 export const ManagedContent: Record<string, ManagedContentEntry> = {
@@ -206,31 +206,9 @@ interface ManagedContentConfig {
 
 const rawConfig = (Config.managedContent ?? {}) as Partial<ManagedContentConfig>
 
-/**
- * /content is a permission boundary, so its role config fails CLOSED: an
- * empty, missing, or typo'd `managedContent.allowedRoleKeys` refuses to
- * start the bot rather than silently leaving the command unrestricted
- * (an empty `requireRoles` skips the role check entirely).
- */
-function validateAllowedRoleKeys(raw: unknown): RoleKey[] {
-  const keys = Array.isArray(raw) ? raw.filter((key): key is string => typeof key === 'string') : []
-  const validKeys = Object.keys(ServerRoles)
-
-  const unknown = keys.filter((key) => !validKeys.includes(key))
-  if (unknown.length > 0) {
-    throw new Error(
-      `config.managedContent.allowedRoleKeys contains unknown role keys: ${unknown.join(', ')} (valid: ${validKeys.join(', ')})`,
-    )
-  }
-  if (keys.length === 0) {
-    throw new Error(
-      'config.managedContent.allowedRoleKeys must list at least one role key; an empty list would leave /content open to everyone',
-    )
-  }
-  return keys as RoleKey[]
-}
-
-/** Role config keys (see `config.roles`) allowed to run `/content`. */
+/** Role config keys (see `config.roles`) allowed to run `/content`. Fails closed. */
 export const ManagedContentAllowedRoleKeys: RoleKey[] = validateAllowedRoleKeys(
   rawConfig.allowedRoleKeys,
+  'config.managedContent.allowedRoleKeys',
+  '/content',
 )

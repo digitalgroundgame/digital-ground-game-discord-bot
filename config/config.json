@@ -16,6 +16,7 @@
       "GuildScheduledEvents"
     ],
     "partials": ["Message", "Channel", "Reaction", "GuildScheduledEvent"],
+    "// NOTE": "caches is passed to discord.js cacheWithLimits, so only manager names belong inside it. PresenceManager is intentionally NOT capped so /ping-skill-role can filter by online status.",
     "caches": {
       "AutoModerationRuleManager": 0,
       "BaseGuildEmojiManager": 0,
@@ -24,14 +25,13 @@
       "GuildInviteManager": 0,
       "GuildStickerManager": 0,
       "MessageManager": 0,
-      "PresenceManager": 0,
       "StageInstanceManager": 0,
       "ThreadManager": 0,
       "ThreadMemberManager": 0
     }
   },
   "api": {
-    "port": 3001,
+    "port": 3000,
     "// NOTE: secret is now managed via environment variables": ""
   },
   "sharding": {
@@ -42,7 +42,7 @@
   "clustering": {
     "enabled": false,
     "shardCount": 16,
-    "callbackUrl": "http://localhost:3001/",
+    "callbackUrl": "http://localhost:3000/",
     "masterApi": {
       "url": "http://localhost:5000/",
       "// NOTE: token is now managed via environment variables": ""
@@ -66,12 +66,6 @@
       "log": true,
       "runOnce": false,
       "initialDelaySecs": 60
-    },
-    "syncDggpGoogleCalendarImmediate": {
-      "schedule": "* * * * * *",
-      "log": true,
-      "runOnce": true,
-      "initialDelaySecs": 0
     }
   },
   "rateLimiting": {
@@ -106,15 +100,13 @@
   },
   "welcomeThread": {
     "channelName": "entrance",
-    "welcomeTeamRoleName": "Welcome Team",
-    "welcomeSupervisorsRoleName": "Welcome Supervisors",
     "maxActiveThreads": 50,
     "maxWelcomeTeamMembers": 4,
     "inactivityDays": 2
   },
   "grantAccess": {
     "// NOTE": "Maps a /grant-access team shortname to the Google Group address in the Workspace account.",
-    "allowedRoleKeys": ["COORDINATOR"],
+    "allowedRoleKeys": ["DIRECTOR", "COORDINATOR"],
     "groups": {
       "Event Team": "event-team@digitalgroundgame.org",
       "Media Team": "media-team@digitalgroundgame.org",
@@ -133,7 +125,11 @@
   },
   "managedContent": {
     "// NOTE": "Role config keys (see roles below) allowed to run /content.",
-    "allowedRoleKeys": ["ADMIN", "DIRECTOR"]
+    "allowedRoleKeys": ["ADMIN", "DIRECTOR", "WELCOME_SUPERVISOR"]
+  },
+  "pingSkillRole": {
+    "// NOTE": "Role config keys (see roles below) allowed to run /ping-skill-role.",
+    "allowedRoleKeys": ["ADMIN", "DIRECTOR", "COORDINATOR"]
   },
   "roles": {
     "COORDINATOR": {
@@ -155,6 +151,14 @@
     "ADMIN": {
       "id": "1347656064900005970",
       "name": "Admin"
+    },
+    "WELCOME_TEAM": {
+      "id": "1459295527886651595",
+      "name": "Welcome Team"
+    },
+    "WELCOME_SUPERVISOR": {
+      "id": "1482565506945777735",
+      "name": "Welcome Supervisors"
     }
   }
 }

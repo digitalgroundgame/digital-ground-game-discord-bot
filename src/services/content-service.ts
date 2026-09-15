@@ -110,14 +110,6 @@ export class ContentService {
     )
   }
 
-  /** Remove all overrides for a key, reverting it to registry defaults. */
-  public async resetContent(key: string): Promise<void> {
-    const db = this.requireDb()
-    ContentService.defaults(key) // validate key
-    await db.delete(contentOverride).where(eq(contentOverride.key, key))
-    Logger.info(`Content overrides reset: ${key}`)
-  }
-
   private requireDb(): Database {
     if (!this.db) {
       throw new Error('Content persistence is not configured (no database)')

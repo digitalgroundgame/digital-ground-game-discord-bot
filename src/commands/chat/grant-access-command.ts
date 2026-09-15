@@ -22,7 +22,7 @@ import { type Command, CommandDeferType } from '../index.js'
 export class GrantAccessCommand implements Command {
   public names = [Lang.getRef('chatCommands.grantAccess', Language.Default)]
   public cooldown = new RateLimiter(3, 10000)
-  public deferType = CommandDeferType.HIDDEN
+  public deferType = CommandDeferType.PUBLIC
   public requireClientPerms: PermissionsString[] = []
   public requireRoles = GrantAccessAllowedRoleKeys.map(
     (key) => (ServerRoles as Record<string, ServerRole | undefined>)[key]?.id,

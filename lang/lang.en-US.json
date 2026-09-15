@@ -176,29 +176,29 @@
       "census": {
         "title": "{{REF:links.censusEmbed}}"
       },
-      "attendanceSnapshotSent": {
-        "description": "Check your DMs — I sent a formatted attendance list for **{{CHANNEL_NAME}}** (code block with copy button)."
-      },
-      "attendanceDmFailed": {
-        "description": "I couldn't DM you (DMs may be closed or you may have blocked the bot). Open DMs from server members and try again."
-      },
       "attendanceTrackStarted": {
-        "description": "Tracking **{{CHANNEL_NAME}}**. Everyone in the call right now is on the list; anyone who joins later is added too and stays listed if they leave. You'll get a DM when you leave the channel."
+        "description": "Tracking **{{CHANNEL_NAME}}**. Everyone in the call right now is on the list; anyone who joins later is added too and stays listed if they leave. Leave the channel or run `/stop-attendance-track` to get the results."
+      },
+      "attendanceTrackStopped": {
+        "description": "Stopped tracking **{{CHANNEL_NAME}}**. Check your DMs for the attendance results."
+      },
+      "attendanceNotTracking": {
+        "description": "You don't have an active attendance tracking session."
       },
       "attendanceNotInVC": {
         "description": "You must be in a voice channel to take attendance. Join a voice channel and run this command again."
       },
       "attendanceAlreadyTracking": {
-        "description": "You're already taking attendance in another channel. Leave that channel first to get your list, then run this again in a new channel if needed."
+        "description": "You're already taking attendance in another channel. Leave that channel or run `/stop-attendance-track` to get your list, then start tracking in a new channel if needed."
       },
       "attendanceNotAuthorized": {
-        "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ You don't have CRM permission to record attendance, so the roster won't be synced — I'll DM you the list when you leave. Ask an organizer to grant you the **events.record_attendance** permission in the CRM."
+        "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ You don't have CRM permission to record attendance, so the roster won't be synced. Leave the channel or run `/stop-attendance-track` to get the list. Ask an organizer to grant you the **events.record_attendance** permission in the CRM."
       },
       "attendanceUnlinkedDiscordId": {
-        "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ Your Discord account isn't linked to a CRM user, so attendance won't be synced — I'll DM you the list when you leave. Ask an organizer to link your Discord ID in the CRM."
+        "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ Your Discord account isn't linked to a CRM user, so attendance won't be synced. Leave the channel or run `/stop-attendance-track` to get the list. Ask an organizer to link your Discord ID in the CRM."
       },
       "attendancePermissionCheckFailed": {
-        "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ Couldn't reach the CRM to verify your permissions, so attendance won't be synced — I'll DM you the list when you leave."
+        "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ Couldn't reach the CRM to verify your permissions, so attendance won't be synced. Leave the channel or run `/stop-attendance-track` to get the list."
       },
       "grantAccessAdded": {
         "description": "{{USER}} was added to the **{{TEAM_LABEL}}** Google Group."
@@ -275,24 +275,6 @@
         "description": "Updated **{{LABEL}}**. The change is live immediately.",
         "color": "{{COM:colors.success}}"
       },
-      "contentReset": {
-        "description": "Reset **{{LABEL}}** to its built-in default.",
-        "color": "{{COM:colors.success}}"
-      },
-      "contentResetConfirm": {
-        "description": "Reset **{{LABEL}}** to its built-in default? This deletes the runtime override.",
-        "color": "{{COM:colors.warning}}"
-      },
-      "contentResetCancelled": {
-        "description": "Cancelled. **{{LABEL}}** is unchanged."
-      },
-      "contentResetTimedOut": {
-        "description": "Timed out waiting for confirmation. Nothing was changed.",
-        "color": "{{COM:colors.warning}}"
-      },
-      "contentNoOverride": {
-        "description": "**{{LABEL}}** has no override; it is already using the built-in default."
-      },
       "contentUnknownKey": {
         "description": "Unknown content entry: `{{KEY}}`. Pick one from the autocomplete list.",
         "color": "{{COM:colors.warning}}"
@@ -307,6 +289,22 @@
       },
       "contentNotConfigured": {
         "description": "Content management isn't configured on this bot. The database connection must be set.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "pingSkillRoleEveryone": {
+        "description": "Pick a specific skill role — pinging @everyone isn't supported.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "pingSkillRoleRateLimited": {
+        "description": "Discord is rate limiting member lookups right now. Try again in about {{SECONDS}} seconds.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "pingSkillRoleFetchTimedOut": {
+        "description": "Fetching the member list timed out. Try again shortly.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "pingSkillRoleNoneOnline": {
+        "description": "No other members of **{{SKILL}}** are online right now, so nobody was pinged.",
         "color": "{{COM:colors.warning}}"
       }
     },
@@ -397,10 +395,11 @@
       "rulesAdmin": "rules-admin",
       "pragPapers": "prag-papers",
       "census": "census",
-      "attendance": "attendance",
       "attendanceTrack": "attendance-track",
+      "stopAttendanceTrack": "stop-attendance-track",
       "grantAccess": "grant-access",
-      "linkAccount": "link-account"
+      "linkAccount": "link-account",
+      "pingSkillRole": "ping-skill-role"
     },
     "userCommands": {
       "sendDevOnboarding": "Send Dev Onboarding",
@@ -419,13 +418,14 @@
       "service": "service",
       "team": "team",
       "user": "user",
-      "identifier": "identifier"
+      "identifier": "identifier",
+      "skill": "skill",
+      "note": "note"
     },
     "commandDescs": {
       "content": "View or edit bot-managed content (welcome, onboarding, rules text).",
       "contentShow": "Show the current value of a managed content entry.",
       "contentEdit": "Edit a managed content entry. Changes apply immediately.",
-      "contentReset": "Reset a managed content entry to its built-in default.",
       "dev": "Developer use only.",
       "help": "Find help or contact support.",
       "info": "View bot info.",
@@ -437,10 +437,11 @@
       "rulesAdminRemove": "Remove a rule; later rules are renumbered.",
       "pragPapers": "Gives a link to the Pragmatic Papers website.",
       "census": "Gives a link to the Census form.",
-      "attendance": "DMs you a snapshot list of everyone currently in your voice channel.",
-      "attendanceTrack": "Tracks who is in your voice channel and DMs you the same formatted list when you leave.",
+      "attendanceTrack": "Tracks voice-channel attendance until you leave or stop tracking.",
+      "stopAttendanceTrack": "Stops your active attendance tracker and sends the results immediately.",
       "grantAccess": "Grant a member access to a team's service (e.g. a Google Group).",
-      "linkAccount": "Link an external account (e.g. your Google email) to a Discord profile."
+      "linkAccount": "Link an external account (e.g. your Google email) to a Discord profile.",
+      "pingSkillRole": "Ping the online members of a skill role (works in forum posts)."
     },
     "argDescs": {
       "contentKey": "The content entry to manage.",
@@ -454,7 +455,9 @@
       "grantAccessUser": "The member to grant access to.",
       "linkAccountService": "The service to link an account for.",
       "linkAccountIdentifier": "The account identifier (e.g. a Google email address).",
-      "linkAccountUser": "Coordinators only: the member to link an account for (defaults to you)."
+      "linkAccountUser": "Coordinators only: the member to link an account for (defaults to you).",
+      "pingSkillRoleSkill": "The skill role whose online members should be pinged.",
+      "pingSkillRoleNote": "An optional note to include with the ping."
     },
     "fields": {
       "commands": "Commands",
@@ -501,6 +504,7 @@
       "SendPolls": "Create Polls",
       "SendTTSMessages": "Send Text-to-Speech Messages",
       "SendVoiceMessages": "Send Voice Messages",
+      "SetVoiceChannelStatus": "Set Voice Channel Status",
       "Speak": "Speak",
       "Stream": "Video",
       "UseApplicationCommands": "Use Application Commands",
@@ -541,6 +545,10 @@
     },
     "other": {
       "na": "N/A"
+    },
+    "pingSkillRole": {
+      "header": "📣 Paging online **{{SKILL}}** members (requested by {{USER}})",
+      "headerWithNote": "📣 Paging online **{{SKILL}}** members (requested by {{USER}}): {{NOTE}}"
     },
     "links": {
       "authorEmbed": "[{{COM:bot.author}}]({{COM:links.author}})",

@@ -37,12 +37,6 @@ export const ChatCommandMetadata: {
         description: Lang.getRef('commandDescs.contentEdit', Language.Default),
         options: [{ ...Args.CONTENT_KEY, required: true }],
       },
-      {
-        type: ApplicationCommandOptionType.Subcommand,
-        name: ContentSubcommand.RESET,
-        description: Lang.getRef('commandDescs.contentReset', Language.Default),
-        options: [{ ...Args.CONTENT_KEY, required: true }],
-      },
     ],
   },
   DEV: {
@@ -159,12 +153,12 @@ export const ChatCommandMetadata: {
     description_localizations: Lang.getRefLocalizationMap('commandDescs.census'),
     default_member_permissions: undefined,
   },
-  ATTENDANCE: {
+  STOP_ATTENDANCE_TRACK: {
     type: ApplicationCommandType.ChatInput,
-    name: Lang.getRef('chatCommands.attendance', Language.Default),
-    name_localizations: Lang.getRefLocalizationMap('chatCommands.attendance'),
-    description: Lang.getRef('commandDescs.attendance', Language.Default),
-    description_localizations: Lang.getRefLocalizationMap('commandDescs.attendance'),
+    name: Lang.getRef('chatCommands.stopAttendanceTrack', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.stopAttendanceTrack'),
+    description: Lang.getRef('commandDescs.stopAttendanceTrack', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.stopAttendanceTrack'),
     default_member_permissions: undefined,
   },
   ATTENDANCE_TRACK: {
@@ -196,6 +190,25 @@ export const ChatCommandMetadata: {
       {
         ...Args.GRANT_ACCESS_USER,
         required: true,
+      },
+    ],
+  },
+  PING_SKILL_ROLE: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.pingSkillRole', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.pingSkillRole'),
+    description: Lang.getRef('commandDescs.pingSkillRole', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.pingSkillRole'),
+    dm_permission: false,
+    default_member_permissions: undefined,
+    options: [
+      {
+        ...Args.PING_SKILL_ROLE_SKILL,
+        required: true,
+      },
+      {
+        ...Args.PING_SKILL_ROLE_NOTE,
+        required: false,
       },
     ],
   },

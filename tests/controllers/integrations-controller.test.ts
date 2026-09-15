@@ -117,6 +117,27 @@ describe('IntegrationsController', () => {
     )
   })
 
+  it('forwards a client-error status from a thrown error but collapses 5xx to 500', async () => {
+    process.env.INTEGRATION_FAKE_INTEGRATION = 'secret'
+    async function statusFor(thrown: Error): Promise<number> {
+      const app = await buildApp([
+        makeIntegration({
+          run: vi.fn(async () => {
+            throw thrown
+          }),
+        }),
+      ])
+      const res = await request(app)
+        .post('/integrations/fake-event')
+        .set('Authorization', 'secret')
+        .send({})
+      return res.status
+    }
+
+    expect(await statusFor(Object.assign(new Error('nope'), { status: 418 }))).toBe(418)
+    expect(await statusFor(Object.assign(new Error('down'), { status: 503 }))).toBe(500)
+  })
+
   it('derives env var names from integration names with special characters', async () => {
     process.env.INTEGRATION_ANOTHER_ONE = 'key'
     const integration = makeIntegration({
