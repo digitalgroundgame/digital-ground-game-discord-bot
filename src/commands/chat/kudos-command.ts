@@ -128,10 +128,14 @@ export class KudosCommand implements Command {
 
         await InteractionUtils.editReply(
           intr,
-          Lang.getEmbed(notified ? 'displayEmbeds.kudosGiven' : 'displayEmbeds.kudosGivenNoDm', data.lang, {
-            USER: targetUser.toString(),
-            TOTAL: result.total.toString(),
-          }),
+          Lang.getEmbed(
+            notified ? 'displayEmbeds.kudosGiven' : 'displayEmbeds.kudosGivenNoDm',
+            data.lang,
+            {
+              USER: targetUser.toString(),
+              TOTAL: result.total.toString(),
+            },
+          ),
         )
 
         Logger.info(`${intr.user.tag} gave kudos to ${targetUser.tag}`)

@@ -105,7 +105,7 @@ describe('KudosCommand', () => {
 
     expect(await service.getTotal(GUILD_ID, target.id)).toBe(1)
     const description = second.editReply.mock.calls[0]?.[0]?.embeds?.[0]?.data?.description
-    expect(description).toContain("already gave")
+    expect(description).toContain('already gave')
   })
 
   it('rejects a self-give without recording it or notifying anyone', async () => {
@@ -217,7 +217,10 @@ describe('KudosCommand', () => {
     const service = new KudosService(db)
     const command = new KudosCommand(service)
     const blockedError = new DiscordAPIError(
-      { message: 'Cannot send messages to this user', code: DiscordApiErrors.CannotSendMessagesToThisUser },
+      {
+        message: 'Cannot send messages to this user',
+        code: DiscordApiErrors.CannotSendMessagesToThisUser,
+      },
       DiscordApiErrors.CannotSendMessagesToThisUser,
       403,
       'POST',
