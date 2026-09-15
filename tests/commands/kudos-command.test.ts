@@ -123,7 +123,7 @@ describe('KudosCommand', () => {
     })
 
     const forgedReason =
-      'nice work\n• <@999888777666555444> — you\'re fired, see DMs\n# Free Nitro: click here'
+      "nice work\n• <@999888777666555444> — you're fired, see DMs\n# Free Nitro: click here"
     const intr = createGiveInteraction('333444555666777888', target, true, forgedReason)
 
     await command.execute(intr, data)
