@@ -87,7 +87,10 @@ export class KudosCommand implements Command {
     }
 
     const targetUser = intr.options.getUser(Lang.getRef('arguments.user', Language.Default), true)
-    const reason = intr.options.getString(Lang.getRef('arguments.reason', Language.Default))?.trim()
+    const reason = intr.options
+      .getString(Lang.getRef('arguments.reason', Language.Default))
+      ?.replace(/\s+/g, ' ')
+      .trim()
 
     if (targetUser.bot) {
       await InteractionUtils.editReply(
@@ -247,7 +250,14 @@ export class KudosCommand implements Command {
           data.lang,
           {
             GIVER: `<@${entry.giverDiscordId}>`,
-            REASON: entry.reason ? escapeMarkdown(entry.reason, { maskedLink: true }) : '',
+            REASON: entry.reason
+              ? escapeMarkdown(entry.reason, {
+                  maskedLink: true,
+                  heading: true,
+                  bulletedList: true,
+                  numberedList: true,
+                })
+              : '',
           },
         ),
       )

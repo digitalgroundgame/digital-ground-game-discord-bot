@@ -17,7 +17,12 @@ import { createTestDatabase } from '../helpers/test-database.js'
 const GUILD_ID = '111222333444555666'
 const data = new EventData(Language.Default, Language.Default)
 
-function createGiveInteraction(giverId: string, target: any, allowed: boolean = true): any {
+function createGiveInteraction(
+  giverId: string,
+  target: any,
+  allowed: boolean = true,
+  reason: string = '[great work](https://example.com)',
+): any {
   const giver = createMockUser({
     id: giverId,
     tag: `giver-${giverId}`,
@@ -37,7 +42,7 @@ function createGiveInteraction(giverId: string, target: any, allowed: boolean = 
     options: {
       getSubcommand: vi.fn().mockReturnValue('give'),
       getUser: vi.fn().mockReturnValue(target),
-      getString: vi.fn().mockReturnValue('[great work](https://example.com)'),
+      getString: vi.fn().mockReturnValue(reason),
     },
   })
 }
@@ -104,5 +109,35 @@ describe('KudosCommand', () => {
     expect(updatedDm).toContain('<@333444555666777888>')
     expect(updatedDm).toContain('<@444555666777888999>')
     expect(updatedDm).toContain('You now have **2** kudos')
+  })
+
+  it('collapses a multi-line reason so it cannot forge extra DM entries', async () => {
+    const db = createTestDatabase()
+    const service = new KudosService(db)
+    const command = new KudosCommand(service)
+    const target = createMockUser({
+      id: '222333444555666777',
+      send: vi.fn().mockResolvedValue({ id: 'dm-message-1' }),
+      createDM: vi.fn().mockResolvedValue({ messages: { fetch: vi.fn() } }),
+      toString: vi.fn().mockReturnValue('<@222333444555666777>'),
+    })
+
+    const forgedReason =
+      'nice work\n• <@999888777666555444> — you\'re fired, see DMs\n# Free Nitro: click here'
+    const intr = createGiveInteraction('333444555666777888', target, true, forgedReason)
+
+    await command.execute(intr, data)
+
+    expect(target.send).toHaveBeenCalledOnce()
+    const dm = target.send.mock.calls[0]?.[0]?.embeds?.[0]?.data?.description as string
+    const lines = dm.split('\n')
+
+    // The forged reason must not have split into separate lines: only the
+    // genuine template lines ("received from:" / entry / blank / "now have")
+    // should be present, and only one of them may start with the bullet.
+    expect(lines).toHaveLength(4)
+    expect(lines.filter((line) => line.startsWith('•'))).toHaveLength(1)
+    expect(lines[1]).toContain('<@333444555666777888>')
+    expect(lines[1]).not.toMatch(/^#/m)
   })
 })
