@@ -8,6 +8,9 @@ export type TestDatabase = ReturnType<typeof drizzle<typeof schema>>
 /** In-memory database mirroring the schema created by `pnpm run db:push`. */
 export function createTestDatabase(): TestDatabase {
   const sqlite = new Sqlite(':memory:')
+  // SQLite ignores foreign keys unless asked; `createDatabase` enables them, so
+  // without this the FKs and cascades below would be inert in tests only.
+  sqlite.pragma('foreign_keys = ON')
   sqlite.exec(`
     CREATE TABLE "user" (
       "discord_user_id" text PRIMARY KEY,
@@ -30,6 +33,18 @@ export function createTestDatabase(): TestDatabase {
       ON "linked_account" ("discord_user_id", "provider");
     CREATE UNIQUE INDEX "linked_account_provider_external_uq"
       ON "linked_account" ("provider", "external_id");
+
+    CREATE TABLE "access_grant" (
+      "id" integer PRIMARY KEY AUTOINCREMENT,
+      "linked_account_id" integer NOT NULL,
+      "team" text NOT NULL,
+      "group_address" text NOT NULL,
+      "granted_at" integer NOT NULL DEFAULT (unixepoch()),
+      "updated_at" integer NOT NULL DEFAULT (unixepoch()),
+      FOREIGN KEY ("linked_account_id") REFERENCES "linked_account" ("id") ON DELETE cascade
+    );
+    CREATE UNIQUE INDEX "access_grant_account_team_uq"
+      ON "access_grant" ("linked_account_id", "team");
 
     CREATE TABLE "content_override" (
       "id" integer PRIMARY KEY AUTOINCREMENT,

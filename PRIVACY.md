@@ -31,6 +31,8 @@ Collected information is used to operate and maintain the bot, including:
 
 The bot may share limited information with third-party services when required for bot functionality, such as Discord, Google Calendar, Google Groups, or other configured integrations.
 
+The bot also exposes an authenticated HTTP endpoint (`GET /users/:userId`) that other internal Digital Ground Game services may call to look up a member. Its response includes the member's Discord username, display name, avatar URL, join date, the pre-defined server roles they hold, any external account they have linked via `/link-account` (for Google, an email address), and the groups they have been granted access to via `/grant-access`. The endpoint requires a shared secret and is intended only for first-party services operated by the project.
+
 The bot may share non-sensitive aggregate or statistical data. Personally identifying information, other than Discord-generated IDs needed for bot features and integrations, is not sold.
 
 ## Data Retention

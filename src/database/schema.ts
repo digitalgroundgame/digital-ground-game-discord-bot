@@ -50,6 +50,36 @@ export const linkedAccount = sqliteTable(
 )
 
 /**
+ * An access grant recorded when `/grant-access` adds a linked account to a
+ * team's resource (for Google, a Workspace Group). One row per (account, team);
+ * re-granting the same team upserts. Cascades when the linked account is removed.
+ *
+ * This is the bot's own record of what it granted — it does not reflect
+ * memberships created outside the bot or changed directly in the provider.
+ */
+export const accessGrant = sqliteTable(
+  'access_grant',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    linkedAccountId: integer('linked_account_id')
+      .notNull()
+      .references(() => linkedAccount.id, { onDelete: 'cascade' }),
+    // `/grant-access` team shortname (see `config.grantAccess.groups`).
+    team: text('team').notNull(),
+    // Provider resource the member was added to, resolved at grant time
+    // (for Google, the Group email address).
+    groupAddress: text('group_address').notNull(),
+    grantedAt: integer('granted_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => [uniqueIndex('access_grant_account_team_uq').on(t.linkedAccountId, t.team)],
+)
+
+/**
  * A runtime override of one field of a managed content entry (see
  * `constants/managed-content.ts`). One row per (key, field); a missing row
  * means the hardcoded default is used.
@@ -73,4 +103,6 @@ export type User = typeof user.$inferSelect
 export type NewUser = typeof user.$inferInsert
 export type LinkedAccount = typeof linkedAccount.$inferSelect
 export type NewLinkedAccount = typeof linkedAccount.$inferInsert
+export type AccessGrant = typeof accessGrant.$inferSelect
+export type NewAccessGrant = typeof accessGrant.$inferInsert
 export type ContentOverride = typeof contentOverride.$inferSelect
