@@ -15,6 +15,7 @@ import {
   LinkAccountCommand,
   PingSkillRoleCommand,
   PragPapersCommand,
+  RulesAdminCommand,
   RulesCommand,
   StopAttendanceTrackCommand,
   TestCommand,
@@ -55,6 +56,7 @@ import {
   GoogleGroupsService,
   JobService,
   Logger,
+  RuleService,
   UserService,
 } from './services/index.js'
 import { CTAPostTrigger } from './triggers/cta-post.js'
@@ -129,7 +131,7 @@ async function start(): Promise<void> {
       database = createDatabase()
     } catch (error) {
       Logger.error(
-        'Failed to initialize the database; /link-account and /grant-access will be unavailable, and /content edits will not persist.',
+        'Failed to initialize the database; /link-account, /grant-access, and /rules-admin will be unavailable, and /content edits will not persist.',
         error,
       )
     }
@@ -140,6 +142,16 @@ async function start(): Promise<void> {
   // Resolves runtime-editable content. Always available — without a database
   // it serves the registry defaults and rejects edits.
   const contentService = new ContentService(database)
+  // Owns the server rules. Always readable — without a database it serves
+  // the hardcoded defaults and /rules-admin is unavailable.
+  const ruleService = new RuleService(database)
+  if (ruleService.isPersistent) {
+    try {
+      await ruleService.seedDefaultsIfEmpty()
+    } catch (error) {
+      Logger.error('Failed to seed the server rules from defaults.', error)
+    }
+  }
 
   const voiceStateUpdateHandler = new VoiceStateUpdateHandler(attendanceService, crmService, client)
 
@@ -150,7 +162,8 @@ async function start(): Promise<void> {
     new HelpCommand(),
     new InfoCommand(),
     new TestCommand(),
-    new RulesCommand(),
+    new RulesCommand(ruleService),
+    new RulesAdminCommand(ruleService),
     new PragPapersCommand(),
     new CensusCommand(),
     new AttendanceTrackCommand(attendanceService, crmService),

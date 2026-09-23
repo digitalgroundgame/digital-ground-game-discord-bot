@@ -41,6 +41,17 @@ export function createTestDatabase(): TestDatabase {
     );
     CREATE UNIQUE INDEX "content_override_key_field_uq"
       ON "content_override" ("key", "field");
+
+    CREATE TABLE "rule" (
+      "id" integer PRIMARY KEY AUTOINCREMENT,
+      "position" integer NOT NULL,
+      "title" text NOT NULL,
+      "description" text NOT NULL,
+      "updated_by" text,
+      "created_at" integer NOT NULL DEFAULT (unixepoch()),
+      "updated_at" integer NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE UNIQUE INDEX "rule_position_uq" ON "rule" ("position");
   `)
   return drizzle(sqlite, { schema })
 }
