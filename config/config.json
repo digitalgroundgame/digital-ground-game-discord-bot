@@ -66,6 +66,12 @@
       "log": true,
       "runOnce": false,
       "initialDelaySecs": 60
+    },
+    "refreshGitHubTeams": {
+      "schedule": "0 0 * * * *",
+      "log": false,
+      "runOnce": false,
+      "initialDelaySecs": 0
     }
   },
   "rateLimiting": {
@@ -105,7 +111,7 @@
     "inactivityDays": 2
   },
   "grantAccess": {
-    "// NOTE": "Maps a /grant-access team shortname to the Google Group address in the Workspace account.",
+    "// NOTE": "Maps a /grant-access team shortname to the Google Group address in the Workspace account. GitHub teams are discovered from the org instead — see the excludeTeams note below.",
     "allowedRoleKeys": ["DIRECTOR", "COORDINATOR"],
     "groups": {
       "Event Team": "event-team@digitalgroundgame.org",
@@ -121,7 +127,9 @@
       "Northeast Squad": "northeast-squad@digitalgroundgame.org",
       "South Squad": "south-squad@digitalgroundgame.org",
       "West Squad": "west-squad@digitalgroundgame.org"
-    }
+    },
+    "// NOTE: excludeTeams": "Team slugs /grant-access must never offer or grant, e.g. leadership or admin teams. Every other team in the org is grantable.",
+    "excludeTeams": []
   },
   "managedContent": {
     "// NOTE": "Role config keys (see roles below) allowed to run /content.",

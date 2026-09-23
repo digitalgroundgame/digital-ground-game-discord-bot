@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm'
 import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 /** External account providers a Discord user can link. Add new services here. */
-export const ACCOUNT_PROVIDERS = ['google'] as const
+export const ACCOUNT_PROVIDERS = ['google', 'github'] as const
 export type AccountProvider = (typeof ACCOUNT_PROVIDERS)[number]
 
 /** A Discord member known to the bot. */

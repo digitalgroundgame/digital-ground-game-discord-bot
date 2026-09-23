@@ -163,6 +163,10 @@ export const ChatCommandMetadata: {
         ...Args.GRANT_ACCESS_USER,
         required: true,
       },
+      {
+        ...Args.GRANT_ACCESS_ROLE,
+        required: false,
+      },
     ],
   },
   PING_SKILL_ROLE: {
