@@ -41,6 +41,31 @@ export function createTestDatabase(): TestDatabase {
     );
     CREATE UNIQUE INDEX "content_override_key_field_uq"
       ON "content_override" ("key", "field");
+
+    CREATE TABLE "kudos_transaction" (
+      "id" integer PRIMARY KEY AUTOINCREMENT,
+      "guild_id" text NOT NULL,
+      "giver_discord_id" text NOT NULL,
+      "receiver_discord_id" text NOT NULL,
+      "reason" text,
+      "created_at" integer NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX "kudos_transaction_guild_receiver_idx"
+      ON "kudos_transaction" ("guild_id", "receiver_discord_id");
+    CREATE INDEX "kudos_transaction_guild_created_idx"
+      ON "kudos_transaction" ("guild_id", "created_at");
+    CREATE INDEX "kudos_transaction_guild_giver_receiver_idx"
+      ON "kudos_transaction" ("guild_id", "giver_discord_id", "receiver_discord_id", "created_at");
+
+    CREATE TABLE "kudos_notification" (
+      "id" integer PRIMARY KEY AUTOINCREMENT,
+      "guild_id" text NOT NULL,
+      "receiver_discord_id" text NOT NULL,
+      "message_id" text NOT NULL,
+      "window_started_at" integer NOT NULL
+    );
+    CREATE UNIQUE INDEX "kudos_notification_guild_receiver_uq"
+      ON "kudos_notification" ("guild_id", "receiver_discord_id");
   `)
   return drizzle(sqlite, { schema })
 }

@@ -131,6 +131,11 @@
     "// NOTE": "Role config keys (see roles below) allowed to run /ping-skill-role.",
     "allowedRoleKeys": ["ADMIN", "DIRECTOR", "COORDINATOR"]
   },
+  "kudos": {
+    "// NOTE": "Role config keys (see roles below) allowed to run /kudos give. Also, the cooldown before the same giver can give the same receiver kudos again.",
+    "allowedRoleKeys": ["ADMIN", "DIRECTOR", "ORGANIZER"],
+    "giveCooldownDays": 7
+  },
   "roles": {
     "COORDINATOR": {
       "id": "1347653968641134683",

@@ -12,6 +12,7 @@ import {
   GrantAccessCommand,
   HelpCommand,
   InfoCommand,
+  KudosCommand,
   LinkAccountCommand,
   PingSkillRoleCommand,
   PragPapersCommand,
@@ -54,6 +55,7 @@ import {
   GoogleCalendarService,
   GoogleGroupsService,
   JobService,
+  KudosService,
   Logger,
   UserService,
 } from './services/index.js'
@@ -137,6 +139,8 @@ async function start(): Promise<void> {
   // Stores the external accounts members link via /link-account, and is read
   // by /grant-access to resolve a member's Google email.
   const userService = database ? new UserService(database) : undefined
+  // Backs /kudos. Without a database, /kudos reports itself as unconfigured.
+  const kudosService = database ? new KudosService(database) : undefined
   // Resolves runtime-editable content. Always available — without a database
   // it serves the registry defaults and rejects edits.
   const contentService = new ContentService(database)
@@ -159,6 +163,7 @@ async function start(): Promise<void> {
     new LinkAccountCommand(userService),
     new ContentCommand(contentService),
     new PingSkillRoleCommand(),
+    new KudosCommand(kudosService),
 
     // User Context Commands
     ...ONBOARDING_CONFIGS.map((config) => new SendOnboarding(config, contentService)),
