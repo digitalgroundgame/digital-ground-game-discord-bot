@@ -5,5 +5,10 @@ allowBuilds:
   better-sqlite3: true
   canvas: true
   esbuild: true
+minimumReleaseAgeExclude:
+  - '@humanfs/node@0.16.8'
+  - js-yaml@4.3.2
+  - qs@6.16.0
 overrides:
   esbuild: 0.25.12
+  js-yaml: 4.3.2
