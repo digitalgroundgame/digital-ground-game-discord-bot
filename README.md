@@ -97,6 +97,15 @@ Get this from inside of the Discord app. Enable developer mode -> right click us
 DISCORD_BOT_DEVELOPER_IDS="123456789012345678,987654321098765432" # comma-separated list of Discord user IDs
 ```
 
+The primary guild the bot serves — used to resolve members for the `/users` API
+route. Get it the same way: enable developer mode -> right click the server ->
+Copy ID. The bot refuses to start without it, so set it in every environment
+before deploying.
+
+```
+DISCORD_GUILD_ID="123456789012345678"
+```
+
 ### Optional: Google Calendar sync
 
 To mirror Discord scheduled events from **DGG Political Action** into the DGG group calendar, the bot runs an **hourly** job that reconciles with Google Calendar.
@@ -124,16 +133,26 @@ that must live on persistent storage with the main database file. The Docker
 startup command runs `pnpm run db:push` when `SQLITE_PATH` is set, so schema
 changes are applied to the mounted runtime database before the bot starts.
 
+### Required: internal API secret
+
+`GET /users/:userId` lets other internal services look up a member's roles,
+linked Google account and recorded access grants. It — along with `GET /guilds`,
+`GET /shards` and `PUT /shards/presence` — is guarded solely by this shared
+secret, checked against the request's `Authorization` header:
+
+```
+DISCORD_BOT_API_SECRET="generate-a-long-random-string"
+```
+
+Generate a real value per environment — a deployment that copies the example
+file verbatim serves member PII behind a publicly known string.
+
 ### Not used
 
 Clustering Configuration (only needed if clustering.enabled is true), we will likely never cluster because it's for bots that serve 2,500+ guilds.
 
 ```
 DISCORD_BOT_MASTER_API_TOKEN="token"
-```
-
-```
-DISCORD_BOT_API_SECRET="secret"
 ```
 
 ## Bot reference
