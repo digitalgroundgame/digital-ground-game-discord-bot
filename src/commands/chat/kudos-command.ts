@@ -1,12 +1,4 @@
-import {
-  DiscordAPIError,
-  GuildMember,
-  RESTJSONErrorCodes as DiscordApiErrors,
-  type ChatInputCommandInteraction,
-  type PermissionsString,
-  type User,
-  escapeMarkdown,
-} from 'discord.js'
+import { GuildMember, type ChatInputCommandInteraction, type PermissionsString } from 'discord.js'
 import { RateLimiter } from 'discord.js-rate-limiter'
 
 import { KudosGiveAllowedRoleKeys, ServerRoles, getRoleNameById } from '../../constants/index.js'
@@ -15,6 +7,7 @@ import { Language } from '../../models/enum-helpers/index.js'
 import { type EventData } from '../../models/internal-models.js'
 import {
   type KudosLeaderboardPeriod,
+  KudosNotifier,
   type KudosService,
   Lang,
   Logger,
@@ -23,6 +16,13 @@ import { InteractionUtils, RoleUtils } from '../../utils/index.js'
 import { type Command, CommandDeferType } from '../index.js'
 
 const GIVE_ALLOWED_ROLE_IDS = KudosGiveAllowedRoleKeys.map((key) => ServerRoles[key].id)
+
+export interface KudosCommandOptions {
+  /** Shared with the kudos reaction so DMs to one receiver are serialized. */
+  notifier?: KudosNotifier
+  /** Roles allowed to give kudos; empty means anyone. Defaults to config. */
+  giveAllowedRoleIds?: string[]
+}
 
 const MEDALS = ['🥇', '🥈', '🥉']
 
@@ -37,12 +37,19 @@ export class KudosCommand implements Command {
   public cooldown = new RateLimiter(5, 30_000)
   public deferType = CommandDeferType.HIDDEN
   public requireClientPerms: PermissionsString[] = []
-  private readonly notificationQueues = new Map<string, Promise<boolean>>()
+  private readonly notifier?: KudosNotifier
+  private readonly giveAllowedRoleIds: string[]
 
-  constructor(private readonly kudosService?: KudosService) {}
+  constructor(
+    private readonly kudosService?: KudosService,
+    options: KudosCommandOptions = {},
+  ) {
+    this.notifier = options.notifier ?? (kudosService ? new KudosNotifier(kudosService) : undefined)
+    this.giveAllowedRoleIds = options.giveAllowedRoleIds ?? GIVE_ALLOWED_ROLE_IDS
+  }
 
   public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
-    if (!this.kudosService) {
+    if (!this.kudosService || !this.notifier) {
       await InteractionUtils.editReply(
         intr,
         Lang.getEmbed('displayEmbeds.kudosNotConfigured', data.lang),
@@ -52,7 +59,7 @@ export class KudosCommand implements Command {
 
     switch (intr.options.getSubcommand()) {
       case KudosSubcommand.GIVE: {
-        await this.give(intr, data, this.kudosService)
+        await this.give(intr, data, this.kudosService, this.notifier)
         break
       }
       case KudosSubcommand.VIEW: {
@@ -70,17 +77,18 @@ export class KudosCommand implements Command {
     intr: ChatInputCommandInteraction,
     data: EventData,
     kudosService: KudosService,
+    notifier: KudosNotifier,
   ): Promise<void> {
     if (!intr.guild || !(intr.member instanceof GuildMember)) {
       await InteractionUtils.editReply(intr, Lang.getEmbed('validationEmbeds.guildOnly', data.lang))
       return
     }
 
-    if (!RoleUtils.memberHasAnyConfiguredRole(intr.member, GIVE_ALLOWED_ROLE_IDS)) {
+    if (!RoleUtils.memberPassesRoleRestriction(intr.member, this.giveAllowedRoleIds)) {
       await InteractionUtils.editReply(
         intr,
         Lang.getEmbed('validationEmbeds.missingRole', data.lang, {
-          ROLES: GIVE_ALLOWED_ROLE_IDS.map(getRoleNameById).join(', '),
+          ROLES: this.giveAllowedRoleIds.map(getRoleNameById).join(', '),
         }),
       )
       return
@@ -118,13 +126,7 @@ export class KudosCommand implements Command {
         return
       }
       case 'given': {
-        const notified = await this.queueReceiverNotification(
-          intr.guild.id,
-          targetUser,
-          result.givenAt,
-          data,
-          kudosService,
-        )
+        const notified = await notifier.notify(intr.guild.id, targetUser, result.givenAt, data.lang)
 
         await InteractionUtils.editReply(
           intr,
@@ -213,96 +215,5 @@ export class KudosCommand implements Command {
         ENTRIES: lines.join('\n'),
       }),
     )
-  }
-
-  /** Returns whether the receiver was actually notified (DM sent/edited). */
-  private async queueReceiverNotification(
-    guildId: string,
-    targetUser: User,
-    givenAt: Date,
-    data: EventData,
-    kudosService: KudosService,
-  ): Promise<boolean> {
-    const key = `${guildId}:${targetUser.id}`
-    const previous = this.notificationQueues.get(key) ?? Promise.resolve(true)
-    const current = previous
-      .catch(() => false)
-      .then(() => this.notifyReceiver(guildId, targetUser, givenAt, data, kudosService))
-    this.notificationQueues.set(key, current)
-
-    try {
-      return await current
-    } finally {
-      if (this.notificationQueues.get(key) === current) {
-        this.notificationQueues.delete(key)
-      }
-    }
-  }
-
-  /** Returns whether the receiver was actually notified (DM sent/edited). */
-  private async notifyReceiver(
-    guildId: string,
-    targetUser: User,
-    givenAt: Date,
-    data: EventData,
-    kudosService: KudosService,
-  ): Promise<boolean> {
-    try {
-      const batch = await kudosService.getNotificationBatch(guildId, targetUser.id, givenAt)
-      const total = await kudosService.getTotal(guildId, targetUser.id)
-      const givers = batch.entries.map((entry) =>
-        Lang.getRef(
-          entry.reason ? 'kudosNotification.entryWithReason' : 'kudosNotification.entry',
-          data.lang,
-          {
-            GIVER: `<@${entry.giverDiscordId}>`,
-            REASON: entry.reason
-              ? escapeMarkdown(entry.reason, {
-                  maskedLink: true,
-                  heading: true,
-                  bulletedList: true,
-                  numberedList: true,
-                })
-              : '',
-          },
-        ),
-      )
-      const embed = Lang.getEmbed('displayEmbeds.kudosReceived', data.lang, {
-        AMOUNT: batch.entries.length.toString(),
-        GIVERS: givers.join('\n'),
-        TOTAL: total.toString(),
-      })
-
-      if (batch.messageId) {
-        try {
-          const dm = await targetUser.createDM()
-          const message = await dm.messages.fetch(batch.messageId)
-          await message.edit({ embeds: [embed] })
-          return true
-        } catch (error) {
-          if (
-            !(error instanceof DiscordAPIError) ||
-            error.code !== DiscordApiErrors.UnknownMessage
-          ) {
-            throw error
-          }
-        }
-      }
-
-      const message = await targetUser.send({ embeds: [embed] })
-      await kudosService.saveNotification(guildId, targetUser.id, message.id, batch.windowStartedAt)
-      return true
-    } catch (error) {
-      if (
-        error instanceof DiscordAPIError &&
-        error.code === DiscordApiErrors.CannotSendMessagesToThisUser
-      ) {
-        Logger.info(`/kudos give: ${targetUser.tag} has DMs closed, skipping notification`)
-        return false
-      }
-
-      Logger.error(`/kudos give: failed to notify ${targetUser.tag}`, error)
-      return false
-    }
   }
 }

@@ -20,6 +20,14 @@ export interface KudosLeaderboardEntry {
 export interface KudosNotificationEntry {
   giverDiscordId: string
   reason: string | null
+  channelId: string | null
+  messageId: string | null
+}
+
+/** The message a kudos was given for, when given by reaction. */
+export interface KudosSource {
+  channelId: string
+  messageId: string
 }
 
 export interface KudosNotificationBatch {
@@ -31,6 +39,7 @@ export interface KudosNotificationBatch {
 export type GiveKudosResult =
   | { status: 'given'; total: number; givenAt: Date }
   | { status: 'self' }
+  | { status: 'duplicate' }
   | { status: 'cooldown'; retryAt: Date }
 
 /**
@@ -42,14 +51,16 @@ export class KudosService {
   constructor(private readonly db: Database) {}
 
   /**
-   * Records a kudos give, unless the giver is targeting themselves or is
-   * still within the cooldown window for this receiver.
+   * Records a kudos give, unless the giver is targeting themselves, already
+   * gave kudos for the same source message, or is still within the cooldown
+   * window for this receiver.
    */
   public async giveKudos(
     guildId: string,
     giverDiscordId: string,
     receiverDiscordId: string,
     reason?: string,
+    source?: KudosSource,
   ): Promise<GiveKudosResult> {
     if (giverDiscordId === receiverDiscordId) {
       return { status: 'self' }
@@ -63,6 +74,25 @@ export class KudosService {
     // concurrent give for the same pair can't be interleaved between the
     // SELECT and the INSERT - the outcome is decided atomically.
     const outcome = this.db.transaction((tx) => {
+      // Checked before the cooldown so re-adding a reaction on a message that
+      // already earned kudos is recognized as a no-op, not a new attempt.
+      if (source) {
+        const sameMessage = tx
+          .select({ id: kudosTransaction.id })
+          .from(kudosTransaction)
+          .where(
+            and(
+              eq(kudosTransaction.guildId, guildId),
+              eq(kudosTransaction.messageId, source.messageId),
+              eq(kudosTransaction.giverDiscordId, giverDiscordId),
+            ),
+          )
+          .get()
+        if (sameMessage) {
+          return { status: 'duplicate' as const }
+        }
+      }
+
       const lastGive = tx
         .select({ createdAt: kudosTransaction.createdAt })
         .from(kudosTransaction)
@@ -85,13 +115,21 @@ export class KudosService {
       }
 
       tx.insert(kudosTransaction)
-        .values({ guildId, giverDiscordId, receiverDiscordId, reason, createdAt: givenAt })
+        .values({
+          guildId,
+          giverDiscordId,
+          receiverDiscordId,
+          reason,
+          channelId: source?.channelId,
+          messageId: source?.messageId,
+          createdAt: givenAt,
+        })
         .run()
 
       return { status: 'given' as const }
     })
 
-    if (outcome.status === 'cooldown') {
+    if (outcome.status !== 'given') {
       return outcome
     }
 
@@ -138,6 +176,8 @@ export class KudosService {
       .select({
         giverDiscordId: kudosTransaction.giverDiscordId,
         reason: kudosTransaction.reason,
+        channelId: kudosTransaction.channelId,
+        messageId: kudosTransaction.messageId,
       })
       .from(kudosTransaction)
       .where(

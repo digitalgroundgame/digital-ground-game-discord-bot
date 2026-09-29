@@ -7,6 +7,7 @@ import { KudosCommand } from '../../src/commands/chat/kudos-command.js'
 import { ServerRoles } from '../../src/constants/index.js'
 import { Language } from '../../src/models/enum-helpers/index.js'
 import { EventData } from '../../src/models/internal-models.js'
+import { KudosNotifier } from '../../src/services/kudos-notifier.js'
 import { KudosService } from '../../src/services/kudos-service.js'
 import {
   createMockCommandInteraction,
@@ -17,6 +18,7 @@ import { createTestDatabase } from '../helpers/test-database.js'
 
 const GUILD_ID = '111222333444555666'
 const data = new EventData(Language.Default, Language.Default)
+const ADMIN_ONLY = { giveAllowedRoleIds: [ServerRoles.ADMIN.id] }
 
 function createGiveInteraction(
   giverId: string,
@@ -56,7 +58,7 @@ describe('KudosCommand', () => {
   it('keeps the giver response ephemeral and rejects unauthorized givers', async () => {
     const db = createTestDatabase()
     const service = new KudosService(db)
-    const command = new KudosCommand(service)
+    const command = new KudosCommand(service, ADMIN_ONLY)
     const target = createMockUser({ id: '222333444555666777' })
     const intr = createGiveInteraction('333444555666777888', target, false)
 
@@ -70,6 +72,43 @@ describe('KudosCommand', () => {
 
     const description = intr.editReply.mock.calls[0]?.[0]?.embeds?.[0]?.data?.description
     expect(description).toContain(ServerRoles.ADMIN.name)
+  })
+
+  it('lets any member give kudos when no giver roles are configured', async () => {
+    const db = createTestDatabase()
+    const service = new KudosService(db)
+    const command = new KudosCommand(service, { giveAllowedRoleIds: [] })
+    const target = createMockUser({
+      id: '222333444555666777',
+      send: vi.fn().mockResolvedValue({ id: 'dm-message-1' }),
+      createDM: vi.fn().mockResolvedValue({ messages: { fetch: vi.fn() } }),
+      toString: vi.fn().mockReturnValue('<@222333444555666777>'),
+    })
+    const intr = createGiveInteraction('333444555666777888', target, false)
+
+    await command.execute(intr, data)
+
+    expect(await service.getTotal(GUILD_ID, target.id)).toBe(1)
+    expect(target.send).toHaveBeenCalledOnce()
+  })
+
+  it('notifies the receiver through the shared notifier', async () => {
+    const db = createTestDatabase()
+    const service = new KudosService(db)
+    const notifier = new KudosNotifier(service)
+    const notifySpy = vi.spyOn(notifier, 'notify').mockResolvedValue(true)
+    const command = new KudosCommand(service, { ...ADMIN_ONLY, notifier })
+    const target = createMockUser({
+      id: '222333444555666777',
+      toString: vi.fn().mockReturnValue('<@222333444555666777>'),
+    })
+    const intr = createGiveInteraction('333444555666777888', target)
+
+    await command.execute(intr, data)
+
+    expect(notifySpy).toHaveBeenCalledWith(GUILD_ID, target, expect.any(Date), data.lang)
+    const description = intr.editReply.mock.calls[0]?.[0]?.embeds?.[0]?.data?.description
+    expect(description).toContain('They now have **1** kudos')
   })
 
   it('rejects targeting a bot before recording a give', async () => {
@@ -136,50 +175,6 @@ describe('KudosCommand', () => {
 
     expect(intr.editReply).toHaveBeenCalledOnce()
     expect(target.send).not.toHaveBeenCalled()
-  })
-
-  it('edits one receiver DM when multiple people give kudos within an hour', async () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-09-16T16:00:00Z'))
-
-    const db = createTestDatabase()
-    const service = new KudosService(db)
-    const firstCommand = new KudosCommand(service)
-    const edit = vi.fn().mockResolvedValue({})
-    const fetch = vi.fn().mockResolvedValue({ edit })
-    const target = createMockUser({
-      id: '222333444555666777',
-      send: vi.fn().mockResolvedValue({ id: 'dm-message-1' }),
-      createDM: vi.fn().mockResolvedValue({ messages: { fetch } }),
-      toString: vi.fn().mockReturnValue('<@222333444555666777>'),
-    })
-
-    const first = createGiveInteraction('333444555666777888', target)
-    await firstCommand.execute(first, data)
-
-    vi.setSystemTime(new Date('2026-09-16T16:30:00Z'))
-    const restartedCommand = new KudosCommand(service)
-    const second = createGiveInteraction('444555666777888999', target)
-    await restartedCommand.execute(second, data)
-
-    expect(first.editReply).toHaveBeenCalledOnce()
-    expect(second.editReply).toHaveBeenCalledOnce()
-    expect(first.followUp).not.toHaveBeenCalled()
-    expect(second.followUp).not.toHaveBeenCalled()
-    expect(target.send).toHaveBeenCalledOnce()
-    expect(fetch).toHaveBeenCalledWith('dm-message-1')
-    expect(edit).toHaveBeenCalledOnce()
-
-    const firstDm = target.send.mock.calls[0]?.[0]?.embeds?.[0]?.data?.description
-    expect(firstDm).toContain('**1** kudos')
-    expect(firstDm).toContain('<@333444555666777888>')
-    expect(firstDm).toContain('\\[great work](https://example.com)')
-
-    const updatedDm = edit.mock.calls[0]?.[0]?.embeds?.[0]?.data?.description
-    expect(updatedDm).toContain('**2** kudos')
-    expect(updatedDm).toContain('<@333444555666777888>')
-    expect(updatedDm).toContain('<@444555666777888999>')
-    expect(updatedDm).toContain('You now have **2** kudos')
   })
 
   it('collapses a multi-line reason so it cannot forge extra DM entries', async () => {

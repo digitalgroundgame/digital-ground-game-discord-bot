@@ -564,7 +564,8 @@
     },
     "kudosNotification": {
       "entry": "• {{GIVER}}",
-      "entryWithReason": "• {{GIVER}} — {{REASON}}"
+      "entryWithReason": "• {{GIVER}} — {{REASON}}",
+      "entryWithMessage": "• {{GIVER}} for [this message]({{MESSAGE_URL}})"
     },
     "links": {
       "authorEmbed": "[{{COM:bot.author}}]({{COM:links.author}})",

@@ -14,7 +14,9 @@ export {
   type KudosLeaderboardPeriod,
   type KudosNotificationBatch,
   type KudosNotificationEntry,
+  type KudosSource,
 } from './kudos-service.js'
+export { KudosNotifier } from './kudos-notifier.js'
 export { Lang } from './lang.js'
 export { Logger } from './logger.js'
 export { MasterApiService } from './master-api-service.js'

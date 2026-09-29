@@ -176,8 +176,8 @@ describe('KudosService', () => {
       messageId: 'message-1',
       windowStartedAt: first.givenAt,
       entries: [
-        { giverDiscordId: 'giver-1', reason: 'first reason' },
-        { giverDiscordId: 'giver-2', reason: null },
+        { giverDiscordId: 'giver-1', reason: 'first reason', channelId: null, messageId: null },
+        { giverDiscordId: 'giver-2', reason: null, channelId: null, messageId: null },
       ],
     })
   })
@@ -202,7 +202,74 @@ describe('KudosService', () => {
     expect(batch).toEqual({
       messageId: undefined,
       windowStartedAt: second.givenAt,
-      entries: [{ giverDiscordId: 'giver-2', reason: null }],
+      entries: [{ giverDiscordId: 'giver-2', reason: null, channelId: null, messageId: null }],
+    })
+  })
+
+  describe('message-sourced gives', () => {
+    const source = { channelId: 'channel-1', messageId: 'message-1' }
+
+    it('records the source message so the receiver DM can link to it', async () => {
+      const result = await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1', undefined, source)
+      if (result.status !== 'given') {
+        throw new Error('Expected the kudos to be given')
+      }
+
+      const batch = await service.getNotificationBatch(GUILD_ID, 'receiver-1', result.givenAt)
+
+      expect(batch.entries).toEqual([
+        { giverDiscordId: 'giver-1', reason: null, channelId: 'channel-1', messageId: 'message-1' },
+      ])
+    })
+
+    it('reports a duplicate, not a cooldown, when the same message is given kudos again', async () => {
+      await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1', undefined, source)
+      const result = await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1', undefined, source)
+
+      expect(result).toEqual({ status: 'duplicate' })
+      expect(await service.getTotal(GUILD_ID, 'receiver-1')).toBe(1)
+    })
+
+    it('still reports a duplicate for the same message after the cooldown has passed', async () => {
+      await db.insert(kudosTransaction).values({
+        guildId: GUILD_ID,
+        giverDiscordId: 'giver-1',
+        receiverDiscordId: 'receiver-1',
+        channelId: source.channelId,
+        messageId: source.messageId,
+        createdAt: daysAgo(8),
+      })
+
+      const result = await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1', undefined, source)
+
+      expect(result).toEqual({ status: 'duplicate' })
+      expect(await service.getTotal(GUILD_ID, 'receiver-1')).toBe(1)
+    })
+
+    it('applies the cooldown to a different message by the same receiver', async () => {
+      await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1', undefined, source)
+      const result = await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1', undefined, {
+        channelId: 'channel-1',
+        messageId: 'message-2',
+      })
+
+      expect(result.status).toBe('cooldown')
+      expect(await service.getTotal(GUILD_ID, 'receiver-1')).toBe(1)
+    })
+
+    it('shares the cooldown between command gives and message gives', async () => {
+      await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1', 'from the command')
+      const result = await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1', undefined, source)
+
+      expect(result.status).toBe('cooldown')
+      expect(await service.getTotal(GUILD_ID, 'receiver-1')).toBe(1)
+    })
+
+    it('lets another giver give kudos to the same message', async () => {
+      await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1', undefined, source)
+      const result = await service.giveKudos(GUILD_ID, 'giver-2', 'receiver-1', undefined, source)
+
+      expect(result).toEqual({ status: 'given', total: 2, givenAt: expect.any(Date) })
     })
   })
 })

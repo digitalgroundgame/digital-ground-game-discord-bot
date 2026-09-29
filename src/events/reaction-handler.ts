@@ -26,8 +26,8 @@ export class ReactionHandler implements EventHandler {
       return
     }
 
-    // Check if user is rate limited
-    const limited = this.rateLimiter.take(msg.author.id)
+    // Check if the reacting user is rate limited
+    const limited = this.rateLimiter.take(reactor.id)
     if (limited) {
       return
     }

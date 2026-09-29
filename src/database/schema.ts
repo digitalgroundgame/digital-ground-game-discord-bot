@@ -83,6 +83,9 @@ export const kudosTransaction = sqliteTable(
     giverDiscordId: text('giver_discord_id').notNull(),
     receiverDiscordId: text('receiver_discord_id').notNull(),
     reason: text('reason'),
+    // Set when kudos was given by reacting to a message.
+    channelId: text('channel_id'),
+    messageId: text('message_id'),
     createdAt: integer('created_at', { mode: 'timestamp' })
       .notNull()
       .default(sql`(unixepoch())`),
@@ -99,6 +102,8 @@ export const kudosTransaction = sqliteTable(
       t.receiverDiscordId,
       t.createdAt,
     ),
+    // Duplicate check: has this giver already given kudos for this message.
+    index('kudos_transaction_guild_message_giver_idx').on(t.guildId, t.messageId, t.giverDiscordId),
   ],
 )
 

@@ -17,6 +17,7 @@ export {
 export { type LinkableAccount, LinkableAccounts, getLinkableAccount } from './linkable-accounts.js'
 export { PingSkillRoleAllowedRoleKeys } from './skill-roles.js'
 export {
+  KudosEmoji,
   KudosGiveAllowedRoleKeys,
   KudosGiveCooldownDays,
   KudosLeaderboardTimeZone,
