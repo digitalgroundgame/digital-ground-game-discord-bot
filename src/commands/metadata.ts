@@ -8,7 +8,7 @@ import {
 } from 'discord.js'
 
 import { Args } from './index.js'
-import { ContentSubcommand } from '../enums/index.js'
+import { ContentSubcommand, KudosSubcommand } from '../enums/index.js'
 import { Language } from '../models/enum-helpers/index.js'
 import { Lang } from '../services/index.js'
 import { ONBOARDING_CONFIGS } from '../commands/user/index.js'
@@ -204,6 +204,41 @@ export const ChatCommandMetadata: {
       {
         ...Args.LINK_ACCOUNT_USER,
         required: false,
+      },
+    ],
+  },
+  KUDOS: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.kudos', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.kudos'),
+    description: Lang.getRef('commandDescs.kudos', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.kudos'),
+    dm_permission: false,
+    default_member_permissions: undefined,
+    options: [
+      {
+        type: ApplicationCommandOptionType.Subcommand,
+        name: KudosSubcommand.GIVE,
+        description: Lang.getRef('commandDescs.kudosGive', Language.Default),
+        description_localizations: Lang.getRefLocalizationMap('commandDescs.kudosGive'),
+        options: [
+          { ...Args.KUDOS_GIVE_USER, required: true },
+          { ...Args.KUDOS_GIVE_REASON, required: false },
+        ],
+      },
+      {
+        type: ApplicationCommandOptionType.Subcommand,
+        name: KudosSubcommand.VIEW,
+        description: Lang.getRef('commandDescs.kudosView', Language.Default),
+        description_localizations: Lang.getRefLocalizationMap('commandDescs.kudosView'),
+        options: [{ ...Args.KUDOS_VIEW_USER, required: false }],
+      },
+      {
+        type: ApplicationCommandOptionType.Subcommand,
+        name: KudosSubcommand.LEADERBOARD,
+        description: Lang.getRef('commandDescs.kudosLeaderboard', Language.Default),
+        description_localizations: Lang.getRefLocalizationMap('commandDescs.kudosLeaderboard'),
+        options: [{ ...Args.KUDOS_LEADERBOARD_PERIOD, required: true }],
       },
     ],
   },

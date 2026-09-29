@@ -25,4 +25,9 @@ export class RoleUtils {
   public static memberHasAnyConfiguredRole(member: GuildMember, roleIds: string[]): boolean {
     return roleIds.some((roleId) => this.memberHasConfiguredRole(member, roleId))
   }
+
+  /** Like `memberHasAnyConfiguredRole`, but an empty list means no restriction. */
+  public static memberPassesRoleRestriction(member: GuildMember, roleIds: string[]): boolean {
+    return roleIds.length === 0 || this.memberHasAnyConfiguredRole(member, roleIds)
+  }
 }
