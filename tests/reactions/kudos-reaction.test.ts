@@ -96,11 +96,14 @@ describe('KudosReaction', () => {
     reaction = new KudosReaction(service, notifier, { allowedRoleIds: [] })
   })
 
-  it('listens for the coin emoji in guilds only', () => {
+  it('listens for the coin emoji in guilds only, without the generic rate limit', () => {
     expect(reaction.emoji).toBe('🪙')
     expect(reaction.requireGuild).toBe(true)
     expect(reaction.requireSentByClient).toBe(false)
     expect(reaction.requireEmbedAuthorTag).toBe(false)
+    // The per-pair cooldown is the real limit; the generic one would leave
+    // coins on messages without recording kudos.
+    expect(reaction.rateLimited).toBe(false)
   })
 
   it('gives the message author kudos, keeps the reaction, and DMs a link to the message', async () => {

@@ -14,13 +14,16 @@ export interface KudosReactionOptions {
 /**
  * Reacting to a message with the kudos emoji gives its author kudos. Reactions
  * that can't count (self, bot/webhook/system author, missing role, cooldown)
- * are removed so a visible coin always means a recorded kudos.
+ * are removed so a visible coin always means a recorded kudos. The per-pair
+ * cooldown is the rate limit, so the generic reaction limit is skipped: it
+ * would leave coins on messages without recording kudos.
  */
 export class KudosReaction implements Reaction {
   public emoji = KudosEmoji
   public requireGuild = true
   public requireSentByClient = false
   public requireEmbedAuthorTag = false
+  public rateLimited = false
   private readonly allowedRoleIds: string[]
 
   constructor(
