@@ -6,7 +6,6 @@ import { ServerRoles } from '../../src/constants/index.js'
 import { Language } from '../../src/models/enum-helpers/index.js'
 import { EventData } from '../../src/models/internal-models.js'
 import { KudosReaction } from '../../src/reactions/kudos-reaction.js'
-import { KudosNotifier } from '../../src/services/kudos-notifier.js'
 import { KudosService } from '../../src/services/kudos-service.js'
 import { Logger } from '../../src/services/logger.js'
 import { createMockGuildMember, createMockUser } from '../helpers/discord-mocks.js'
@@ -45,8 +44,6 @@ function createContext(options: ContextOptions = {}): {
     id: authorId,
     tag: `author-${authorId}`,
     bot: options.authorBot ?? false,
-    send: vi.fn().mockResolvedValue({ id: 'dm-message-1' }),
-    createDM: vi.fn().mockResolvedValue({ messages: { fetch: vi.fn() } }),
     toString: vi.fn().mockReturnValue(`<@${authorId}>`),
   })
 
@@ -87,13 +84,11 @@ function createContext(options: ContextOptions = {}): {
 
 describe('KudosReaction', () => {
   let service: KudosService
-  let notifier: KudosNotifier
   let reaction: KudosReaction
 
   beforeEach(() => {
     service = new KudosService(createTestDatabase())
-    notifier = new KudosNotifier(service)
-    reaction = new KudosReaction(service, notifier, { allowedRoleIds: [] })
+    reaction = new KudosReaction(service, { allowedRoleIds: [] })
   })
 
   it('listens for the coin emoji in guilds only, without the generic rate limit', () => {
@@ -106,17 +101,14 @@ describe('KudosReaction', () => {
     expect(reaction.rateLimited).toBe(false)
   })
 
-  it('gives the message author kudos, keeps the reaction, and DMs a link to the message', async () => {
+  it('gives the message author kudos and keeps the reaction without messaging anyone', async () => {
     const { msgReaction, msg, reactor, author } = createContext()
 
     await reaction.execute(msgReaction, msg, reactor, data)
 
     expect(await service.getTotal(GUILD_ID, AUTHOR_ID)).toBe(1)
     expect(msgReaction.users.remove).not.toHaveBeenCalled()
-    expect(author.send).toHaveBeenCalledOnce()
-    const dm = author.send.mock.calls[0]?.[0]?.embeds?.[0]?.data?.description
-    expect(dm).toContain(`<@${GIVER_ID}>`)
-    expect(dm).toContain(`https://discord.com/channels/${GUILD_ID}/${CHANNEL_ID}/${msg.id}`)
+    expect(author.send).not.toHaveBeenCalled()
   })
 
   it('removes the reaction without recording kudos while the giver is on cooldown', async () => {
@@ -187,7 +179,7 @@ describe('KudosReaction', () => {
 
   describe('with giver roles configured', () => {
     beforeEach(() => {
-      reaction = new KudosReaction(service, notifier, { allowedRoleIds: [ServerRoles.ADMIN.id] })
+      reaction = new KudosReaction(service, { allowedRoleIds: [ServerRoles.ADMIN.id] })
     })
 
     it('gives kudos when the reactor has an allowed role', async () => {

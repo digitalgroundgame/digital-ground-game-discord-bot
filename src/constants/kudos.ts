@@ -48,6 +48,3 @@ export const KudosEmoji: string = (() => {
 
 /** The community's local time zone; leaderboard weeks/months start at local midnight. */
 export const KudosLeaderboardTimeZone = 'America/New_York'
-
-/** Window in which receiver DMs are combined into one editable notification. */
-export const KudosNotificationWindowMs = 60 * 60 * 1000

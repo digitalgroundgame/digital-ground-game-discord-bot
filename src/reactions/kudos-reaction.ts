@@ -2,8 +2,7 @@ import { type Message, type MessageReaction, type User } from 'discord.js'
 
 import { type Reaction } from './reaction.js'
 import { KudosEmoji, KudosGiveAllowedRoleKeys, ServerRoles } from '../constants/index.js'
-import { type EventData } from '../models/internal-models.js'
-import { type KudosNotifier, type KudosService, Logger } from '../services/index.js'
+import { type KudosService, Logger } from '../services/index.js'
 import { RoleUtils } from '../utils/index.js'
 
 export interface KudosReactionOptions {
@@ -28,19 +27,13 @@ export class KudosReaction implements Reaction {
 
   constructor(
     private readonly kudosService: KudosService,
-    private readonly notifier: KudosNotifier,
     options: KudosReactionOptions = {},
   ) {
     this.allowedRoleIds =
       options.allowedRoleIds ?? KudosGiveAllowedRoleKeys.map((key) => ServerRoles[key].id)
   }
 
-  public async execute(
-    msgReaction: MessageReaction,
-    msg: Message,
-    reactor: User,
-    data: EventData,
-  ): Promise<void> {
+  public async execute(msgReaction: MessageReaction, msg: Message, reactor: User): Promise<void> {
     if (!msg.guild) {
       return
     }
@@ -79,7 +72,6 @@ export class KudosReaction implements Reaction {
         return
       }
       case 'given': {
-        await this.notifier.notify(msg.guild.id, author, result.givenAt, data.lang)
         Logger.info(`${reactor.tag} gave kudos to ${author.tag} by reaction`)
         return
       }

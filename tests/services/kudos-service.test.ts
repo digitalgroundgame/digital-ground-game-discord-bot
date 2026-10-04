@@ -28,7 +28,7 @@ describe('KudosService', () => {
   it('records a give and returns the receiver total', async () => {
     const result = await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1', 'great work')
 
-    expect(result).toEqual({ status: 'given', total: 1, givenAt: expect.any(Date) })
+    expect(result).toEqual({ status: 'given', total: 1 })
     expect(await service.getTotal(GUILD_ID, 'receiver-1')).toBe(1)
   })
 
@@ -64,7 +64,7 @@ describe('KudosService', () => {
 
     const result = await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1')
 
-    expect(result).toEqual({ status: 'given', total: 2, givenAt: expect.any(Date) })
+    expect(result).toEqual({ status: 'given', total: 2 })
   })
 
   it('only records one give when two requests for the same pair race', async () => {
@@ -82,7 +82,7 @@ describe('KudosService', () => {
     await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1')
     const result = await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-2')
 
-    expect(result).toEqual({ status: 'given', total: 1, givenAt: expect.any(Date) })
+    expect(result).toEqual({ status: 'given', total: 1 })
   })
 
   it('scopes totals to the given guild', async () => {
@@ -155,71 +155,20 @@ describe('KudosService', () => {
     expect(leaderboard).toEqual([{ receiverDiscordId: 'receiver-1', total: 1 }])
   })
 
-  it('collects gives into a persisted one-hour notification batch', async () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-09-16T16:00:00Z'))
-    const first = await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1', 'first reason')
-    if (first.status !== 'given') {
-      throw new Error('Expected the first kudos to be given')
-    }
-    await service.saveNotification(GUILD_ID, 'receiver-1', 'message-1', first.givenAt)
-
-    vi.setSystemTime(new Date('2026-09-16T16:30:00Z'))
-    const second = await service.giveKudos(GUILD_ID, 'giver-2', 'receiver-1')
-    if (second.status !== 'given') {
-      throw new Error('Expected the second kudos to be given')
-    }
-
-    const batch = await service.getNotificationBatch(GUILD_ID, 'receiver-1', second.givenAt)
-
-    expect(batch).toEqual({
-      messageId: 'message-1',
-      windowStartedAt: first.givenAt,
-      entries: [
-        { giverDiscordId: 'giver-1', reason: 'first reason', channelId: null, messageId: null },
-        { giverDiscordId: 'giver-2', reason: null, channelId: null, messageId: null },
-      ],
-    })
-  })
-
-  it('opens a new notification batch once the previous hour expires', async () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-09-16T16:00:00Z'))
-    const first = await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1')
-    if (first.status !== 'given') {
-      throw new Error('Expected the first kudos to be given')
-    }
-    await service.saveNotification(GUILD_ID, 'receiver-1', 'message-1', first.givenAt)
-
-    vi.setSystemTime(new Date('2026-09-16T17:00:00Z'))
-    const second = await service.giveKudos(GUILD_ID, 'giver-2', 'receiver-1')
-    if (second.status !== 'given') {
-      throw new Error('Expected the second kudos to be given')
-    }
-
-    const batch = await service.getNotificationBatch(GUILD_ID, 'receiver-1', second.givenAt)
-
-    expect(batch).toEqual({
-      messageId: undefined,
-      windowStartedAt: second.givenAt,
-      entries: [{ giverDiscordId: 'giver-2', reason: null, channelId: null, messageId: null }],
-    })
-  })
-
   describe('message-sourced gives', () => {
     const source = { channelId: 'channel-1', messageId: 'message-1' }
 
-    it('records the source message so the receiver DM can link to it', async () => {
-      const result = await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1', undefined, source)
-      if (result.status !== 'given') {
-        throw new Error('Expected the kudos to be given')
-      }
+    it('records the source message on the ledger row', async () => {
+      await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1', undefined, source)
 
-      const batch = await service.getNotificationBatch(GUILD_ID, 'receiver-1', result.givenAt)
+      const rows = await db
+        .select({
+          channelId: kudosTransaction.channelId,
+          messageId: kudosTransaction.messageId,
+        })
+        .from(kudosTransaction)
 
-      expect(batch.entries).toEqual([
-        { giverDiscordId: 'giver-1', reason: null, channelId: 'channel-1', messageId: 'message-1' },
-      ])
+      expect(rows).toEqual([{ channelId: 'channel-1', messageId: 'message-1' }])
     })
 
     it('reports a duplicate, not a cooldown, when the same message is given kudos again', async () => {
@@ -269,7 +218,7 @@ describe('KudosService', () => {
       await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1', undefined, source)
       const result = await service.giveKudos(GUILD_ID, 'giver-2', 'receiver-1', undefined, source)
 
-      expect(result).toEqual({ status: 'given', total: 2, givenAt: expect.any(Date) })
+      expect(result).toEqual({ status: 'given', total: 2 })
     })
   })
 })

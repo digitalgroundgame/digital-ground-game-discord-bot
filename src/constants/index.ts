@@ -21,5 +21,4 @@ export {
   KudosGiveAllowedRoleKeys,
   KudosGiveCooldownDays,
   KudosLeaderboardTimeZone,
-  KudosNotificationWindowMs,
 } from './kudos.js'

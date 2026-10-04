@@ -1,13 +1,23 @@
-import { GuildMember, type ChatInputCommandInteraction, type PermissionsString } from 'discord.js'
+import {
+  GuildMember,
+  type ChatInputCommandInteraction,
+  type PermissionsString,
+  type User,
+  escapeMarkdown,
+} from 'discord.js'
 import { RateLimiter } from 'discord.js-rate-limiter'
 
-import { KudosGiveAllowedRoleKeys, ServerRoles, getRoleNameById } from '../../constants/index.js'
+import {
+  KudosEmoji,
+  KudosGiveAllowedRoleKeys,
+  ServerRoles,
+  getRoleNameById,
+} from '../../constants/index.js'
 import { KudosSubcommand } from '../../enums/index.js'
 import { Language } from '../../models/enum-helpers/index.js'
 import { type EventData } from '../../models/internal-models.js'
 import {
   type KudosLeaderboardPeriod,
-  KudosNotifier,
   type KudosService,
   Lang,
   Logger,
@@ -18,8 +28,6 @@ import { type Command, CommandDeferType } from '../index.js'
 const GIVE_ALLOWED_ROLE_IDS = KudosGiveAllowedRoleKeys.map((key) => ServerRoles[key].id)
 
 export interface KudosCommandOptions {
-  /** Shared with the kudos reaction so DMs to one receiver are serialized. */
-  notifier?: KudosNotifier
   /** Roles allowed to give kudos; empty means anyone. Defaults to config. */
   giveAllowedRoleIds?: string[]
 }
@@ -28,28 +36,25 @@ const MEDALS = ['🥇', '🥈', '🥉']
 
 /**
  * Lets members give each other kudos for good work, view kudos totals, and
- * check the weekly/monthly leaderboard. All responses are ephemeral — kudos
- * totals are visible to whoever asks, but giving/viewing doesn't clutter the
- * channel.
+ * check the weekly/monthly leaderboard. Responses are ephemeral, except that a
+ * successful give is also announced in the channel so the receiver sees it.
  */
 export class KudosCommand implements Command {
   public names = [Lang.getRef('chatCommands.kudos', Language.Default)]
   public cooldown = new RateLimiter(5, 30_000)
   public deferType = CommandDeferType.HIDDEN
   public requireClientPerms: PermissionsString[] = []
-  private readonly notifier?: KudosNotifier
   private readonly giveAllowedRoleIds: string[]
 
   constructor(
     private readonly kudosService?: KudosService,
     options: KudosCommandOptions = {},
   ) {
-    this.notifier = options.notifier ?? (kudosService ? new KudosNotifier(kudosService) : undefined)
     this.giveAllowedRoleIds = options.giveAllowedRoleIds ?? GIVE_ALLOWED_ROLE_IDS
   }
 
   public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
-    if (!this.kudosService || !this.notifier) {
+    if (!this.kudosService) {
       await InteractionUtils.editReply(
         intr,
         Lang.getEmbed('displayEmbeds.kudosNotConfigured', data.lang),
@@ -59,7 +64,7 @@ export class KudosCommand implements Command {
 
     switch (intr.options.getSubcommand()) {
       case KudosSubcommand.GIVE: {
-        await this.give(intr, data, this.kudosService, this.notifier)
+        await this.give(intr, data, this.kudosService)
         break
       }
       case KudosSubcommand.VIEW: {
@@ -77,7 +82,6 @@ export class KudosCommand implements Command {
     intr: ChatInputCommandInteraction,
     data: EventData,
     kudosService: KudosService,
-    notifier: KudosNotifier,
   ): Promise<void> {
     if (!intr.guild || !(intr.member instanceof GuildMember)) {
       await InteractionUtils.editReply(intr, Lang.getEmbed('validationEmbeds.guildOnly', data.lang))
@@ -126,23 +130,49 @@ export class KudosCommand implements Command {
         return
       }
       case 'given': {
-        const notified = await notifier.notify(intr.guild.id, targetUser, result.givenAt, data.lang)
-
         await InteractionUtils.editReply(
           intr,
-          Lang.getEmbed(
-            notified ? 'displayEmbeds.kudosGiven' : 'displayEmbeds.kudosGivenNoDm',
-            data.lang,
-            {
-              USER: targetUser.toString(),
-              TOTAL: result.total.toString(),
-            },
-          ),
+          Lang.getEmbed('displayEmbeds.kudosGiven', data.lang, {
+            USER: targetUser.toString(),
+            TOTAL: result.total.toString(),
+          }),
         )
+        await this.announce(intr, data, targetUser, reason)
 
         Logger.info(`${intr.user.tag} gave kudos to ${targetUser.tag}`)
         return
       }
+    }
+  }
+
+  /**
+   * Publicly announces a give so the receiver sees it. Only the receiver is
+   * pinged; mentions inside the reason are not. A failure is logged rather
+   * than thrown, since the kudos is already recorded and confirmed.
+   */
+  private async announce(
+    intr: ChatInputCommandInteraction,
+    data: EventData,
+    receiver: User,
+    reason: string | undefined,
+  ): Promise<void> {
+    const vars = { EMOJI: KudosEmoji, GIVER: intr.user.toString(), RECEIVER: receiver.toString() }
+    const content = reason
+      ? Lang.getRef('kudosAnnouncement.givenWithReason', data.lang, {
+          ...vars,
+          REASON: escapeMarkdown(reason, {
+            maskedLink: true,
+            heading: true,
+            bulletedList: true,
+            numberedList: true,
+          }),
+        })
+      : Lang.getRef('kudosAnnouncement.given', data.lang, vars)
+
+    try {
+      await InteractionUtils.send(intr, { content, allowedMentions: { users: [receiver.id] } })
+    } catch (error) {
+      Logger.error(`kudos: failed to announce ${intr.user.tag}'s kudos to ${receiver.tag}`, error)
     }
   }
 

@@ -107,19 +107,6 @@ export const kudosTransaction = sqliteTable(
   ],
 )
 
-/** The currently editable one-hour kudos DM for a receiver in a guild. */
-export const kudosNotification = sqliteTable(
-  'kudos_notification',
-  {
-    id: integer('id').primaryKey({ autoIncrement: true }),
-    guildId: text('guild_id').notNull(),
-    receiverDiscordId: text('receiver_discord_id').notNull(),
-    messageId: text('message_id').notNull(),
-    windowStartedAt: integer('window_started_at', { mode: 'timestamp' }).notNull(),
-  },
-  (t) => [uniqueIndex('kudos_notification_guild_receiver_uq').on(t.guildId, t.receiverDiscordId)],
-)
-
 export type User = typeof user.$inferSelect
 export type NewUser = typeof user.$inferInsert
 export type LinkedAccount = typeof linkedAccount.$inferSelect
@@ -127,4 +114,3 @@ export type NewLinkedAccount = typeof linkedAccount.$inferInsert
 export type ContentOverride = typeof contentOverride.$inferSelect
 export type KudosTransaction = typeof kudosTransaction.$inferSelect
 export type NewKudosTransaction = typeof kudosTransaction.$inferInsert
-export type KudosNotification = typeof kudosNotification.$inferSelect

@@ -56,7 +56,6 @@ import {
   GoogleCalendarService,
   GoogleGroupsService,
   JobService,
-  KudosNotifier,
   KudosService,
   Logger,
   UserService,
@@ -144,8 +143,6 @@ async function start(): Promise<void> {
   // Backs /kudos and the kudos reaction. Without a database, /kudos reports
   // itself as unconfigured and the reaction isn't registered.
   const kudosService = database ? new KudosService(database) : undefined
-  // Shared so DMs to one receiver stay serialized across the command and reaction.
-  const kudosNotifier = kudosService ? new KudosNotifier(kudosService) : undefined
   if (KudosGiveAllowedRoleKeys.length === 0) {
     Logger.info('Kudos giving is open to all members (config.kudos.allowedRoleKeys is empty)')
   }
@@ -171,7 +168,7 @@ async function start(): Promise<void> {
     new LinkAccountCommand(userService),
     new ContentCommand(contentService),
     new PingSkillRoleCommand(),
-    new KudosCommand(kudosService, { notifier: kudosNotifier }),
+    new KudosCommand(kudosService),
 
     // User Context Commands
     ...ONBOARDING_CONFIGS.map((config) => new SendOnboarding(config, contentService)),
@@ -185,7 +182,7 @@ async function start(): Promise<void> {
   // Reactions
   const reactions: Reaction[] = [
     // TODO: Add new reactions here
-    ...(kudosService && kudosNotifier ? [new KudosReaction(kudosService, kudosNotifier)] : []),
+    ...(kudosService ? [new KudosReaction(kudosService)] : []),
   ]
 
   // Triggers
