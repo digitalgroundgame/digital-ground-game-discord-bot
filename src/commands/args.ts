@@ -4,7 +4,7 @@ import { DevCommandName, HelpOption, InfoOption } from '../enums/index.js'
 import { Language } from '../models/enum-helpers/index.js'
 import { Lang } from '../services/index.js'
 import { Rules } from '../constants/rules.js'
-import { GoogleGroups, LinkableAccounts } from '../constants/index.js'
+import { GITHUB_TEAM_ROLES, LinkableAccounts } from '../constants/index.js'
 
 export class Args {
   public static readonly DEV_COMMAND: APIApplicationCommandBasicOption = {
@@ -76,9 +76,23 @@ export class Args {
     description: Lang.getRef('argDescs.grantAccessTeam', Language.Default),
     description_localizations: Lang.getRefLocalizationMap('argDescs.grantAccessTeam'),
     type: ApplicationCommandOptionType.String,
-    choices: Object.keys(GoogleGroups).map((shortname) => ({
-      name: shortname,
-      value: shortname,
+    // Autocomplete rather than static choices: Discord caps an option at 25
+    // choices, and the team list grows with `grantAccess` config. It also lets
+    // the suggestions narrow to the teams the picked service actually has.
+    autocomplete: true,
+  }
+  public static readonly GRANT_ACCESS_ROLE: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.role', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.role'),
+    description: Lang.getRef('argDescs.grantAccessRole', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.grantAccessRole'),
+    type: ApplicationCommandOptionType.String,
+    // Static choices rather than autocomplete: GitHub accepts exactly two, and
+    // a free-text role would be a silent no-op if it were misspelled.
+    choices: GITHUB_TEAM_ROLES.map((role) => ({
+      name: Lang.getRef(`githubTeamRoles.${role}`, Language.Default),
+      name_localizations: Lang.getRefLocalizationMap(`githubTeamRoles.${role}`),
+      value: role,
     })),
   }
   public static readonly GRANT_ACCESS_USER: APIApplicationCommandBasicOption = {
