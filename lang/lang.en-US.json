@@ -441,7 +441,7 @@
       "stopAttendanceTrack": "Stops your active attendance tracker and sends the results immediately.",
       "grantAccess": "Grant a member access to a team's service (e.g. a Google Group or GitHub team).",
       "linkAccount": "Link an external account (e.g. your Google email or GitHub username) to a Discord profile.",
-      "pingSkillRole": "Ping the online members of a skill role (works in forum posts)."
+      "pingSkillRole": "Ping the online members of a skill role (works in forum posts).",
       "kudos": "Give kudos, view a member's kudos, or check the leaderboard.",
       "kudosGive": "Give a member kudos for something they did well.",
       "kudosView": "View a member's total kudos.",
