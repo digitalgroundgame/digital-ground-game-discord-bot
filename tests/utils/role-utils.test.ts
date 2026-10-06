@@ -64,4 +64,25 @@ describe('RoleUtils', () => {
 
     expect(RoleUtils.memberHasConfiguredRole(member, ServerRoles.ADMIN.id)).toBe(false)
   })
+
+  it('treats an empty role restriction as open to every member', () => {
+    const member = createMember([], [])
+
+    expect(RoleUtils.memberPassesRoleRestriction(member, [])).toBe(true)
+  })
+
+  it('enforces a non-empty role restriction', () => {
+    const configuredRole = createRole(ServerRoles.ADMIN.id, ServerRoles.ADMIN.name)
+
+    expect(
+      RoleUtils.memberPassesRoleRestriction(createMember([], [configuredRole]), [
+        ServerRoles.ADMIN.id,
+      ]),
+    ).toBe(false)
+    expect(
+      RoleUtils.memberPassesRoleRestriction(createMember([configuredRole], [configuredRole]), [
+        ServerRoles.ADMIN.id,
+      ]),
+    ).toBe(true)
+  })
 })
