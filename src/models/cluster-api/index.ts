@@ -1,4 +1,5 @@
 export { type GetGuildsResponse } from './guilds.js'
+export { type GetUserResponse } from './users.js'
 export {
   type GetShardsResponse,
   type ShardInfo,
