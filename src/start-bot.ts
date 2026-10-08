@@ -9,6 +9,7 @@ import {
   CensusCommand,
   ContentCommand,
   DevCommand,
+  GiveIssueCommand,
   GrantAccessCommand,
   HelpCommand,
   InfoCommand,
@@ -43,6 +44,7 @@ import {
 import { CustomClient } from './extensions/index.js'
 import {
   AutoCloseWelcomeThreadsJob,
+  RefreshGitHubIssuesJob,
   RefreshGitHubTeamsJob,
   SyncDggpGoogleCalendarJob,
   type Job,
@@ -56,7 +58,9 @@ import {
   ContentService,
   CrmService,
   EventDataService,
+  GitHubIssuesService,
   GitHubTeamsService,
+  IssueClaimService,
   GoogleCalendarService,
   GoogleGroupsService,
   JobService,
@@ -142,6 +146,19 @@ async function start(): Promise<void> {
     )
   }
 
+  // A separate token from GITHUB_TEAMS_TOKEN on purpose: /give-issue is open
+  // to every member, and the credential it reaches should not also be able to
+  // change organization membership.
+  const githubIssuesService = new GitHubIssuesService(
+    process.env.GITHUB_ISSUES_TOKEN,
+    process.env.GITHUB_TEAMS_ORG,
+  )
+  if (!githubIssuesService.isConfigured()) {
+    Logger.warn(
+      '/give-issue: disabled — set GITHUB_ISSUES_TOKEN (repository Issues read & write, plus Metadata) and GITHUB_TEAMS_ORG (the organization its public repositories are read from).',
+    )
+  }
+
   let database: Database | undefined
   if (process.env.SQLITE_PATH) {
     try {
@@ -156,6 +173,7 @@ async function start(): Promise<void> {
   // Stores the external accounts members link via /link-account, and is read
   // by /grant-access to resolve a member's Google email.
   const userService = database ? new UserService(database) : undefined
+  const issueClaimService = database ? new IssueClaimService(database) : undefined
   // Resolves runtime-editable content. Always available — without a database
   // it serves the registry defaults and rejects edits.
   const contentService = new ContentService(database)
@@ -178,6 +196,7 @@ async function start(): Promise<void> {
     new LinkAccountCommand(userService),
     new ContentCommand(contentService),
     new PingSkillRoleCommand(),
+    new GiveIssueCommand(githubIssuesService, userService, issueClaimService),
 
     // User Context Commands
     ...ONBOARDING_CONFIGS.map((config) => new SendOnboarding(config, contentService)),
@@ -226,6 +245,10 @@ async function start(): Promise<void> {
   // token and org, and the service would no-op anyway.
   if (githubTeamsService.isConfigured()) {
     jobs.push(new RefreshGitHubTeamsJob(githubTeamsService))
+  }
+  // Keeps the /give-issue pool current. Same reasoning as above.
+  if (githubIssuesService.isConfigured()) {
+    jobs.push(new RefreshGitHubIssuesJob(githubIssuesService))
   }
 
   // Bot

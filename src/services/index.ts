@@ -6,6 +6,12 @@ export { EventDataService } from './event-data-service.js'
 export { GoogleCalendarService } from './google-calendar-service.js'
 export { GoogleGroupsService, type AddMemberResult } from './google-groups-service.js'
 export { GitHubTeamsService, type AddTeamMemberResult } from './github-teams-service.js'
+export {
+  GitHubIssuesService,
+  type AssignResult,
+  toCandidateIssue,
+} from './github-issues-service.js'
+export { IssueClaimService, type RecordClaimInput } from './issue-claim-service.js'
 export { HttpService } from './http-service.js'
 export { JobService } from './job-service.js'
 export { Lang } from './lang.js'

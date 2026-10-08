@@ -3,25 +3,36 @@
     "displayEmbeds": {
       "welcome": {
         "title": "Thank you for using {{COM:bot.name}}!",
-        "description": ["{{REF:bot.description}}"],
+        "description": [
+          "{{REF:bot.description}}"
+        ],
         "fields": [
           {
             "name": "Important {{REF:fields.commands}}",
-            "value": ["{{CMD_LINK_HELP}} - {{REF:commandDescs.help}}"]
+            "value": [
+              "{{CMD_LINK_HELP}} - {{REF:commandDescs.help}}"
+            ]
           },
           {
             "name": "{{REF:fields.links}}",
-            "value": ["{{REF:links.docsEmbed}}", "{{REF:links.supportEmbed}}"]
+            "value": [
+              "{{REF:links.docsEmbed}}",
+              "{{REF:links.supportEmbed}}"
+            ]
           }
         ]
       },
       "helpContactSupport": {
         "title": "Help - {{REF:helpOptions.contactSupport}}",
-        "description": ["Have a question or feedback? Join our support server at the link below!"],
+        "description": [
+          "Have a question or feedback? Join our support server at the link below!"
+        ],
         "fields": [
           {
             "name": "{{REF:fields.links}}",
-            "value": ["{{REF:links.supportEmbed}}"]
+            "value": [
+              "{{REF:links.supportEmbed}}"
+            ]
           }
         ]
       },
@@ -45,7 +56,10 @@
           },
           {
             "name": "{{REF:fields.links}}",
-            "value": ["{{REF:links.docsEmbed}}", "{{REF:links.supportEmbed}}"]
+            "value": [
+              "{{REF:links.docsEmbed}}",
+              "{{REF:links.supportEmbed}}"
+            ]
           }
         ]
       },
@@ -78,7 +92,9 @@
           },
           {
             "name": "Created With",
-            "value": ["{{REF:links.templateEmbed}}"]
+            "value": [
+              "{{REF:links.templateEmbed}}"
+            ]
           }
         ]
       },
@@ -165,7 +181,7 @@
         "description": "{{USER}} was added to the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}} as **{{ROLE_LABEL}}**."
       },
       "grantAccessPendingRole": {
-        "description": "{{USER}} was invited to the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}} as `{{IDENTIFIER}}` (**{{ROLE_LABEL}}**). They\u0027ll be added once they accept the invite."
+        "description": "{{USER}} was invited to the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}} as `{{IDENTIFIER}}` (**{{ROLE_LABEL}}**). They'll be added once they accept the invite."
       },
       "grantAccessAlreadyMember": {
         "description": "{{USER}} is already a member of the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}}."
@@ -236,7 +252,11 @@
       },
       "contentShow": {
         "title": "{{LABEL}}",
-        "description": ["{{DESCRIPTION}}", "", "{{OVERRIDE_STATUS}}"]
+        "description": [
+          "{{DESCRIPTION}}",
+          "",
+          "{{OVERRIDE_STATUS}}"
+        ]
       },
       "contentUpdated": {
         "description": "Updated **{{LABEL}}**. The change is live immediately.",
@@ -272,6 +292,45 @@
       },
       "pingSkillRoleNoneOnline": {
         "description": "No other members of **{{SKILL}}** are online right now, so nobody was pinged.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "giveIssueDraw": {
+        "title": "Three issues you could pick up",
+        "description": "{{ISSUES}}\n\n{{NOTICE}}"
+      },
+      "giveIssueClaimed": {
+        "description": "Assigned **{{LOGIN}}** to [{{REPO}} #{{NUMBER}}]({{URL}}) — {{TITLE}}.\n\nIt’s yours. If you don’t get to it, say so and a lead can hand it back."
+      },
+      "giveIssueAlreadyClaimed": {
+        "description": "Someone claimed **{{REPO}} #{{NUMBER}}** just before you did. Run the command again for a fresh draw.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "giveIssueNeedsAccess": {
+        "description": "GitHub won’t let **{{LOGIN}}** be assigned to **{{REPO}}** yet. That usually means an organization invitation is still unaccepted — check your email, then ask a lead about `/grant-access` if it persists.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "giveIssueClaimNotRecorded": {
+        "description": "You’ve been assigned to [{{REPO}} #{{NUMBER}}]({{URL}}), but the claim wasn’t recorded, so it won’t count toward kudos. Let a lead know.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "giveIssueNoneAvailable": {
+        "description": "Nothing is up for grabs right now. Issues appear here once a lead labels them.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "giveIssueNotLinked": {
+        "description": "Link your GitHub account first with `/link-account service:github identifier:<username>`, so claiming an issue can assign you.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "giveIssueTimedOut": {
+        "description": "That draw expired. Run the command again for a fresh one.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "giveIssueFailed": {
+        "description": "Couldn’t claim that issue. It’s been logged — try again shortly.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "giveIssueNotConfigured": {
+        "description": "`/give-issue` isn’t configured on this bot.",
         "color": "{{COM:colors.warning}}"
       }
     },
@@ -365,7 +424,8 @@
       "stopAttendanceTrack": "stop-attendance-track",
       "grantAccess": "grant-access",
       "linkAccount": "link-account",
-      "pingSkillRole": "ping-skill-role"
+      "pingSkillRole": "ping-skill-role",
+      "giveIssue": "give-issue"
     },
     "userCommands": {
       "sendDevOnboarding": "Send Dev Onboarding",
@@ -408,7 +468,8 @@
       "stopAttendanceTrack": "Stops your active attendance tracker and sends the results immediately.",
       "grantAccess": "Grant a member access to a team's service (e.g. a Google Group or GitHub team).",
       "linkAccount": "Link an external account (e.g. your Google email or GitHub username) to a Discord profile.",
-      "pingSkillRole": "Ping the online members of a skill role (works in forum posts)."
+      "pingSkillRole": "Ping the online members of a skill role (works in forum posts).",
+      "giveIssue": "Get three open issues you could pick up, and claim one."
     },
     "argDescs": {
       "contentKey": "The content entry to manage.",
@@ -530,6 +591,10 @@
       "voteEmbed": "[Vote for {{COM:bot.name}}!]({{COM:links.vote}})",
       "pragPapersEmbed": "[Read the Pragmatic Papers here: ({{COM:links.pragPapers}})]",
       "censusEmbed": "[Fill out the Census here: ({{COM:links.census}})]"
+    },
+    "giveIssue": {
+      "claimHint": "Pick one to have yourself assigned on GitHub.",
+      "noSkillMatch": "None of your skill roles matched a labelled issue, so these are all wildcards. If that looks wrong, the role name and the GitHub label probably don't line up — tell a lead."
     }
   }
 }
