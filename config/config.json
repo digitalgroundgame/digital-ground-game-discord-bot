@@ -15,12 +15,7 @@
       "MessageContent",
       "GuildScheduledEvents"
     ],
-    "partials": [
-      "Message",
-      "Channel",
-      "Reaction",
-      "GuildScheduledEvent"
-    ],
+    "partials": ["Message", "Channel", "Reaction", "GuildScheduledEvent"],
     "// NOTE": "caches is passed to discord.js cacheWithLimits, so only manager names belong inside it. PresenceManager is intentionally NOT capped so /ping-skill-role can filter by online status.",
     "caches": {
       "AutoModerationRuleManager": 0,
@@ -123,10 +118,7 @@
   },
   "grantAccess": {
     "// NOTE": "Maps a /grant-access team shortname to the Google Group address in the Workspace account. GitHub teams are discovered from the org instead — see the excludeTeams note below.",
-    "allowedRoleKeys": [
-      "DIRECTOR",
-      "COORDINATOR"
-    ],
+    "allowedRoleKeys": ["DIRECTOR", "COORDINATOR"],
     "groups": {
       "Event Team": "event-team@digitalgroundgame.org",
       "Media Team": "media-team@digitalgroundgame.org",
@@ -151,26 +143,15 @@
     "// NOTE: excludeRepos": "Repositories never drawn from, as owner/name. Every other public repo in the org is in scope.",
     "excludeRepos": [],
     "// NOTE: allowedRoleKeys": "Who can approve an access request raised by a claim. Running /give-issue is open to every member.",
-    "allowedRoleKeys": [
-      "DIRECTOR",
-      "COORDINATOR"
-    ]
+    "allowedRoleKeys": ["DIRECTOR", "COORDINATOR"]
   },
   "managedContent": {
     "// NOTE": "Role config keys (see roles below) allowed to run /content.",
-    "allowedRoleKeys": [
-      "ADMIN",
-      "DIRECTOR",
-      "WELCOME_SUPERVISOR"
-    ]
+    "allowedRoleKeys": ["ADMIN", "DIRECTOR", "WELCOME_SUPERVISOR"]
   },
   "pingSkillRole": {
     "// NOTE": "Role config keys (see roles below) allowed to run /ping-skill-role.",
-    "allowedRoleKeys": [
-      "ADMIN",
-      "DIRECTOR",
-      "COORDINATOR"
-    ]
+    "allowedRoleKeys": ["ADMIN", "DIRECTOR", "COORDINATOR"]
   },
   "roles": {
     "COORDINATOR": {
