@@ -28,3 +28,17 @@ export {
 } from './github-teams.js'
 export { type LinkableAccount, LinkableAccounts, getLinkableAccount } from './linkable-accounts.js'
 export { PingSkillRoleAllowedRoleKeys } from './skill-roles.js'
+export {
+  type CandidateIssue,
+  DRAW_SIZE,
+  type DrawnIssue,
+  drawIssues,
+  GiveIssueApproverRoleKeys,
+  GiveIssueExcludedRepos,
+  GiveIssueMarkerLabel,
+  issueMatchesSkills,
+  MATCHED_SLOTS,
+  partitionBySkills,
+  skillSlugsForRoleNames,
+  toLabelSlug,
+} from './give-issue.js'

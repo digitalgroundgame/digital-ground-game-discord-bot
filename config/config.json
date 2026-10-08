@@ -72,6 +72,12 @@
       "log": false,
       "runOnce": false,
       "initialDelaySecs": 0
+    },
+    "refreshGitHubIssues": {
+      "schedule": "0 0 * * * *",
+      "log": false,
+      "runOnce": false,
+      "initialDelaySecs": 0
     }
   },
   "rateLimiting": {
@@ -130,6 +136,14 @@
     },
     "// NOTE: excludeTeams": "Team slugs /grant-access must never offer or grant, e.g. leadership or admin teams. Every other team in the org is grantable.",
     "excludeTeams": []
+  },
+  "giveIssue": {
+    "// NOTE": "Settings for /give-issue. The pool is open, unassigned issues carrying markerLabel in the org's PUBLIC repositories — private repos are never enumerated.",
+    "markerLabel": "available",
+    "// NOTE: excludeRepos": "Repositories never drawn from, as owner/name. Every other public repo in the org is in scope.",
+    "excludeRepos": [],
+    "// NOTE: allowedRoleKeys": "Who can approve an access request raised by a claim. Running /give-issue is open to every member.",
+    "allowedRoleKeys": ["DIRECTOR", "COORDINATOR"]
   },
   "managedContent": {
     "// NOTE": "Role config keys (see roles below) allowed to run /content.",
