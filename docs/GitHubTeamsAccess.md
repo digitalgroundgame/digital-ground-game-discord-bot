@@ -186,8 +186,9 @@ the Discord side, by `grantAccess.allowedRoleKeys` in `config.json`.
 That makes the Discord role the real access control on your GitHub org
 membership: anyone holding it is exercising the token account's authority,
 bounded only by what the command exposes — any team in the org that is not on
-`excludeTeams`, always at `role: member`, and only against usernames someone
-has linked with `/link-account`.
+`excludeTeams`, at either team role including maintainer (see
+[Team roles](#team-roles)), and only against usernames someone has linked with
+`/link-account`.
 
 Note what discovery changed here. The old team map in `config.json` doubled as
 an allowlist, so the reachable set was whatever someone had deliberately typed
