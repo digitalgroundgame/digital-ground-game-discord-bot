@@ -1,20 +1,21 @@
 import fetch from 'node-fetch'
 
+import {
+  describeError,
+  GITHUB_API_BASE,
+  githubGet,
+  githubHeaders,
+  listPublicOrgRepos,
+  MAX_PAGES,
+  PAGE_SIZE,
+  REQUEST_TIMEOUT_MS,
+} from './github-api.js'
 import { Logger } from './logger.js'
 import {
   type CandidateIssue,
   GiveIssueExcludedRepos,
   GiveIssueMarkerLabel,
 } from '../constants/give-issue.js'
-
-const GITHUB_API_BASE = 'https://api.github.com'
-const GITHUB_API_VERSION = '2022-11-28'
-/** Without this a stalled connection never settles, leaving the deferred interaction hanging. */
-const REQUEST_TIMEOUT_MS = 10_000
-/** GitHub's maximum. */
-const PAGE_SIZE = 100
-/** Bounds the paging loops if GitHub ever stops shrinking the final page. */
-const MAX_PAGES = 10
 
 export type AssignResult =
   | { status: 'assigned' }
@@ -33,13 +34,6 @@ interface RawIssue {
   updated_at?: unknown
   labels?: unknown
   pull_request?: unknown
-}
-
-function describeError(err: unknown): string {
-  if (err instanceof Error && err.name === 'TimeoutError') {
-    return `no response after ${REQUEST_TIMEOUT_MS}ms`
-  }
-  return err instanceof Error ? err.message : String(err)
 }
 
 function labelNames(labels: unknown): string[] {
@@ -124,59 +118,12 @@ export class GitHubIssuesService {
     return this.refreshPromise
   }
 
-  private async request(path: string): Promise<unknown> {
-    const res = await fetch(`${GITHUB_API_BASE}${path}`, {
-      method: 'get',
-      headers: {
-        Authorization: `Bearer ${this.token}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': GITHUB_API_VERSION,
-      },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    })
-    if (!res.ok) {
-      const text = await res.text().catch(() => '')
-      throw new Error(`${res.status} ${text}`.trim())
-    }
-    return res.json()
-  }
-
-  /**
-   * Public repositories in the org, as `owner/name`, minus the excluded ones.
-   *
-   * `type=public` is what keeps private work out of the pool. It is enforced
-   * here, at the point repositories are enumerated, rather than by a qualifier
-   * on the issue query — a bug in the latter would expose every private issue
-   * in the org at once.
-   */
-  private async listPublicRepos(): Promise<string[]> {
-    const repos: string[] = []
-    for (let page = 1; page <= MAX_PAGES; page++) {
-      const org = encodeURIComponent(this.org ?? '')
-      const body = await this.request(
-        `/orgs/${org}/repos?type=public&per_page=${PAGE_SIZE}&page=${page}`,
-      )
-      if (!Array.isArray(body)) throw new Error('expected an array of repositories')
-
-      for (const entry of body) {
-        const repo = entry as { full_name?: unknown; private?: unknown; archived?: unknown }
-        if (typeof repo.full_name !== 'string') continue
-        // `type=public` should already guarantee this. Check anyway.
-        if (repo.private === true) continue
-        if (repo.archived === true) continue
-        if (GiveIssueExcludedRepos.has(repo.full_name.toLowerCase())) continue
-        repos.push(repo.full_name)
-      }
-      if (body.length < PAGE_SIZE) break
-    }
-    return repos
-  }
-
   private async listClaimableIssues(repo: string): Promise<CandidateIssue[]> {
     const found: CandidateIssue[] = []
     for (let page = 1; page <= MAX_PAGES; page++) {
       const label = encodeURIComponent(GiveIssueMarkerLabel)
-      const body = await this.request(
+      const body = await githubGet(
+        this.token,
         `/repos/${repo}/issues?state=open&assignee=none&labels=${label}&per_page=${PAGE_SIZE}&page=${page}`,
       )
       if (!Array.isArray(body)) throw new Error(`expected an array of issues for ${repo}`)
@@ -194,7 +141,7 @@ export class GitHubIssuesService {
     if (!this.isConfigured()) return false
 
     try {
-      const repos = await this.listPublicRepos()
+      const repos = await listPublicOrgRepos(this.token, this.org ?? '', GiveIssueExcludedRepos)
       const collected: CandidateIssue[] = []
       // Sequential on purpose: an org this size fits comfortably in the
       // authenticated hourly budget, and GitHub secondary-rate-limits
@@ -229,11 +176,7 @@ export class GitHubIssuesService {
         `${GITHUB_API_BASE}/repos/${repo}/assignees/${encodeURIComponent(username)}`,
         {
           method: 'get',
-          headers: {
-            Authorization: `Bearer ${this.token}`,
-            Accept: 'application/vnd.github+json',
-            'X-GitHub-Api-Version': GITHUB_API_VERSION,
-          },
+          headers: githubHeaders(this.token),
           signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         },
       )
@@ -265,12 +208,7 @@ export class GitHubIssuesService {
     try {
       const res = await fetch(url, {
         method: 'post',
-        headers: {
-          Authorization: `Bearer ${this.token}`,
-          Accept: 'application/vnd.github+json',
-          'Content-Type': 'application/json',
-          'X-GitHub-Api-Version': GITHUB_API_VERSION,
-        },
+        headers: { ...githubHeaders(this.token), 'Content-Type': 'application/json' },
         body: JSON.stringify({ assignees: [username] }),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       })

@@ -1,6 +1,7 @@
 export { AutoCloseWelcomeThreadsJob } from './auto-close-welcome-threads-job.js'
 export { Job } from './job.js'
 export { RefreshGitHubIssuesJob } from './refresh-github-issues-job.js'
+export { RefreshGitHubPullRequestsJob } from './refresh-github-pull-requests-job.js'
 export { RefreshGitHubTeamsJob } from './refresh-github-teams-job.js'
 export { SyncDggpGoogleCalendarJob } from './sync-dggp-google-calendar-job.js'
 export { UpdateServerCountJob } from './update-server-count-job.js'

@@ -1,9 +1,11 @@
 import {
   ActionRowBuilder,
   ButtonBuilder,
+  type ButtonInteraction,
   ButtonStyle,
   type ChatInputCommandInteraction,
   ComponentType,
+  type EmbedBuilder,
   GuildMember,
   type PermissionsString,
 } from 'discord.js'
@@ -12,13 +14,16 @@ import { RateLimiter } from 'discord.js-rate-limiter'
 import {
   type DrawnIssue,
   drawIssues,
+  type ReviewSuggestion,
   skillSlugsForRoleNames,
   partitionBySkills,
+  suggestReviews,
 } from '../../constants/index.js'
 import { Language } from '../../models/enum-helpers/index.js'
 import { type EventData } from '../../models/internal-models.js'
 import {
   type GitHubIssuesService,
+  type GitHubPullRequestsService,
   type IssueClaimService,
   Lang,
   Logger,
@@ -40,6 +45,20 @@ function describeIssue(drawn: DrawnIssue, index: number): string {
   ].join('\n')
 }
 
+/** How many of a suggestion's matched files to name before summarizing the rest. */
+const FILES_SHOWN = 3
+
+/** Render one suggested pull request as a line in the reply. */
+function describeReview(suggestion: ReviewSuggestion, index: number): string {
+  const { pr, matchedFiles } = suggestion
+  const shown = matchedFiles.slice(0, FILES_SHOWN).map((path) => `\`${path}\``)
+  const more = matchedFiles.length - shown.length
+  return [
+    `**R${index + 1}.** [${pr.repo} #${pr.number}](${pr.htmlUrl}) — ${pr.title}`,
+    `> by ${pr.author} · you’ve worked on ${shown.join(', ')}${more > 0 ? ` (+${more} more)` : ''}`,
+  ].join('\n')
+}
+
 /**
  * Offers a member three open issues they could pick up and assigns them to
  * whichever one they claim.
@@ -49,6 +68,11 @@ function describeIssue(drawn: DrawnIssue, index: number): string {
  * weighted toward whatever has been sitting longest. Everything on offer comes
  * from the cached pool (see `GitHubIssuesService`), which holds only open,
  * unassigned, marker-labelled issues in the org's *public* repositories.
+ *
+ * Alongside the draw, it suggests up to two open pull requests that change
+ * files the member has committed to before (see `GitHubPullRequestsService`
+ * and `suggestReviews`). These sit in their own section rather than taking an
+ * issue slot, and pressing one requests a review from the member on GitHub.
  *
  * The reply is ephemeral, so the claim buttons live only as long as the
  * interaction. That is a deliberate trade for now — a draw is personal, and a
@@ -64,6 +88,7 @@ export class GiveIssueCommand implements Command {
     private readonly issuesService?: GitHubIssuesService,
     private readonly userService?: UserService,
     private readonly claimService?: IssueClaimService,
+    private readonly pullRequestsService?: GitHubPullRequestsService,
   ) {}
 
   public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
@@ -94,7 +119,15 @@ export class GiveIssueCommand implements Command {
     const githubLogin = linked.externalId
 
     const pool = issuesService.getIssues()
-    if (pool.length === 0) {
+    const pullRequestsService = this.pullRequestsService
+    const reviews = pullRequestsService?.isConfigured()
+      ? suggestReviews(
+          pullRequestsService.getPullRequests(),
+          pullRequestsService.getFileAuthors(),
+          githubLogin,
+        )
+      : []
+    if (pool.length === 0 && reviews.length === 0) {
       await InteractionUtils.send(
         intr,
         Lang.getEmbed('displayEmbeds.giveIssueNoneAvailable', data.lang),
@@ -108,37 +141,57 @@ export class GiveIssueCommand implements Command {
         ? intr.member.roles.cache.map((role) => role.name)
         : ([] as string[])
     const skillSlugs = skillSlugsForRoleNames(roleNames)
-    const drawn = drawIssues(pool, skillSlugs)
+    const drawn = pool.length > 0 ? drawIssues(pool, skillSlugs) : []
 
     // Say so rather than quietly serving three wildcards: a silent fallback is
     // how a broken role-to-label mapping goes unnoticed.
     const { matched } = partitionBySkills(pool, skillSlugs)
     const unmatchedNotice = matched.length === 0
 
-    const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      ...drawn.map((entry, index) =>
-        new ButtonBuilder()
-          .setCustomId(`give-issue-claim-${intr.id}-${index}`)
-          .setLabel(`Claim #${entry.issue.number}`)
-          .setStyle(entry.wildcard ? ButtonStyle.Success : ButtonStyle.Primary),
-      ),
-    )
+    const claimPrefix = `give-issue-claim-${intr.id}-`
+    const reviewPrefix = `give-issue-review-${intr.id}-`
+    const embeds: EmbedBuilder[] = []
+    const components: ActionRowBuilder<ButtonBuilder>[] = []
+    if (drawn.length > 0) {
+      embeds.push(
+        Lang.getEmbed('displayEmbeds.giveIssueDraw', data.lang, {
+          ISSUES: drawn.map(describeIssue).join('\n\n'),
+          NOTICE: unmatchedNotice
+            ? Lang.getRef('giveIssue.noSkillMatch', data.lang)
+            : Lang.getRef('giveIssue.claimHint', data.lang),
+        }),
+      )
+      components.push(
+        new ActionRowBuilder<ButtonBuilder>().addComponents(
+          ...drawn.map((entry, index) =>
+            new ButtonBuilder()
+              .setCustomId(`${claimPrefix}${index}`)
+              .setLabel(`Claim #${entry.issue.number}`)
+              .setStyle(entry.wildcard ? ButtonStyle.Success : ButtonStyle.Primary),
+          ),
+        ),
+      )
+    }
+    if (reviews.length > 0) {
+      embeds.push(
+        Lang.getEmbed('displayEmbeds.giveIssueReviews', data.lang, {
+          PULLS: reviews.map(describeReview).join('\n\n'),
+          HINT: Lang.getRef('giveIssue.reviewHint', data.lang),
+        }),
+      )
+      components.push(
+        new ActionRowBuilder<ButtonBuilder>().addComponents(
+          ...reviews.map((suggestion, index) =>
+            new ButtonBuilder()
+              .setCustomId(`${reviewPrefix}${index}`)
+              .setLabel(`Review #${suggestion.pr.number}`)
+              .setStyle(ButtonStyle.Secondary),
+          ),
+        ),
+      )
+    }
 
-    const message = await InteractionUtils.send(
-      intr,
-      {
-        embeds: [
-          Lang.getEmbed('displayEmbeds.giveIssueDraw', data.lang, {
-            ISSUES: drawn.map(describeIssue).join('\n\n'),
-            NOTICE: unmatchedNotice
-              ? Lang.getRef('giveIssue.noSkillMatch', data.lang)
-              : Lang.getRef('giveIssue.claimHint', data.lang),
-          }),
-        ],
-        components: [buttons],
-      },
-      true,
-    )
+    const message = await InteractionUtils.send(intr, { embeds, components }, true)
     if (!message) return
 
     let button
@@ -146,7 +199,8 @@ export class GiveIssueCommand implements Command {
       button = await message.awaitMessageComponent({
         componentType: ComponentType.Button,
         filter: (i) =>
-          i.user.id === intr.user.id && i.customId.startsWith(`give-issue-claim-${intr.id}-`),
+          i.user.id === intr.user.id &&
+          (i.customId.startsWith(claimPrefix) || i.customId.startsWith(reviewPrefix)),
         time: CLAIM_TIMEOUT_MS,
       })
     } catch {
@@ -158,6 +212,10 @@ export class GiveIssueCommand implements Command {
     }
 
     const index = Number.parseInt(button.customId.split('-').pop() ?? '', 10)
+    if (button.customId.startsWith(reviewPrefix)) {
+      await this.requestReview(button, reviews[index], githubLogin, data)
+      return
+    }
     const choice = drawn[index]
     if (!choice) {
       await InteractionUtils.update(button, {
@@ -247,6 +305,60 @@ export class GiveIssueCommand implements Command {
           TITLE: issue.title,
           URL: issue.htmlUrl,
           LOGIN: githubLogin,
+        }),
+      ],
+      components: [],
+    })
+  }
+
+  private async requestReview(
+    button: ButtonInteraction,
+    suggestion: ReviewSuggestion | undefined,
+    githubLogin: string,
+    data: EventData,
+  ): Promise<void> {
+    const pullRequestsService = this.pullRequestsService
+    if (!suggestion || !pullRequestsService) {
+      await InteractionUtils.update(button, {
+        embeds: [Lang.getEmbed('displayEmbeds.giveIssueReviewFailed', data.lang)],
+        components: [],
+      })
+      return
+    }
+    const { pr } = suggestion
+
+    const result = await pullRequestsService.requestReview(pr.repo, pr.number, githubLogin)
+    if (result.status === 'not-assignable') {
+      await InteractionUtils.update(button, {
+        embeds: [
+          Lang.getEmbed('displayEmbeds.giveIssueReviewNeedsAccess', data.lang, {
+            LOGIN: githubLogin,
+            REPO: pr.repo,
+          }),
+        ],
+        components: [],
+      })
+      return
+    }
+    if (result.status !== 'assigned') {
+      await InteractionUtils.update(button, {
+        embeds: [Lang.getEmbed('displayEmbeds.giveIssueReviewFailed', data.lang)],
+        components: [],
+      })
+      return
+    }
+
+    // Reviews are not recorded as claims: the claim table is keyed to issues,
+    // and whether reviews should earn kudos is a separate decision.
+    Logger.info(`${button.user.tag} requested review of ${pr.repo}#${pr.number} as ${githubLogin}`)
+    await InteractionUtils.update(button, {
+      embeds: [
+        Lang.getEmbed('displayEmbeds.giveIssueReviewRequested', data.lang, {
+          LOGIN: githubLogin,
+          REPO: pr.repo,
+          NUMBER: pr.number.toString(),
+          TITLE: pr.title,
+          URL: pr.htmlUrl,
         }),
       ],
       components: [],

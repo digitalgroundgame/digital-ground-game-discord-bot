@@ -78,6 +78,12 @@
       "log": false,
       "runOnce": false,
       "initialDelaySecs": 0
+    },
+    "refreshGitHubPullRequests": {
+      "schedule": "0 30 * * * *",
+      "log": false,
+      "runOnce": false,
+      "initialDelaySecs": 0
     }
   },
   "rateLimiting": {

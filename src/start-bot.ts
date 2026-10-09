@@ -45,6 +45,7 @@ import { CustomClient } from './extensions/index.js'
 import {
   AutoCloseWelcomeThreadsJob,
   RefreshGitHubIssuesJob,
+  RefreshGitHubPullRequestsJob,
   RefreshGitHubTeamsJob,
   SyncDggpGoogleCalendarJob,
   type Job,
@@ -59,6 +60,7 @@ import {
   CrmService,
   EventDataService,
   GitHubIssuesService,
+  GitHubPullRequestsService,
   GitHubTeamsService,
   IssueClaimService,
   GoogleCalendarService,
@@ -155,9 +157,15 @@ async function start(): Promise<void> {
   )
   if (!githubIssuesService.isConfigured()) {
     Logger.warn(
-      '/give-issue: disabled — set GITHUB_ISSUES_TOKEN (repository Issues read & write, plus Metadata) and GITHUB_TEAMS_ORG (the organization its public repositories are read from).',
+      '/give-issue: disabled — set GITHUB_ISSUES_TOKEN (repository Issues and Pull requests read & write, plus Metadata) and GITHUB_TEAMS_ORG (the organization its public repositories are read from).',
     )
   }
+
+  // Review suggestions ride on the same token and org as the issue pool.
+  const githubPullRequestsService = new GitHubPullRequestsService(
+    process.env.GITHUB_ISSUES_TOKEN,
+    process.env.GITHUB_TEAMS_ORG,
+  )
 
   let database: Database | undefined
   if (process.env.SQLITE_PATH) {
@@ -196,7 +204,12 @@ async function start(): Promise<void> {
     new LinkAccountCommand(userService),
     new ContentCommand(contentService),
     new PingSkillRoleCommand(),
-    new GiveIssueCommand(githubIssuesService, userService, issueClaimService),
+    new GiveIssueCommand(
+      githubIssuesService,
+      userService,
+      issueClaimService,
+      githubPullRequestsService,
+    ),
 
     // User Context Commands
     ...ONBOARDING_CONFIGS.map((config) => new SendOnboarding(config, contentService)),
@@ -249,6 +262,9 @@ async function start(): Promise<void> {
   // Keeps the /give-issue pool current. Same reasoning as above.
   if (githubIssuesService.isConfigured()) {
     jobs.push(new RefreshGitHubIssuesJob(githubIssuesService))
+  }
+  if (githubPullRequestsService.isConfigured()) {
+    jobs.push(new RefreshGitHubPullRequestsJob(githubPullRequestsService))
   }
 
   // Bot

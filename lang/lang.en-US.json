@@ -293,6 +293,21 @@
         "description": "You’ve been assigned to [{{REPO}} #{{NUMBER}}]({{URL}}), but the claim wasn’t recorded, so it won’t count toward kudos. Let a lead know.",
         "color": "{{COM:colors.warning}}"
       },
+      "giveIssueReviews": {
+        "title": "Pull requests you know your way around",
+        "description": "{{PULLS}}\n\n{{HINT}}"
+      },
+      "giveIssueReviewRequested": {
+        "description": "Requested a review from **{{LOGIN}}** on [{{REPO}} #{{NUMBER}}]({{URL}}) — {{TITLE}}."
+      },
+      "giveIssueReviewNeedsAccess": {
+        "description": "GitHub won’t request a review from **{{LOGIN}}** on **{{REPO}}** yet. That usually means an organization invitation is still unaccepted — check your email, then ask a lead about `/grant-access` if it persists.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "giveIssueReviewFailed": {
+        "description": "Couldn’t request that review. It’s been logged — try again shortly.",
+        "color": "{{COM:colors.warning}}"
+      },
       "giveIssueNoneAvailable": {
         "description": "Nothing is up for grabs right now. Issues appear here once a lead labels them.",
         "color": "{{COM:colors.warning}}"
@@ -574,6 +589,7 @@
     },
     "giveIssue": {
       "claimHint": "Pick one to have yourself assigned on GitHub.",
+      "reviewHint": "You’ve committed to files these change. Pick one to be requested as a reviewer.",
       "noSkillMatch": "None of your skill roles matched a labelled issue, so these are all wildcards. If that looks wrong, the role name and the GitHub label probably don't line up — tell a lead."
     }
   }

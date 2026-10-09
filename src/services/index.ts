@@ -11,6 +11,13 @@ export {
   type AssignResult,
   toCandidateIssue,
 } from './github-issues-service.js'
+export {
+  GitHubPullRequestsService,
+  buildHistoryQuery,
+  historyPathFor,
+  parseHistory,
+  toOpenPullRequest,
+} from './github-pull-requests-service.js'
 export { IssueClaimService, type RecordClaimInput } from './issue-claim-service.js'
 export { HttpService } from './http-service.js'
 export { JobService } from './job-service.js'
