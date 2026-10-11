@@ -139,6 +139,12 @@
     "// NOTE": "Role config keys (see roles below) allowed to run /ping-skill-role.",
     "allowedRoleKeys": ["ADMIN", "DIRECTOR", "COORDINATOR"]
   },
+  "kudos": {
+    "// NOTE": "Role config keys (see roles below) allowed to give kudos with /kudos give or the emoji reaction; an empty list lets everyone give kudos. Also, the cooldown before the same giver can give the same receiver kudos again, and the reaction emoji that gives kudos.",
+    "allowedRoleKeys": [],
+    "giveCooldownDays": 7,
+    "emoji": "🪙"
+  },
   "roles": {
     "COORDINATOR": {
       "id": "1347653968641134683",

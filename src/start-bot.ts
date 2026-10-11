@@ -12,6 +12,7 @@ import {
   GrantAccessCommand,
   HelpCommand,
   InfoCommand,
+  KudosCommand,
   LinkAccountCommand,
   PingSkillRoleCommand,
   PragPapersCommand,
@@ -26,6 +27,7 @@ import {
   type Command,
 } from './commands/index.js'
 import { ONBOARDING_CONFIGS, SendOnboarding } from './commands/user/index.js'
+import { KudosGiveAllowedRoleKeys } from './constants/index.js'
 import { createDatabase, type Database } from './database/index.js'
 import {
   ButtonHandler,
@@ -48,7 +50,7 @@ import {
   type Job,
 } from './jobs/index.js'
 import { Bot } from './models/bot.js'
-import { type Reaction } from './reactions/index.js'
+import { KudosReaction, type Reaction } from './reactions/index.js'
 import { syncDggpScheduledEventsToGoogle } from './services/sync-dggp-google-calendar.js'
 import {
   AttendanceService,
@@ -60,6 +62,7 @@ import {
   GoogleCalendarService,
   GoogleGroupsService,
   JobService,
+  KudosService,
   Logger,
   UserService,
 } from './services/index.js'
@@ -156,6 +159,12 @@ async function start(): Promise<void> {
   // Stores the external accounts members link via /link-account, and is read
   // by /grant-access to resolve a member's Google email.
   const userService = database ? new UserService(database) : undefined
+  // Backs /kudos and the kudos reaction. Without a database, /kudos reports
+  // itself as unconfigured and the reaction isn't registered.
+  const kudosService = database ? new KudosService(database) : undefined
+  if (KudosGiveAllowedRoleKeys.length === 0) {
+    Logger.info('Kudos giving is open to all members (config.kudos.allowedRoleKeys is empty)')
+  }
   // Resolves runtime-editable content. Always available — without a database
   // it serves the registry defaults and rejects edits.
   const contentService = new ContentService(database)
@@ -178,6 +187,7 @@ async function start(): Promise<void> {
     new LinkAccountCommand(userService),
     new ContentCommand(contentService),
     new PingSkillRoleCommand(),
+    new KudosCommand(kudosService),
 
     // User Context Commands
     ...ONBOARDING_CONFIGS.map((config) => new SendOnboarding(config, contentService)),
@@ -191,6 +201,7 @@ async function start(): Promise<void> {
   // Reactions
   const reactions: Reaction[] = [
     // TODO: Add new reactions here
+    ...(kudosService ? [new KudosReaction(kudosService)] : []),
   ]
 
   // Triggers
