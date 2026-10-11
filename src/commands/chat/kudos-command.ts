@@ -29,19 +29,24 @@ import { type Command, CommandDeferType } from '../index.js'
 const GIVE_ALLOWED_ROLE_IDS = KudosGiveAllowedRoleKeys.map((key) => ServerRoles[key].id)
 
 export interface KudosCommandOptions {
-  /** Roles allowed to give kudos; empty means anyone. Defaults to config. */
+  /** Roles allowed to give Democracy Points; empty means anyone. Defaults to config. */
   giveAllowedRoleIds?: string[]
 }
 
 const MEDALS = ['🥇', '🥈', '🥉']
 
-/** "1 Democracy Point" vs "2 Democracy Points": the unit word for a total. */
+/**
+ * "1 Democracy Point" vs "2 Democracy Points": the unit word for a total, picked
+ * by the locale's plural rules. Categories without their own lang ref (e.g.
+ * `few`) fall back to `other`.
+ */
 function pointsUnit(total: number, lang: Locale): string {
-  return Lang.getRef(total === 1 ? 'kudosUnits.one' : 'kudosUnits.other', lang)
+  const category = new Intl.PluralRules(lang).select(total)
+  return Lang.getRef(category === 'one' ? 'kudosUnits.one' : 'kudosUnits.other', lang)
 }
 
 /**
- * Lets members give each other kudos for good work, view kudos totals, and
+ * Lets members give each other Democracy Points for good work, view totals, and
  * check the weekly/monthly leaderboard. Responses are ephemeral, except that a
  * successful give is also announced in the channel so the receiver sees it.
  */
@@ -146,7 +151,7 @@ export class KudosCommand implements Command {
         )
         await this.announce(intr, data, targetUser, reason)
 
-        Logger.info(`${intr.user.tag} gave kudos to ${targetUser.tag}`)
+        Logger.info(`${intr.user.tag} gave a Democracy Point to ${targetUser.tag}`)
         return
       }
     }
@@ -155,7 +160,7 @@ export class KudosCommand implements Command {
   /**
    * Publicly announces a give so the receiver sees it. Only the receiver is
    * pinged; mentions inside the reason are not. A failure is logged rather
-   * than thrown, since the kudos is already recorded and confirmed.
+   * than thrown, since the point is already recorded and confirmed.
    */
   private async announce(
     intr: ChatInputCommandInteraction,
@@ -179,7 +184,10 @@ export class KudosCommand implements Command {
     try {
       await InteractionUtils.send(intr, { content, allowedMentions: { users: [receiver.id] } })
     } catch (error) {
-      Logger.error(`kudos: failed to announce ${intr.user.tag}'s kudos to ${receiver.tag}`, error)
+      Logger.error(
+        `democracy-points: failed to announce ${intr.user.tag}'s Democracy Point to ${receiver.tag}`,
+        error,
+      )
     }
   }
 

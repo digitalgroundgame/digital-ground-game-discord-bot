@@ -270,4 +270,28 @@ describe('KudosCommand', () => {
     const description = intr.editReply.mock.calls[0]?.[0]?.embeds?.[0]?.data?.description
     expect(description).toBe(`<@${receiverId}> has **2** Democracy Points.`)
   })
+
+  it('pluralizes Democracy Points on each leaderboard line', async () => {
+    const db = createTestDatabase()
+    const service = new KudosService(db)
+    await service.giveKudos(GUILD_ID, '333444555666777888', '222333444555666777')
+    await service.giveKudos(GUILD_ID, '444555666777888999', '222333444555666777')
+    await service.giveKudos(GUILD_ID, '333444555666777888', '555666777888999000')
+
+    const intr = createMockCommandInteraction({
+      guild: { id: GUILD_ID },
+      deferred: true,
+      options: {
+        getSubcommand: vi.fn().mockReturnValue('leaderboard'),
+        getString: vi.fn().mockReturnValue('weekly'),
+      },
+    })
+
+    await new KudosCommand(service).execute(intr, data)
+
+    const description = intr.editReply.mock.calls[0]?.[0]?.embeds?.[0]?.data?.description
+    expect(description).toContain('🥇 <@222333444555666777> — 2 Democracy Points')
+    expect(description).toContain('🥈 <@555666777888999000> — 1 Democracy Point')
+    expect(description).not.toContain('1 Democracy Points')
+  })
 })
