@@ -140,7 +140,7 @@
     "allowedRoleKeys": ["ADMIN", "DIRECTOR", "COORDINATOR"]
   },
   "kudos": {
-    "// NOTE": "Role config keys (see roles below) allowed to give kudos with /kudos give or the emoji reaction; an empty list lets everyone give kudos. Also, the cooldown before the same giver can give the same receiver kudos again, and the reaction emoji that gives kudos.",
+    "// NOTE": "Democracy Points settings. Role config keys (see roles below) allowed to give Democracy Points with /democracy-points give or the emoji reaction; an empty list lets everyone give them. Also, the cooldown before the same giver can give the same receiver another Democracy Point, and the reaction emoji that gives one.",
     "allowedRoleKeys": [],
     "giveCooldownDays": 7,
     "emoji": "🪙"

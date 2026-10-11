@@ -107,14 +107,14 @@ describe('KudosCommand', () => {
     await command.execute(intr, data)
 
     const description = intr.editReply.mock.calls[0]?.[0]?.embeds?.[0]?.data?.description
-    expect(description).toContain('They now have **1** kudos')
+    expect(description).toContain('They now have **1** Democracy Point.')
 
     expect(intr.followUp).toHaveBeenCalledOnce()
     const message = announcement(intr)
     expect(message.flags).toBeUndefined()
     // The masked link in the reason is escaped so it can't disguise a URL.
     expect(message.content).toBe(
-      '🪙 <@333444555666777888> gave <@222333444555666777> kudos: \\[great work](https://example.com)',
+      '🪙 <@333444555666777888> gave <@222333444555666777> a Democracy Point: \\[great work](https://example.com)',
     )
     expect(message.allowedMentions).toEqual({ users: ['222333444555666777'] })
     expect(target.send).not.toHaveBeenCalled()
@@ -134,7 +134,7 @@ describe('KudosCommand', () => {
     await command.execute(intr, data)
 
     expect(announcement(intr).content).toBe(
-      '🪙 <@333444555666777888> gave <@222333444555666777> kudos!',
+      '🪙 <@333444555666777888> gave <@222333444555666777> a Democracy Point!',
     )
   })
 
@@ -239,9 +239,35 @@ describe('KudosCommand', () => {
     const message = announcement(intr)
     expect(message.content).not.toContain('\n')
     expect(message.content).toContain(
-      'kudos: nice work # Free Nitro: click here - <@999888777666555444> is fired',
+      'a Democracy Point: nice work # Free Nitro: click here - <@999888777666555444> is fired',
     )
     // The mention inside the reason renders but does not ping.
     expect(message.allowedMentions).toEqual({ users: ['222333444555666777'] })
+  })
+
+  it('pluralizes Democracy Points in a member total', async () => {
+    const db = createTestDatabase()
+    const service = new KudosService(db)
+    const receiverId = '222333444555666777'
+    await service.giveKudos(GUILD_ID, '333444555666777888', receiverId)
+    await service.giveKudos(GUILD_ID, '444555666777888999', receiverId)
+
+    const target = createMockUser({
+      id: receiverId,
+      toString: vi.fn().mockReturnValue(`<@${receiverId}>`),
+    })
+    const intr = createMockCommandInteraction({
+      guild: { id: GUILD_ID },
+      deferred: true,
+      options: {
+        getSubcommand: vi.fn().mockReturnValue('view'),
+        getUser: vi.fn().mockReturnValue(target),
+      },
+    })
+
+    await new KudosCommand(service).execute(intr, data)
+
+    const description = intr.editReply.mock.calls[0]?.[0]?.embeds?.[0]?.data?.description
+    expect(description).toBe(`<@${receiverId}> has **2** Democracy Points.`)
   })
 })

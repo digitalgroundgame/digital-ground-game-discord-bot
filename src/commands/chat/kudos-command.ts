@@ -1,6 +1,7 @@
 import {
   GuildMember,
   type ChatInputCommandInteraction,
+  type Locale,
   type PermissionsString,
   type User,
   escapeMarkdown,
@@ -33,6 +34,11 @@ export interface KudosCommandOptions {
 }
 
 const MEDALS = ['🥇', '🥈', '🥉']
+
+/** "1 Democracy Point" vs "2 Democracy Points": the unit word for a total. */
+function pointsUnit(total: number, lang: Locale): string {
+  return Lang.getRef(total === 1 ? 'kudosUnits.one' : 'kudosUnits.other', lang)
+}
 
 /**
  * Lets members give each other kudos for good work, view kudos totals, and
@@ -135,6 +141,7 @@ export class KudosCommand implements Command {
           Lang.getEmbed('displayEmbeds.kudosGiven', data.lang, {
             USER: targetUser.toString(),
             TOTAL: result.total.toString(),
+            POINTS: pointsUnit(result.total, data.lang),
           }),
         )
         await this.announce(intr, data, targetUser, reason)
@@ -195,6 +202,7 @@ export class KudosCommand implements Command {
       Lang.getEmbed('displayEmbeds.kudosView', data.lang, {
         USER: targetUser.toString(),
         TOTAL: total.toString(),
+        POINTS: pointsUnit(total, data.lang),
       }),
     )
   }
@@ -235,7 +243,7 @@ export class KudosCommand implements Command {
 
     const lines = entries.map((entry, index) => {
       const rank = MEDALS[index] ?? `${index + 1}.`
-      return `${rank} <@${entry.receiverDiscordId}> — ${entry.total} Kudos`
+      return `${rank} <@${entry.receiverDiscordId}> — ${entry.total} ${pointsUnit(entry.total, data.lang)}`
     })
 
     await InteractionUtils.editReply(

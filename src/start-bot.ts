@@ -159,11 +159,13 @@ async function start(): Promise<void> {
   // Stores the external accounts members link via /link-account, and is read
   // by /grant-access to resolve a member's Google email.
   const userService = database ? new UserService(database) : undefined
-  // Backs /kudos and the kudos reaction. Without a database, /kudos reports
+  // Backs /democracy-points and the kudos reaction. Without a database, the command reports
   // itself as unconfigured and the reaction isn't registered.
   const kudosService = database ? new KudosService(database) : undefined
   if (KudosGiveAllowedRoleKeys.length === 0) {
-    Logger.info('Kudos giving is open to all members (config.kudos.allowedRoleKeys is empty)')
+    Logger.info(
+      'Democracy Points giving is open to all members (config.kudos.allowedRoleKeys is empty)',
+    )
   }
   // Resolves runtime-editable content. Always available — without a database
   // it serves the registry defaults and rejects edits.
