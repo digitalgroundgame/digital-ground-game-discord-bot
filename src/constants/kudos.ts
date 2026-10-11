@@ -14,13 +14,14 @@ interface KudosConfig {
 const rawConfig = (Config.kudos ?? {}) as Partial<KudosConfig>
 
 /**
- * Role config keys (see `config.roles`) allowed to give kudos, by `/kudos give`
- * or by reaction. An empty or missing list lets every member give kudos.
+ * Role config keys (see `config.roles`) allowed to give Democracy Points, by
+ * `/democracy-points give` or by reaction. An empty or missing list lets every
+ * member give them.
  */
 export const KudosGiveAllowedRoleKeys: RoleKey[] = validateAllowedRoleKeys(
   rawConfig.allowedRoleKeys,
   'config.kudos.allowedRoleKeys',
-  'kudos giving',
+  'Democracy Points giving',
   { allowEmpty: true },
 )
 

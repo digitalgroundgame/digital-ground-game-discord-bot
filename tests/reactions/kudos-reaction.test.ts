@@ -123,7 +123,7 @@ describe('KudosReaction', () => {
     expect(second.author.send).not.toHaveBeenCalled()
   })
 
-  it('removes the reaction when the giver already used /kudos give on the author this week', async () => {
+  it('removes the reaction when the giver already used /democracy-points give on the author this week', async () => {
     await service.giveKudos(GUILD_ID, GIVER_ID, AUTHOR_ID, 'from the command')
     const { msgReaction, msg, reactor } = createContext()
 
