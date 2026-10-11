@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte } from 'drizzle-orm'
+import { and, asc, count, desc, eq, gte, max } from 'drizzle-orm'
 import { DateTime } from 'luxon'
 
 import { KudosGiveCooldownDays, KudosLeaderboardTimeZone } from '../constants/index.js'
@@ -151,7 +151,11 @@ export class KudosService {
         and(eq(kudosTransaction.guildId, guildId), gte(kudosTransaction.createdAt, windowStart)),
       )
       .groupBy(kudosTransaction.receiverDiscordId)
-      .orderBy(desc(count()))
+      .orderBy(
+        desc(count()),
+        asc(max(kudosTransaction.createdAt)),
+        asc(kudosTransaction.receiverDiscordId),
+      )
       .limit(limit)
   }
 
