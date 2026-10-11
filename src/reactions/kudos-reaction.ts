@@ -6,16 +6,16 @@ import { type KudosService, Logger } from '../services/index.js'
 import { RoleUtils } from '../utils/index.js'
 
 export interface KudosReactionOptions {
-  /** Roles allowed to give kudos; empty means anyone. Defaults to config. */
+  /** Roles allowed to give Democracy Points; empty means anyone. Defaults to config. */
   allowedRoleIds?: string[]
 }
 
 /**
- * Reacting to a message with the kudos emoji gives its author kudos. Reactions
- * that can't count (self, bot/webhook/system author, missing role, cooldown)
- * are removed so a visible coin always means a recorded kudos. The per-pair
- * cooldown is the rate limit, so the generic reaction limit is skipped: it
- * would leave coins on messages without recording kudos.
+ * Reacting to a message with the kudos emoji gives its author a Democracy
+ * Point. Reactions that can't count (self, bot/webhook/system author, missing
+ * role, cooldown) are removed so a visible coin always means a recorded point.
+ * The per-pair cooldown is the rate limit, so the generic reaction limit is
+ * skipped: it would leave coins on messages without recording points.
  */
 export class KudosReaction implements Reaction {
   public emoji = KudosEmoji
@@ -68,11 +68,11 @@ export class KudosReaction implements Reaction {
       }
       case 'duplicate': {
         // The coin was removed and re-added on a message that already earned
-        // this giver's kudos; it's still accurate, so leave it.
+        // this giver's Democracy Point; it's still accurate, so leave it.
         return
       }
       case 'given': {
-        Logger.info(`${reactor.tag} gave kudos to ${author.tag} by reaction`)
+        Logger.info(`${reactor.tag} gave a Democracy Point to ${author.tag} by reaction`)
         return
       }
     }
@@ -83,7 +83,7 @@ export class KudosReaction implements Reaction {
       await msgReaction.users.remove(reactor.id)
     } catch (error) {
       Logger.warn(
-        `kudos: couldn't remove ${reactor.tag}'s reaction; the bot may be missing Manage Messages`,
+        `democracy-points: couldn't remove ${reactor.tag}'s reaction; the bot may be missing Manage Messages`,
         error,
       )
     }
