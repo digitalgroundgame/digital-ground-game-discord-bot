@@ -40,7 +40,10 @@ function isGitHubTeam(value: unknown): value is GitHubTeam {
 }
 
 function describeError(err: unknown): string {
-  if (err instanceof Error && err.name === 'TimeoutError') {
+  // node-fetch rejects an aborted request with `AbortError`; native fetch uses
+  // `TimeoutError` for `AbortSignal.timeout`. The only signal here is the
+  // timeout, so treat both as one.
+  if (err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError')) {
     return `no response after ${REQUEST_TIMEOUT_MS}ms`
   }
   return err instanceof Error ? err.message : String(err)

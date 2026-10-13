@@ -256,8 +256,15 @@ async function start(): Promise<void> {
     guildScheduledEventHandler,
     new JobService(jobs),
     voiceStateUpdateHandler,
-    // onBotReady callback: run immediate Google Calendar sync once after bot is ready
+    // onBotReady callback: warm the GitHub team cache and run an immediate
+    // Google Calendar sync once after bot is ready
     async () => {
+      if (githubTeamsService.isConfigured()) {
+        // Not awaited so the calendar sync isn't held up; failures are logged
+        // by the service and leave the hourly job to retry.
+        void githubTeamsService.refreshTeams()
+      }
+
       try {
         await syncDggpScheduledEventsToGoogle(client, googleCalendarService)
       } catch (error) {
