@@ -15,28 +15,29 @@ Important entry points:
 ## Local Setup
 
 - Use the pinned Node version: `nvm use` (the exact version lives in `.nvmrc`).
-- Install dependencies with `npm ci` for normal development. Use `npm install` only when intentionally changing dependencies.
-- Local config can be initialized with `npm run copyconfig`.
+- Enable Corepack so the pinned pnpm version from `package.json` is used.
+- Install dependencies with `pnpm install --frozen-lockfile` for normal development. Use `pnpm install` only when intentionally changing dependencies.
+- Local config can be initialized with `pnpm run copyconfig`.
 - Do not commit secrets from `.env`, local config, service account keys, or generated database files.
 
 ## Common Commands
 
-- `npm run build` - compile TypeScript into `dist/`.
-- `npm run check-types` - run `tsc --noEmit`.
-- `npm test` - run the Vitest suite once.
-- `npm run test:watch` - run Vitest in watch mode.
-- `npm run lint` - run ESLint.
-- `npm run lint:fix` - auto-fix lint issues where possible.
-- `npm run format` - check Prettier formatting.
-- `npm run format:fix` - apply Prettier formatting.
-- `npm run commands:register` - build and register Discord commands after command metadata/name/shape changes.
-- `npm run db:push` - push Drizzle schema changes.
+- `pnpm run build` - compile TypeScript into `dist/`.
+- `pnpm run check-types` - run `tsc --noEmit`.
+- `pnpm test` - run the Vitest suite once.
+- `pnpm run test:watch` - run Vitest in watch mode.
+- `pnpm run lint` - run ESLint.
+- `pnpm run lint:fix` - auto-fix lint issues where possible.
+- `pnpm run format` - check Prettier formatting.
+- `pnpm run format:fix` - apply Prettier formatting.
+- `pnpm run commands:register` - build and register Discord commands after command metadata/name/shape changes.
+- `pnpm run db:push` - push Drizzle schema changes.
 
 ## Required Verification
 
-Run `npm run check-types` after risky code changes. If it reports type errors, treat those errors as input and fix them before stopping. Only stop for user input when the correct type fix depends on a product or design decision that cannot be inferred from the code.
+Run `pnpm run check-types` after risky code changes. If it reports type errors, treat those errors as input and fix them before stopping. Only stop for user input when the correct type fix depends on a product or design decision that cannot be inferred from the code.
 
-For behavioral changes, also run the narrowest relevant tests. Use full `npm test` when touching shared services, command routing, event handlers, database code, or utilities used broadly.
+For behavioral changes, also run the narrowest relevant tests. Use full `pnpm test` when touching shared services, command routing, event handlers, database code, or utilities used broadly.
 
 ## Code Style
 
@@ -45,7 +46,7 @@ For behavioral changes, also run the narrowest relevant tests. Use full `npm tes
 - Prefer explicit module boundary types in `src/**/*.ts`; ESLint enforces this.
 - Avoid `any`; ESLint treats explicit `any` as an error.
 - Keep imports and exports consistent with nearby files. Use existing barrel files only when the surrounding code already does.
-- Keep edits scoped. Do not reformat unrelated files or churn `package-lock.json` unless dependency changes require it.
+- Keep edits scoped. Do not reformat unrelated files or churn `pnpm-lock.yaml` unless dependency changes require it.
 
 ## Project Structure Notes
 
@@ -74,4 +75,4 @@ For behavioral changes, also run the narrowest relevant tests. Use full `npm tes
 
 - Treat local config files and generated artifacts as user/environment state.
 - Do not revert unrelated working tree changes.
-- If `package-lock.json` changes unexpectedly after a dependency install, verify the Node/npm version with `nvm use` before deciding whether the lockfile change is intentional.
+- If `pnpm-lock.yaml` changes unexpectedly after a dependency install, verify the Node/pnpm versions with `nvm use` and `corepack enable` before deciding whether the lockfile change is intentional.

@@ -26,12 +26,6 @@ export class ReactionHandler implements EventHandler {
       return
     }
 
-    // Check if user is rate limited
-    const limited = this.rateLimiter.take(msg.author.id)
-    if (limited) {
-      return
-    }
-
     // Try to find the reaction the user wants
     if (!msgReaction.emoji.name) {
       return
@@ -51,6 +45,12 @@ export class ReactionHandler implements EventHandler {
 
     // Check if the embeds author equals the reactors tag
     if (reaction.requireEmbedAuthorTag && msg.embeds[0]?.author?.name !== reactor.tag) {
+      return
+    }
+
+    // Check if the reacting user is rate limited. Only reactions that would
+    // run count, so unrelated emoji don't use up a member's limit.
+    if (reaction.rateLimited !== false && this.rateLimiter.take(reactor.id)) {
       return
     }
 
