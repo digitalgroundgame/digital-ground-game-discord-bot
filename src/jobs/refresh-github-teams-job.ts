@@ -12,8 +12,9 @@ const Config = require('../../config/config.json')
  * a config change or a redeploy.
  *
  * One request per run for an org this size, against an authenticated budget
- * of 5,000/hour. `initialDelaySecs` is 0 so the cache is warm before the
- * first interaction rather than on first use.
+ * of 5,000/hour. The schedule does not fire at startup, so `start-bot.ts`
+ * also refreshes once when the bot is ready to warm the cache before the
+ * first interaction.
  */
 export class RefreshGitHubTeamsJob extends Job {
   public name = 'Refresh GitHub Teams'
