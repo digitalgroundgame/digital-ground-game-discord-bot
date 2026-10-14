@@ -180,8 +180,9 @@ export class GitHubTeamsService {
    * member" from "newly added" — both come back as `active`, and re-running
    * with a different role promotes or demotes in place. A user who isn't yet in
    * the organization instead gets an emailed invite and comes back `pending`
-   * until they accept it. An unknown slug comes back as an `error`, which is
-   * what keeps a stale team cache from mattering.
+   * until they accept it. An unknown slug comes back as an `error`. Callers
+   * must resolve `team` against the cache first, since exclusions are applied
+   * there and not here.
    */
   public async addMember(
     team: string,
