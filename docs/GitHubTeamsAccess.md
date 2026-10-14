@@ -110,6 +110,10 @@ the list can be granted, because a team's parent, and so whether an exclusion
 covers it, is only known from the list. If the refresh fails, the grant
 reports the team as unknown rather than guessing.
 
+Team parents come from the same cached list, so a team moved under an excluded
+parent stays grantable until the next hourly refresh picks up the move. Exclude
+the team directly if it must be denied right away.
+
 ## 3. Environment variables
 
 ```bash

@@ -82,6 +82,25 @@ export function selectableGitHubTeams(
 }
 
 /**
+ * The discovered team typed input names, by name, by slug, or by the slug its
+ * name would get, whether or not it is excluded. Undefined means the list
+ * doesn't hold it.
+ */
+export function findGitHubTeam(
+  input: string,
+  teams: readonly GitHubTeam[],
+): GitHubTeam | undefined {
+  const needle = input.trim().toLowerCase()
+  if (needle === '') return undefined
+
+  const derived = toGitHubTeamSlug(input)
+  return teams.find((team) => {
+    const slug = team.slug.toLowerCase()
+    return team.name.toLowerCase() === needle || slug === needle || slug === derived
+  })
+}
+
+/**
  * Resolve typed input to a discovered team's slug, or null if it is denied,
  * unknown, or unusable.
  *
@@ -97,14 +116,7 @@ export function resolveGitHubTeamSlug(
   teams: readonly GitHubTeam[],
   excluded: ReadonlySet<string> = GitHubExcludedTeamSlugs,
 ): string | null {
-  const needle = input.trim().toLowerCase()
-  if (needle === '') return null
-
-  const derived = toGitHubTeamSlug(input)
-  const match = teams.find((team) => {
-    const slug = team.slug.toLowerCase()
-    return team.name.toLowerCase() === needle || slug === needle || slug === derived
-  })
+  const match = findGitHubTeam(input, teams)
   if (!match) return null
   return isExcludedGitHubTeam(match.slug, excluded, teams) ? null : match.slug
 }

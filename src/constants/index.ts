@@ -19,6 +19,7 @@ export {
   type GitHubTeam,
   type GitHubTeamRole,
   GITHUB_TEAM_ROLES,
+  findGitHubTeam,
   GitHubExcludedTeamSlugs,
   isExcludedGitHubTeam,
   resolveGitHubTeamSlug,

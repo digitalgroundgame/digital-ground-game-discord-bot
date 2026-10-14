@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  findGitHubTeam,
   type GitHubTeam,
   GitHubExcludedTeamSlugs,
   isExcludedGitHubTeam,
@@ -106,6 +107,17 @@ describe('selectableGitHubTeams', () => {
 
   it('is empty while the discovered team list is still cold', () => {
     expect(selectableGitHubTeams([], new Set())).toEqual([])
+  })
+})
+
+describe('findGitHubTeam', () => {
+  it('finds an excluded team too, so callers can tell denied from unknown', () => {
+    expect(findGitHubTeam('Leadership', teams)?.slug).toBe('leadership')
+  })
+
+  it('is undefined for a team the list does not hold, or unusable input', () => {
+    expect(findGitHubTeam('Brand New Team', teams)).toBeUndefined()
+    expect(findGitHubTeam('   ', teams)).toBeUndefined()
   })
 })
 

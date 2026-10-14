@@ -388,6 +388,19 @@ describe('GrantAccessCommand', () => {
       expect(addMember).toHaveBeenCalledWith(GITHUB_TEAM_SLUG, 'octocat', 'member')
     })
 
+    it('does not refresh the team list for a team the cache already holds', async () => {
+      const service = githubService(vi.fn(async () => ({ status: 'active' as const })))
+      const command = new GrantAccessCommand(
+        undefined,
+        userService(linkedAccount({ externalId: 'octocat' })),
+        service,
+      )
+
+      await command.execute(createInteraction('github', GITHUB_TEAM), data)
+
+      expect(service.refreshTeams).not.toHaveBeenCalled()
+    })
+
     it('refreshes the team list for a team the cache has not seen', async () => {
       // A team created since the last refresh must still be grantable by
       // typing its name.

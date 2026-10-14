@@ -13,6 +13,7 @@ import { RateLimiter } from 'discord.js-rate-limiter'
 
 import {
   DiscordLimits,
+  findGitHubTeam,
   type GitHubTeam,
   type GitHubTeamRole,
   getGoogleGroupAddress,
@@ -157,7 +158,7 @@ export class GrantAccessCommand implements Command {
         intr,
         Lang.getEmbed('displayEmbeds.grantAccessUnknownTeam', data.lang, {
           TEAM: teamShortname,
-          RESOURCE_LABEL: 'Google Group',
+          RESOURCE_LABEL: Lang.getRef('grantAccessResources.google', data.lang),
         }),
         true,
       )
@@ -211,7 +212,7 @@ export class GrantAccessCommand implements Command {
         Lang.getEmbed(ref, data.lang, {
           USER: targetUser.toString(),
           TEAM_LABEL: teamShortname,
-          RESOURCE_LABEL: 'Google Group',
+          RESOURCE_LABEL: Lang.getRef('grantAccessResources.google', data.lang),
         }),
         false,
       )
@@ -244,11 +245,11 @@ export class GrantAccessCommand implements Command {
       return
     }
 
-    // Resolved against the cached org teams, refreshing once on a miss so a
-    // team created since the last refresh can still be granted. Returns null
-    // for an excluded team or any descendant of one.
+    // Resolved against the cached org teams, refreshing once when the cache
+    // doesn't hold the team so one created since the last refresh can still
+    // be granted. Returns null for an excluded team or any descendant of one.
     let teamSlug = resolveGitHubTeamSlug(teamShortname, githubTeamsService.getTeams())
-    if (!teamSlug) {
+    if (!teamSlug && !findGitHubTeam(teamShortname, githubTeamsService.getTeams())) {
       await githubTeamsService.refreshTeams()
       teamSlug = resolveGitHubTeamSlug(teamShortname, githubTeamsService.getTeams())
     }
@@ -257,7 +258,7 @@ export class GrantAccessCommand implements Command {
         intr,
         Lang.getEmbed('displayEmbeds.grantAccessUnknownTeam', data.lang, {
           TEAM: teamShortname,
-          RESOURCE_LABEL: 'GitHub team',
+          RESOURCE_LABEL: Lang.getRef('grantAccessResources.github', data.lang),
         }),
         true,
       )
@@ -305,7 +306,7 @@ export class GrantAccessCommand implements Command {
         Lang.getEmbed(ref, data.lang, {
           USER: targetUser.toString(),
           TEAM_LABEL: teamShortname,
-          RESOURCE_LABEL: 'GitHub team',
+          RESOURCE_LABEL: Lang.getRef('grantAccessResources.github', data.lang),
           // Spelled out rather than left implicit: a maintainer grant hands the
           // target the same team-membership authority the bot's token has.
           ROLE_LABEL: Lang.getRef(`githubTeamRoles.${role}`, Language.Default),
