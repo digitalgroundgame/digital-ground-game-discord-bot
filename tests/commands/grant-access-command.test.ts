@@ -3,6 +3,7 @@ import {
   type AutocompleteInteraction,
   type ChatInputCommandInteraction,
   type EmbedBuilder,
+  GuildMember,
 } from 'discord.js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -18,9 +19,11 @@ import {
 import { createMockUser } from '../helpers/discord-mocks.js'
 
 const sendMock = vi.hoisted(() => vi.fn(async () => undefined))
+const hasRoleMock = vi.hoisted(() => vi.fn(() => true))
 
 vi.mock('../../src/utils/index.js', () => ({
   InteractionUtils: { send: sendMock },
+  RoleUtils: { memberHasAnyConfiguredRole: hasRoleMock },
 }))
 
 import { GrantAccessCommand } from '../../src/commands/chat/grant-access-command.js'
@@ -63,9 +66,16 @@ function createInteraction(
   } as unknown as ChatInputCommandInteraction
 }
 
-/** An autocomplete interaction for the `team` option, with `service` maybe unset. */
-function createAutocompleteInteraction(service: string | null): AutocompleteInteraction {
+/**
+ * An autocomplete interaction for the `team` option, with `service` maybe
+ * unset. The member passes the role check unless `hasRoleMock` says otherwise.
+ */
+function createAutocompleteInteraction(
+  service: string | null,
+  member: unknown = Object.create(GuildMember.prototype),
+): AutocompleteInteraction {
   return {
+    member,
     options: { getString: vi.fn(() => service) },
   } as unknown as AutocompleteInteraction
 }
@@ -86,12 +96,18 @@ function githubService(
   addMember: GitHubTeamsService['addMember'],
   isConfigured = true,
   teams: GitHubTeam[] = GITHUB_TEAMS,
+  teamsAfterRefresh: GitHubTeam[] = teams,
 ): GitHubTeamsService {
+  let current = teams
   return {
     isConfigured: () => isConfigured,
     addMember,
-    getTeams: () => teams,
+    getTeams: () => current,
     warmTeams: vi.fn(),
+    refreshTeams: vi.fn(async () => {
+      current = teamsAfterRefresh
+      return true
+    }),
   } as unknown as GitHubTeamsService
 }
 
@@ -124,6 +140,8 @@ function linkedAccount(overrides: Partial<LinkedAccount>): LinkedAccount {
 describe('GrantAccessCommand', () => {
   beforeEach(() => {
     sendMock.mockClear()
+    hasRoleMock.mockReset()
+    hasRoleMock.mockReturnValue(true)
   })
 
   describe('autocomplete', () => {
@@ -227,6 +245,27 @@ describe('GrantAccessCommand', () => {
       )
 
       expect(choices).toEqual([])
+    })
+
+    it('offers nothing to a member without a role allowed to run the command', async () => {
+      hasRoleMock.mockReturnValue(false)
+
+      const choices = await command.autocomplete(
+        createAutocompleteInteraction('github'),
+        focusedTeam(''),
+      )
+
+      expect(choices).toEqual([])
+    })
+
+    it('offers nothing outside a guild, where there is no member to check', async () => {
+      const choices = await command.autocomplete(
+        createAutocompleteInteraction('github', null),
+        focusedTeam(''),
+      )
+
+      expect(choices).toEqual([])
+      expect(hasRoleMock).not.toHaveBeenCalled()
     })
 
     it('never returns more choices than Discord accepts', async () => {
@@ -349,19 +388,40 @@ describe('GrantAccessCommand', () => {
       expect(addMember).toHaveBeenCalledWith(GITHUB_TEAM_SLUG, 'octocat', 'member')
     })
 
-    it('attempts a team the cache has not seen, letting GitHub decide', async () => {
+    it('refreshes the team list for a team the cache has not seen', async () => {
       // A team created since the last refresh must still be grantable by
-      // typing its name; GitHub rejects the slug if it truly does not exist.
+      // typing its name.
       const addMember = vi.fn(async () => ({ status: 'active' as const }))
+      const service = githubService(addMember, true, GITHUB_TEAMS, [
+        ...GITHUB_TEAMS,
+        { name: 'Brand New Team', slug: 'brand-new-team' },
+      ])
       const command = new GrantAccessCommand(
         undefined,
         userService(linkedAccount({ externalId: 'octocat' })),
-        githubService(addMember, true, []),
+        service,
       )
 
       await command.execute(createInteraction('github', 'Brand New Team'), data)
 
+      expect(service.refreshTeams).toHaveBeenCalledOnce()
       expect(addMember).toHaveBeenCalledWith('brand-new-team', 'octocat', 'member')
+    })
+
+    it('reports a team GitHub still does not list after a refresh, without granting', async () => {
+      // Only listed teams resolve, since an unlisted team's parent, and so
+      // whether an exclusion covers it, is unknown.
+      const addMember = vi.fn(async () => ({ status: 'active' as const }))
+      const command = new GrantAccessCommand(
+        undefined,
+        userService(linkedAccount({ externalId: 'octocat' })),
+        githubService(addMember),
+      )
+
+      await command.execute(createInteraction('github', 'Brand New Team'), data)
+
+      expect(addMember).not.toHaveBeenCalled()
+      expect(lastSent().description).toContain('Unknown team')
     })
 
     it('reports an unusable team name without calling GitHub', async () => {
@@ -381,9 +441,9 @@ describe('GrantAccessCommand', () => {
       expect(sent.ephemeral).toBe(true)
     })
 
-    it('passes a typed inherited key through as an ordinary slug', async () => {
+    it('treats a typed inherited key as an unknown team', async () => {
       // `team` is autocompleted, so anything can be typed into it. Teams are
-      // matched over an array now, so no prototype value can be reached.
+      // matched over an array, so no prototype value can be reached.
       const addMember = vi.fn(async () => ({ status: 'active' as const }))
       const command = new GrantAccessCommand(
         undefined,
@@ -393,7 +453,8 @@ describe('GrantAccessCommand', () => {
 
       await command.execute(createInteraction('github', '__proto__'), data)
 
-      expect(addMember).toHaveBeenCalledWith('proto', 'octocat', 'member')
+      expect(addMember).not.toHaveBeenCalled()
+      expect(lastSent().description).toContain('Unknown team')
     })
 
     it('reports a missing GitHub token', async () => {

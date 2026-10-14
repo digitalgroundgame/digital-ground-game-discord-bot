@@ -89,17 +89,26 @@ Use the team's **slug** (visible in its GitHub URL,
 to what autocomplete offers *and* to what `/grant-access` will act on, so a
 denied team cannot be reached by typing its name instead of picking it.
 
+An exclusion also covers every child team below it, because GitHub child teams
+inherit their parent's repository access. Excluding `leadership` denies
+`leadership-ops` and anything nested under it too.
+
+The list must not be empty. With nothing excluded, every team in the org,
+admin teams included, would be grantable, so the bot keeps `service:github`
+disabled until at least one slug is listed.
+
 Google groups are unaffected: they are still mapped by hand under
 `grantAccess.groups`, and a shortname listed there is offered for
 `service:google` regardless of what exists on GitHub.
 
 ### On a stale cache
 
-The cache is a convenience, not the authority. If someone creates a team and
-grants access to it before the next refresh, typing the team's name still
-works — the name is converted to a slug the way GitHub does it, and the
-membership call itself decides whether that team exists. A failed refresh
-costs suggestions in the dropdown, never a grant.
+If someone creates a team and grants access to it before the next refresh,
+typing the team's name still works: a name the cache doesn't hold triggers one
+immediate refresh, and the grant goes ahead if the team shows up. Only teams in
+the list can be granted, because a team's parent, and so whether an exclusion
+covers it, is only known from the list. If the refresh fails, the grant
+reports the team as unknown rather than guessing.
 
 ## 3. Environment variables
 
@@ -124,13 +133,16 @@ Start the bot and watch the logs:
 
 - If `GITHUB_TEAMS_TOKEN` or `GITHUB_TEAMS_ORG` is unset, you'll see:
   > `/grant-access: disabled for service:github — set GITHUB_TEAMS_TOKEN …`
+- If `grantAccess.excludeTeams` is empty, you'll see:
+  > `/grant-access: disabled for service:github — grantAccess.excludeTeams in config.json is empty …`
 - On a successful refresh, at startup and hourly after:
   > `GitHub Teams: cached <n> team(s) from <org>`
 - If that count is 0 or the team dropdown is empty, the refresh failed — the
   status and body are logged. A token that cannot see the org's teams gets a
   404 here even though the org name is right.
-- If `/grant-access` reports the team as unknown, it is either on
-  `excludeTeams` or the name slugs to nothing usable.
+- If `/grant-access` reports the team as unknown, it is on `excludeTeams`,
+  is a child of an excluded team, or isn't in the org's team list even after
+  a refresh.
 - If the API call fails, the error (HTTP status + body) is logged. Common
   causes:
   - **404** — the org or team slug is wrong, or the token's owner can't see

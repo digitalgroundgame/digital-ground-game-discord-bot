@@ -155,7 +155,11 @@ export class GitHubTeamsService {
         }
 
         for (const entry of body) {
-          if (isGitHubTeam(entry)) collected.push({ name: entry.name, slug: entry.slug })
+          if (!isGitHubTeam(entry)) continue
+          // Kept so an exclusion can cover the child teams that inherit its access.
+          const parent = (entry as { parent?: { slug?: unknown } | null }).parent
+          const parentSlug = typeof parent?.slug === 'string' ? parent.slug : null
+          collected.push({ name: entry.name, slug: entry.slug, parentSlug })
         }
         if (body.length < TEAMS_PAGE_SIZE) break
       }

@@ -569,6 +569,14 @@
       "one": "{{COM:pointsName.one}}",
       "other": "{{COM:pointsName.other}}"
     },
+    "grantAccessResources": {
+      "google": "Google Group",
+      "github": "GitHub team"
+    },
+    "grantAccessRequirements": {
+      "google": "The service account credentials and database connection must be set.",
+      "github": "A GitHub API token, an organization, a list of excluded teams, and a database connection must be set."
+    },
     "kudosAnnouncement": {
       "given": "{{EMOJI}} {{GIVER}} gave {{RECEIVER}} a {{COM:pointsName.one}}!",
       "givenWithReason": "{{EMOJI}} {{GIVER}} gave {{RECEIVER}} a {{COM:pointsName.one}}: {{REASON}}"

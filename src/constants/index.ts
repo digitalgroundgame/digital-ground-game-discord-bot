@@ -30,6 +30,7 @@ export { type LinkableAccount, LinkableAccounts, getLinkableAccount } from './li
 export { PingSkillRoleAllowedRoleKeys } from './skill-roles.js'
 export {
   KudosEmoji,
+  KudosGiveAllowedRoleIds,
   KudosGiveAllowedRoleKeys,
   KudosGiveCooldownDays,
   KudosLeaderboardTimeZone,

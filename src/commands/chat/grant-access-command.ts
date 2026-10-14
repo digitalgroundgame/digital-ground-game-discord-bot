@@ -3,6 +3,9 @@ import {
   type AutocompleteFocusedOption,
   type AutocompleteInteraction,
   type ChatInputCommandInteraction,
+  type EmbedBuilder,
+  GuildMember,
+  type Locale,
   type PermissionsString,
   type User,
 } from 'discord.js'
@@ -31,7 +34,7 @@ import {
   Logger,
   type UserService,
 } from '../../services/index.js'
-import { InteractionUtils } from '../../utils/index.js'
+import { InteractionUtils, RoleUtils } from '../../utils/index.js'
 import { type Command, CommandDeferType } from '../index.js'
 
 /**
@@ -53,6 +56,14 @@ function teamShortnames(service: string | null, githubTeams: readonly GitHubTeam
     default:
       return Array.from(new Set([...Object.keys(GoogleGroups), ...github()])).sort()
   }
+}
+
+/** The "isn't configured" reply for `service`, worded from the lang file. */
+function notConfiguredEmbed(service: 'google' | 'github', lang: Locale): EmbedBuilder {
+  return Lang.getEmbed('displayEmbeds.grantAccessNotConfigured', lang, {
+    RESOURCE_LABEL: Lang.getRef(`grantAccessResources.${service}`, lang),
+    REQUIREMENT: Lang.getRef(`grantAccessRequirements.${service}`, lang),
+  })
 }
 
 /**
@@ -80,6 +91,10 @@ export class GrantAccessCommand implements Command {
     intr: AutocompleteInteraction,
     option: AutocompleteFocusedOption,
   ): Promise<ApplicationCommandOptionChoiceData[]> {
+    // Discord routes autocomplete past the command's role checks, so without
+    // this any member could list the org's teams by typing in `team`.
+    if (!this.memberMayRun(intr)) return []
+
     const service = intr.options.getString(Lang.getRef('arguments.service', Language.Default))
     // Non-blocking: fills an empty cache for the *next* keystroke if the
     // startup refresh has not landed yet, rather than stalling this one.
@@ -89,6 +104,15 @@ export class GrantAccessCommand implements Command {
       .filter((shortname) => shortname.toLowerCase().includes(search))
       .slice(0, DiscordLimits.CHOICES_PER_AUTOCOMPLETE)
       .map((shortname) => ({ name: shortname, value: shortname }))
+  }
+
+  /** Mirrors the `requireRoles` check `CommandUtils.runChecks` applies to `execute`. */
+  private memberMayRun(intr: AutocompleteInteraction): boolean {
+    if (this.requireRoles.length === 0) return true
+    return (
+      intr.member instanceof GuildMember &&
+      RoleUtils.memberHasAnyConfiguredRole(intr.member, this.requireRoles)
+    )
   }
 
   public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
@@ -143,14 +167,7 @@ export class GrantAccessCommand implements Command {
     const groupsService = this.groupsService
     const userService = this.userService
     if (!groupsService?.isConfigured() || !userService) {
-      await InteractionUtils.send(
-        intr,
-        Lang.getEmbed('displayEmbeds.grantAccessNotConfigured', data.lang, {
-          RESOURCE_LABEL: 'Google group',
-          REQUIREMENT: 'The service account credentials and database connection must be set.',
-        }),
-        true,
-      )
+      await InteractionUtils.send(intr, notConfiguredEmbed('google', data.lang), true)
       return
     }
 
@@ -159,14 +176,7 @@ export class GrantAccessCommand implements Command {
       linked = await userService.findLinkedAccount(targetUser.id, 'google')
     } catch (err: unknown) {
       Logger.error(`/grant-access: failed to look up linked account for ${targetUser.tag}`, err)
-      await InteractionUtils.send(
-        intr,
-        Lang.getEmbed('displayEmbeds.grantAccessNotConfigured', data.lang, {
-          RESOURCE_LABEL: 'Google group',
-          REQUIREMENT: 'The service account credentials and database connection must be set.',
-        }),
-        true,
-      )
+      await InteractionUtils.send(intr, notConfiguredEmbed('google', data.lang), true)
       return
     }
 
@@ -184,14 +194,7 @@ export class GrantAccessCommand implements Command {
 
     const addResult = await groupsService.addMember(groupAddress, linked.email)
     if (addResult.status === 'not-configured') {
-      await InteractionUtils.send(
-        intr,
-        Lang.getEmbed('displayEmbeds.grantAccessNotConfigured', data.lang, {
-          RESOURCE_LABEL: 'Google group',
-          REQUIREMENT: 'The service account credentials and database connection must be set.',
-        }),
-        true,
-      )
+      await InteractionUtils.send(intr, notConfiguredEmbed('google', data.lang), true)
       return
     }
 
@@ -236,10 +239,19 @@ export class GrantAccessCommand implements Command {
     const githubTeamsService = this.githubTeamsService
     const userService = this.userService
 
-    // Resolved against the cached org teams, falling back to GitHub's own
-    // slug rule so a team created since the last refresh can still be granted
-    // by typing its name. Returns null for a team on the exclusion list.
-    const teamSlug = resolveGitHubTeamSlug(teamShortname, githubTeamsService?.getTeams() ?? [])
+    if (!githubTeamsService?.isConfigured() || !userService) {
+      await InteractionUtils.send(intr, notConfiguredEmbed('github', data.lang), true)
+      return
+    }
+
+    // Resolved against the cached org teams, refreshing once on a miss so a
+    // team created since the last refresh can still be granted. Returns null
+    // for an excluded team or any descendant of one.
+    let teamSlug = resolveGitHubTeamSlug(teamShortname, githubTeamsService.getTeams())
+    if (!teamSlug) {
+      await githubTeamsService.refreshTeams()
+      teamSlug = resolveGitHubTeamSlug(teamShortname, githubTeamsService.getTeams())
+    }
     if (!teamSlug) {
       await InteractionUtils.send(
         intr,
@@ -252,33 +264,12 @@ export class GrantAccessCommand implements Command {
       return
     }
 
-    if (!githubTeamsService?.isConfigured() || !userService) {
-      await InteractionUtils.send(
-        intr,
-        Lang.getEmbed('displayEmbeds.grantAccessNotConfigured', data.lang, {
-          RESOURCE_LABEL: 'GitHub team',
-          REQUIREMENT:
-            'A GitHub API token, an organization, and a database connection must be set.',
-        }),
-        true,
-      )
-      return
-    }
-
     let linked: LinkedAccount | undefined
     try {
       linked = await userService.findLinkedAccount(targetUser.id, 'github')
     } catch (err: unknown) {
       Logger.error(`/grant-access: failed to look up linked account for ${targetUser.tag}`, err)
-      await InteractionUtils.send(
-        intr,
-        Lang.getEmbed('displayEmbeds.grantAccessNotConfigured', data.lang, {
-          RESOURCE_LABEL: 'GitHub team',
-          REQUIREMENT:
-            'A GitHub API token, an organization, and a database connection must be set.',
-        }),
-        true,
-      )
+      await InteractionUtils.send(intr, notConfiguredEmbed('github', data.lang), true)
       return
     }
 
@@ -297,15 +288,7 @@ export class GrantAccessCommand implements Command {
 
     const addResult = await githubTeamsService.addMember(teamSlug, username, role)
     if (addResult.status === 'not-configured') {
-      await InteractionUtils.send(
-        intr,
-        Lang.getEmbed('displayEmbeds.grantAccessNotConfigured', data.lang, {
-          RESOURCE_LABEL: 'GitHub team',
-          REQUIREMENT:
-            'A GitHub API token, an organization, and a database connection must be set.',
-        }),
-        true,
-      )
+      await InteractionUtils.send(intr, notConfiguredEmbed('github', data.lang), true)
       return
     }
 

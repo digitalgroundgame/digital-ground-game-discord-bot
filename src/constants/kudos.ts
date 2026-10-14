@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 
-import { type RoleKey, validateAllowedRoleKeys } from './server-roles.js'
+import { type RoleKey, ServerRoles, validateAllowedRoleKeys } from './server-roles.js'
 
 const require = createRequire(import.meta.url)
 const Config = require('../../config/config.json')
@@ -23,6 +23,14 @@ export const KudosGiveAllowedRoleKeys: RoleKey[] = validateAllowedRoleKeys(
   'config.kudos.allowedRoleKeys',
   'Democracy Points giving',
   { allowEmpty: true },
+)
+
+/**
+ * Discord role IDs for `KudosGiveAllowedRoleKeys`. The command and the
+ * reaction both read this, so the two ways to give can't drift apart.
+ */
+export const KudosGiveAllowedRoleIds: string[] = KudosGiveAllowedRoleKeys.map(
+  (key) => ServerRoles[key].id,
 )
 
 /** Days a giver must wait before giving the same receiver kudos again. */

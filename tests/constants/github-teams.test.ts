@@ -54,6 +54,28 @@ describe('isExcludedGitHubTeam', () => {
     expect(isExcludedGitHubTeam('discord-bot', excluded)).toBe(false)
   })
 
+  it('denies every descendant of an excluded team, since children inherit its access', () => {
+    const tree: GitHubTeam[] = [
+      { name: 'Leadership', slug: 'leadership', parentSlug: null },
+      { name: 'Leadership Ops', slug: 'leadership-ops', parentSlug: 'leadership' },
+      { name: 'Ops Oncall', slug: 'ops-oncall', parentSlug: 'leadership-ops' },
+      { name: 'Blue Book', slug: 'blue-book', parentSlug: null },
+    ]
+
+    expect(isExcludedGitHubTeam('leadership-ops', excluded, tree)).toBe(true)
+    expect(isExcludedGitHubTeam('ops-oncall', excluded, tree)).toBe(true)
+    expect(isExcludedGitHubTeam('blue-book', excluded, tree)).toBe(false)
+  })
+
+  it('stops on a parent chain that loops back on itself', () => {
+    const loop: GitHubTeam[] = [
+      { name: 'A', slug: 'a', parentSlug: 'b' },
+      { name: 'B', slug: 'b', parentSlug: 'a' },
+    ]
+
+    expect(isExcludedGitHubTeam('a', excluded, loop)).toBe(false)
+  })
+
   it('defaults to the configured exclusion set', () => {
     // Config ships with none excluded; this pins the default wiring, not the value.
     expect(isExcludedGitHubTeam('discord-bot')).toBe(GitHubExcludedTeamSlugs.has('discord-bot'))
@@ -63,6 +85,17 @@ describe('isExcludedGitHubTeam', () => {
 describe('selectableGitHubTeams', () => {
   it('drops excluded teams and sorts the rest by name', () => {
     const selectable = selectableGitHubTeams(teams, new Set(['leadership']))
+
+    expect(selectable.map((team) => team.name)).toEqual(['Blue Book', 'Discord Bot'])
+  })
+
+  it('drops the child teams of an excluded team too', () => {
+    const withChild = [
+      ...teams,
+      { name: 'Leadership Ops', slug: 'leadership-ops', parentSlug: 'leadership' },
+    ]
+
+    const selectable = selectableGitHubTeams(withChild, new Set(['leadership']))
 
     expect(selectable.map((team) => team.name)).toEqual(['Blue Book', 'Discord Bot'])
   })
@@ -91,13 +124,24 @@ describe('resolveGitHubTeamSlug', () => {
     expect(resolveGitHubTeamSlug('  bLuE bOoK  ', teams, excluded)).toBe('blue-book')
   })
 
-  it('falls back to the slug rule for a team created since the last refresh', () => {
-    // The cache is a convenience; GitHub rejects the slug if it truly does not exist.
-    expect(resolveGitHubTeamSlug('Brand New Team', teams, excluded)).toBe('brand-new-team')
+  it('matches a team when the input differs from its name only in punctuation', () => {
+    expect(resolveGitHubTeamSlug('blue_book!', teams, excluded)).toBe('blue-book')
   })
 
-  it('still resolves against an empty cache', () => {
-    expect(resolveGitHubTeamSlug('Blue Book', [], excluded)).toBe('blue-book')
+  it('returns null for a team the list does not hold', () => {
+    // Its parent is unknown, so whether an exclusion covers it is too. The
+    // command refreshes the list and tries again.
+    expect(resolveGitHubTeamSlug('Brand New Team', teams, excluded)).toBeNull()
+    expect(resolveGitHubTeamSlug('Blue Book', [], excluded)).toBeNull()
+  })
+
+  it('denies a child team of an excluded team', () => {
+    const withChild = [
+      ...teams,
+      { name: 'Leadership Ops', slug: 'leadership-ops', parentSlug: 'leadership' },
+    ]
+
+    expect(resolveGitHubTeamSlug('Leadership Ops', withChild, excluded)).toBeNull()
   })
 
   it('denies an excluded team by name', () => {
