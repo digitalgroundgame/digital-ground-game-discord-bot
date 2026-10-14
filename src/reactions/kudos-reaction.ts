@@ -1,21 +1,30 @@
 import { type Message, type MessageReaction, type User } from 'discord.js'
+import { RateLimiter } from 'discord.js-rate-limiter'
+import { createRequire } from 'node:module'
 
 import { type Reaction } from './reaction.js'
-import { KudosEmoji, KudosGiveAllowedRoleKeys, ServerRoles } from '../constants/index.js'
+import { KudosEmoji, KudosGiveAllowedRoleIds } from '../constants/index.js'
 import { type KudosService, Logger } from '../services/index.js'
 import { RoleUtils } from '../utils/index.js'
+
+const require = createRequire(import.meta.url)
+const Config = require('../../config/config.json')
 
 export interface KudosReactionOptions {
   /** Roles allowed to give Democracy Points; empty means anyone. Defaults to config. */
   allowedRoleIds?: string[]
+  /** Coin reactions one member may have checked per window. Defaults to `rateLimiting.reactions`. */
+  attemptLimit?: { amount: number; intervalMs: number }
 }
 
 /**
  * Reacting to a message with the kudos emoji gives its author a Democracy
  * Point. Reactions that can't count (self, bot/webhook/system author, missing
  * role, cooldown) are removed so a visible coin always means a recorded point.
- * The per-pair cooldown is the rate limit, so the generic reaction limit is
- * skipped: it would leave coins on messages without recording points.
+ * The generic reaction limit is skipped because it would leave coins on
+ * messages without recording points. Instead, a member past their own attempt
+ * limit has the coin removed without the member lookup or database work, so
+ * toggling the coin can't drive unbounded load.
  */
 export class KudosReaction implements Reaction {
   public emoji = KudosEmoji
@@ -24,17 +33,27 @@ export class KudosReaction implements Reaction {
   public requireEmbedAuthorTag = false
   public rateLimited = false
   private readonly allowedRoleIds: string[]
+  private readonly attemptLimiter: RateLimiter
 
   constructor(
     private readonly kudosService: KudosService,
     options: KudosReactionOptions = {},
   ) {
-    this.allowedRoleIds =
-      options.allowedRoleIds ?? KudosGiveAllowedRoleKeys.map((key) => ServerRoles[key].id)
+    this.allowedRoleIds = options.allowedRoleIds ?? KudosGiveAllowedRoleIds
+    const limit = options.attemptLimit ?? {
+      amount: Config.rateLimiting.reactions.amount,
+      intervalMs: Config.rateLimiting.reactions.interval * 1000,
+    }
+    this.attemptLimiter = new RateLimiter(limit.amount, limit.intervalMs)
   }
 
   public async execute(msgReaction: MessageReaction, msg: Message, reactor: User): Promise<void> {
     if (!msg.guild) {
+      return
+    }
+
+    if (this.attemptLimiter.take(reactor.id)) {
+      await this.removeReaction(msgReaction, reactor)
       return
     }
 
@@ -52,13 +71,16 @@ export class KudosReaction implements Reaction {
       }
     }
 
-    const result = await this.kudosService.giveKudos(
-      msg.guild.id,
-      reactor.id,
-      author.id,
-      undefined,
-      { channelId: msg.channelId, messageId: msg.id },
-    )
+    const result = await this.kudosService
+      .giveKudos(msg.guild.id, reactor.id, author.id, undefined, {
+        channelId: msg.channelId,
+        messageId: msg.id,
+      })
+      .catch(async (error: unknown) => {
+        // Take the coin back so it never stands without a recorded point.
+        await this.removeReaction(msgReaction, reactor)
+        throw error
+      })
 
     switch (result.status) {
       case 'self':

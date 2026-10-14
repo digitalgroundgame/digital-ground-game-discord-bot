@@ -19,6 +19,7 @@ export {
   type GitHubTeam,
   type GitHubTeamRole,
   GITHUB_TEAM_ROLES,
+  findGitHubTeam,
   GitHubExcludedTeamSlugs,
   isExcludedGitHubTeam,
   resolveGitHubTeamSlug,
@@ -30,6 +31,7 @@ export { type LinkableAccount, LinkableAccounts, getLinkableAccount } from './li
 export { PingSkillRoleAllowedRoleKeys } from './skill-roles.js'
 export {
   KudosEmoji,
+  KudosGiveAllowedRoleIds,
   KudosGiveAllowedRoleKeys,
   KudosGiveCooldownDays,
   KudosLeaderboardTimeZone,

@@ -128,7 +128,7 @@
       "South Squad": "south-squad@digitalgroundgame.org",
       "West Squad": "west-squad@digitalgroundgame.org"
     },
-    "// NOTE: excludeTeams": "Team slugs /grant-access must never offer or grant, e.g. leadership or admin teams. Every other team in the org is grantable.",
+    "// NOTE: excludeTeams": "Team slugs /grant-access must never offer or grant, e.g. leadership or admin teams. Their child teams are excluded too. Every other team in the org is grantable. Must list at least one team, or GitHub grants stay disabled.",
     "excludeTeams": []
   },
   "managedContent": {
