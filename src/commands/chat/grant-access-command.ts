@@ -309,7 +309,7 @@ export class GrantAccessCommand implements Command {
           RESOURCE_LABEL: Lang.getRef('grantAccessResources.github', data.lang),
           // Spelled out rather than left implicit: a maintainer grant hands the
           // target the same team-membership authority the bot's token has.
-          ROLE_LABEL: Lang.getRef(`githubTeamRoles.${role}`, Language.Default),
+          ROLE_LABEL: Lang.getRef(`githubTeamRoleLabels.${role}`, data.lang),
           // Named so a mistyped link is visible before the stranger accepts.
           IDENTIFIER: username,
         }),

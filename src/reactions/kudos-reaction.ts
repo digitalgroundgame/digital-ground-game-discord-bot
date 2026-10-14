@@ -71,13 +71,16 @@ export class KudosReaction implements Reaction {
       }
     }
 
-    const result = await this.kudosService.giveKudos(
-      msg.guild.id,
-      reactor.id,
-      author.id,
-      undefined,
-      { channelId: msg.channelId, messageId: msg.id },
-    )
+    const result = await this.kudosService
+      .giveKudos(msg.guild.id, reactor.id, author.id, undefined, {
+        channelId: msg.channelId,
+        messageId: msg.id,
+      })
+      .catch(async (error: unknown) => {
+        // Take the coin back so it never stands without a recorded point.
+        await this.removeReaction(msgReaction, reactor)
+        throw error
+      })
 
     switch (result.status) {
       case 'self':
