@@ -55,9 +55,10 @@ function describeError(err: unknown): string {
  * The org's teams are discovered rather than configured: `refreshTeams`
  * caches the list in memory (see `RefreshGitHubTeamsJob`) so `/grant-access`
  * autocomplete can be served synchronously, well inside Discord's three
- * second deadline. The cache is only a convenience — `addMember` is
- * authoritative and rejects an unknown slug on its own, so a stale or empty
- * cache costs suggestions, never correctness.
+ * second deadline. The cache is also what `/grant-access` resolves teams
+ * against: only listed teams can be granted, and each team's cached parent
+ * decides whether an exclusion covers it. A stale cache can therefore lag a
+ * team's creation or move by up to one refresh.
  *
  * Requires a token that is *both* owned by an organization owner or team
  * maintainer *and* scoped to write team membership: the "Members" org
