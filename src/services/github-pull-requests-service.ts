@@ -13,7 +13,7 @@ import {
 } from './github-api.js'
 import { type AssignResult } from './github-issues-service.js'
 import { Logger } from './logger.js'
-import { GiveIssueExcludedRepos } from '../constants/give-issue.js'
+import { FindWorkExcludedRepos } from '../constants/find-work.js'
 import {
   type FileAuthorIndex,
   fileKey,
@@ -286,7 +286,7 @@ export class GitHubPullRequestsService {
     if (!this.isConfigured()) return false
 
     try {
-      const repos = await listPublicOrgRepos(this.token, this.org ?? '', GiveIssueExcludedRepos)
+      const repos = await listPublicOrgRepos(this.token, this.org ?? '', FindWorkExcludedRepos)
       const pulls: OpenPullRequest[] = []
       const fileAuthors = new Map<string, ReadonlyMap<string, number>>()
 

@@ -69,12 +69,12 @@ export const contentOverride = sqliteTable(
   (t) => [uniqueIndex('content_override_key_field_uq').on(t.key, t.field)],
 )
 
-/** Where an issue claim made through `/give-issue` has got to. */
+/** Where an issue claim made through `/find-work` has got to. */
 export const ISSUE_CLAIM_STATES = ['claimed', 'completed', 'expired'] as const
 export type IssueClaimState = (typeof ISSUE_CLAIM_STATES)[number]
 
 /**
- * An issue a member claimed through `/give-issue`, recorded at the moment the
+ * An issue a member claimed through `/find-work`, recorded at the moment the
  * bot assigned them on GitHub.
  *
  * This is the record that makes a later kudos payout attributable: GitHub

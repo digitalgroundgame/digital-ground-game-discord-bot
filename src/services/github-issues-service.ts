@@ -13,9 +13,9 @@ import {
 import { Logger } from './logger.js'
 import {
   type CandidateIssue,
-  GiveIssueExcludedRepos,
-  GiveIssueMarkerLabel,
-} from '../constants/give-issue.js'
+  FindWorkExcludedRepos,
+  FindWorkMarkerLabel,
+} from '../constants/find-work.js'
 
 export type AssignResult =
   | { status: 'assigned' }
@@ -49,7 +49,7 @@ function labelNames(labels: unknown): string[] {
 /**
  * Convert one issues-API entry into a candidate, or null if it isn't one.
  * Exported for tests — the filtering rules are the security boundary for what
- * `/give-issue` will show, so they are worth asserting directly.
+ * `/find-work` will show, so they are worth asserting directly.
  */
 export function toCandidateIssue(repo: string, raw: RawIssue): CandidateIssue | null {
   // The issues API returns pull requests too; they are not claimable work.
@@ -63,7 +63,7 @@ export function toCandidateIssue(repo: string, raw: RawIssue): CandidateIssue | 
   const labels = labelNames(raw.labels)
   // Belt and braces: the request already filters on the marker label, but a
   // dropped query parameter must not silently widen the pool.
-  if (!labels.includes(GiveIssueMarkerLabel)) return null
+  if (!labels.includes(FindWorkMarkerLabel)) return null
 
   return { repo, number: raw.number, title: raw.title, htmlUrl: raw.html_url, labels, updatedAt }
 }
@@ -121,7 +121,7 @@ export class GitHubIssuesService {
   private async listClaimableIssues(repo: string): Promise<CandidateIssue[]> {
     const found: CandidateIssue[] = []
     for (let page = 1; page <= MAX_PAGES; page++) {
-      const label = encodeURIComponent(GiveIssueMarkerLabel)
+      const label = encodeURIComponent(FindWorkMarkerLabel)
       const body = await githubGet(
         this.token,
         `/repos/${repo}/issues?state=open&assignee=none&labels=${label}&per_page=${PAGE_SIZE}&page=${page}`,
@@ -141,7 +141,7 @@ export class GitHubIssuesService {
     if (!this.isConfigured()) return false
 
     try {
-      const repos = await listPublicOrgRepos(this.token, this.org ?? '', GiveIssueExcludedRepos)
+      const repos = await listPublicOrgRepos(this.token, this.org ?? '', FindWorkExcludedRepos)
       const collected: CandidateIssue[] = []
       // Sequential on purpose: an org this size fits comfortably in the
       // authenticated hourly budget, and GitHub secondary-rate-limits

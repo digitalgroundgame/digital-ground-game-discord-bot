@@ -7,7 +7,7 @@ const require = createRequire(import.meta.url)
 const Config = require('../../config/config.json')
 
 /**
- * Re-read the pool of claimable issues `/give-issue` draws from, so labelling
+ * Re-read the pool of claimable issues `/find-work` draws from, so labelling
  * an issue on GitHub makes it offerable without a redeploy.
  *
  * Costs one request per public repo plus one to enumerate them, against an

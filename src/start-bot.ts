@@ -9,7 +9,7 @@ import {
   CensusCommand,
   ContentCommand,
   DevCommand,
-  GiveIssueCommand,
+  FindWorkCommand,
   GrantAccessCommand,
   HelpCommand,
   InfoCommand,
@@ -151,7 +151,7 @@ async function start(): Promise<void> {
     )
   }
 
-  // A separate token from GITHUB_TEAMS_TOKEN on purpose: /give-issue is open
+  // A separate token from GITHUB_TEAMS_TOKEN on purpose: /find-work is open
   // to every member, and the credential it reaches should not also be able to
   // change organization membership.
   const githubIssuesService = new GitHubIssuesService(
@@ -160,7 +160,7 @@ async function start(): Promise<void> {
   )
   if (!githubIssuesService.isConfigured()) {
     Logger.warn(
-      '/give-issue: disabled — set GITHUB_ISSUES_TOKEN (repository Issues and Pull requests read & write, plus Metadata) and GITHUB_TEAMS_ORG (the organization its public repositories are read from).',
+      '/find-work: disabled — set GITHUB_ISSUES_TOKEN (repository Issues and Pull requests read & write, plus Metadata) and GITHUB_TEAMS_ORG (the organization its public repositories are read from).',
     )
   }
 
@@ -215,7 +215,7 @@ async function start(): Promise<void> {
     new LinkAccountCommand(userService),
     new ContentCommand(contentService),
     new PingSkillRoleCommand(),
-    new GiveIssueCommand(
+    new FindWorkCommand(
       githubIssuesService,
       userService,
       issueClaimService,
@@ -272,7 +272,7 @@ async function start(): Promise<void> {
   if (githubTeamsService.isConfigured()) {
     jobs.push(new RefreshGitHubTeamsJob(githubTeamsService))
   }
-  // Keeps the /give-issue pool current. Same reasoning as above.
+  // Keeps the /find-work pool current. Same reasoning as above.
   if (githubIssuesService.isConfigured()) {
     jobs.push(new RefreshGitHubIssuesJob(githubIssuesService))
   }

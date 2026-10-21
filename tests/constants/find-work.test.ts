@@ -8,7 +8,7 @@ import {
   partitionBySkills,
   skillSlugsForRoleNames,
   toLabelSlug,
-} from '../../src/constants/give-issue.js'
+} from '../../src/constants/find-work.js'
 
 function issue(overrides: Partial<CandidateIssue> & { number: number }): CandidateIssue {
   return {

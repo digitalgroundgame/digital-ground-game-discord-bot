@@ -274,58 +274,58 @@
         "description": "No other members of **{{SKILL}}** are online right now, so nobody was pinged.",
         "color": "{{COM:colors.warning}}"
       },
-      "giveIssueDraw": {
+      "findWorkDraw": {
         "title": "Three issues you could pick up",
         "description": "{{ISSUES}}\n\n{{NOTICE}}"
       },
-      "giveIssueClaimed": {
+      "findWorkClaimed": {
         "description": "Assigned **{{LOGIN}}** to [{{REPO}} #{{NUMBER}}]({{URL}}) — {{TITLE}}.\n\nIt’s yours. If you don’t get to it, say so and a lead can hand it back."
       },
-      "giveIssueAlreadyClaimed": {
+      "findWorkAlreadyClaimed": {
         "description": "Someone claimed **{{REPO}} #{{NUMBER}}** just before you did. Run the command again for a fresh draw.",
         "color": "{{COM:colors.warning}}"
       },
-      "giveIssueNeedsAccess": {
+      "findWorkNeedsAccess": {
         "description": "GitHub won’t let **{{LOGIN}}** be assigned to **{{REPO}}** yet. That usually means an organization invitation is still unaccepted — check your email, then ask a lead about `/grant-access` if it persists.",
         "color": "{{COM:colors.warning}}"
       },
-      "giveIssueClaimNotRecorded": {
+      "findWorkClaimNotRecorded": {
         "description": "You’ve been assigned to [{{REPO}} #{{NUMBER}}]({{URL}}), but the claim wasn’t recorded, so it won’t count toward kudos. Let a lead know.",
         "color": "{{COM:colors.warning}}"
       },
-      "giveIssueReviews": {
+      "findWorkReviews": {
         "title": "Pull requests you know your way around",
         "description": "{{PULLS}}\n\n{{HINT}}"
       },
-      "giveIssueReviewRequested": {
+      "findWorkReviewRequested": {
         "description": "Requested a review from **{{LOGIN}}** on [{{REPO}} #{{NUMBER}}]({{URL}}) — {{TITLE}}."
       },
-      "giveIssueReviewNeedsAccess": {
+      "findWorkReviewNeedsAccess": {
         "description": "GitHub won’t request a review from **{{LOGIN}}** on **{{REPO}}** yet. That usually means an organization invitation is still unaccepted — check your email, then ask a lead about `/grant-access` if it persists.",
         "color": "{{COM:colors.warning}}"
       },
-      "giveIssueReviewFailed": {
+      "findWorkReviewFailed": {
         "description": "Couldn’t request that review. It’s been logged — try again shortly.",
         "color": "{{COM:colors.warning}}"
       },
-      "giveIssueNoneAvailable": {
+      "findWorkNoneAvailable": {
         "description": "Nothing is up for grabs right now. Issues appear here once a lead labels them.",
         "color": "{{COM:colors.warning}}"
       },
-      "giveIssueNotLinked": {
+      "findWorkNotLinked": {
         "description": "Link your GitHub account first with `/link-account service:github identifier:<username>`, so claiming an issue can assign you.",
         "color": "{{COM:colors.warning}}"
       },
-      "giveIssueTimedOut": {
+      "findWorkTimedOut": {
         "description": "That draw expired. Run the command again for a fresh one.",
         "color": "{{COM:colors.warning}}"
       },
-      "giveIssueFailed": {
+      "findWorkFailed": {
         "description": "Couldn’t claim that issue. It’s been logged — try again shortly.",
         "color": "{{COM:colors.warning}}"
       },
-      "giveIssueNotConfigured": {
-        "description": "`/give-issue` isn’t configured on this bot.",
+      "findWorkNotConfigured": {
+        "description": "`/find-work` isn’t configured on this bot.",
         "color": "{{COM:colors.warning}}"
       },
       "kudosGiven": {
@@ -450,7 +450,7 @@
       "grantAccess": "grant-access",
       "linkAccount": "link-account",
       "pingSkillRole": "ping-skill-role",
-      "giveIssue": "give-issue",
+      "findWork": "find-work",
       "kudos": "democracy-points"
     },
     "userCommands": {
@@ -497,7 +497,7 @@
       "grantAccess": "Grant a member access to a team's service (e.g. a Google Group or GitHub team).",
       "linkAccount": "Link an external account (e.g. your Google email or GitHub username) to a Discord profile.",
       "pingSkillRole": "Ping the online members of a skill role (works in forum posts).",
-      "giveIssue": "Get three open issues you could pick up, and claim one.",
+      "findWork": "Find an open issue to pick up, or a pull request you could review.",
       "kudos": "Give {{COM:pointsName.other}}, view a member's total, or check the leaderboard.",
       "kudosGive": "Give a member a {{COM:pointsName.one}} for something they did well.",
       "kudosView": "View a member's total {{COM:pointsName.other}}.",
@@ -642,7 +642,7 @@
       "pragPapersEmbed": "[Read the Pragmatic Papers here: ({{COM:links.pragPapers}})]",
       "censusEmbed": "[Fill out the Census here: ({{COM:links.census}})]"
     },
-    "giveIssue": {
+    "findWork": {
       "claimHint": "Pick one to have yourself assigned on GitHub.",
       "reviewHint": "You’ve committed to files these change. Pick one to be requested as a reviewer.",
       "noSkillMatch": "None of your skill roles matched a labelled issue, so these are all wildcards. If that looks wrong, the role name and the GitHub label probably don't line up — tell a lead."

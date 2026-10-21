@@ -1,7 +1,7 @@
-/** How many pull requests a single `/give-issue` run offers for review, on top of the issue draw. */
+/** How many pull requests a single `/find-work` run offers for review, on top of the issue draw. */
 export const REVIEW_SUGGESTION_LIMIT = 2
 
-/** An open, non-draft pull request as `/give-issue` sees it. */
+/** An open, non-draft pull request as `/find-work` sees it. */
 export interface OpenPullRequest {
   /** `owner/name`, as GitHub spells it. */
   repo: string

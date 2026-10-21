@@ -78,8 +78,8 @@ function describeReview(suggestion: ReviewSuggestion, index: number): string {
  * interaction. That is a deliberate trade for now — a draw is personal, and a
  * public one would leak nothing but would clutter the channel.
  */
-export class GiveIssueCommand implements Command {
-  public names = [Lang.getRef('chatCommands.giveIssue', Language.Default)]
+export class FindWorkCommand implements Command {
+  public names = [Lang.getRef('chatCommands.findWork', Language.Default)]
   public cooldown = new RateLimiter(2, 60 * 60 * 1000)
   public deferType = CommandDeferType.HIDDEN
   public requireClientPerms: PermissionsString[] = []
@@ -98,7 +98,7 @@ export class GiveIssueCommand implements Command {
     if (!issuesService?.isConfigured() || !userService || !claimService) {
       await InteractionUtils.send(
         intr,
-        Lang.getEmbed('displayEmbeds.giveIssueNotConfigured', data.lang),
+        Lang.getEmbed('displayEmbeds.findWorkNotConfigured', data.lang),
         true,
       )
       return
@@ -111,7 +111,7 @@ export class GiveIssueCommand implements Command {
     if (!linked) {
       await InteractionUtils.send(
         intr,
-        Lang.getEmbed('displayEmbeds.giveIssueNotLinked', data.lang),
+        Lang.getEmbed('displayEmbeds.findWorkNotLinked', data.lang),
         true,
       )
       return
@@ -130,7 +130,7 @@ export class GiveIssueCommand implements Command {
     if (pool.length === 0 && reviews.length === 0) {
       await InteractionUtils.send(
         intr,
-        Lang.getEmbed('displayEmbeds.giveIssueNoneAvailable', data.lang),
+        Lang.getEmbed('displayEmbeds.findWorkNoneAvailable', data.lang),
         true,
       )
       return
@@ -148,17 +148,17 @@ export class GiveIssueCommand implements Command {
     const { matched } = partitionBySkills(pool, skillSlugs)
     const unmatchedNotice = matched.length === 0
 
-    const claimPrefix = `give-issue-claim-${intr.id}-`
-    const reviewPrefix = `give-issue-review-${intr.id}-`
+    const claimPrefix = `find-work-claim-${intr.id}-`
+    const reviewPrefix = `find-work-review-${intr.id}-`
     const embeds: EmbedBuilder[] = []
     const components: ActionRowBuilder<ButtonBuilder>[] = []
     if (drawn.length > 0) {
       embeds.push(
-        Lang.getEmbed('displayEmbeds.giveIssueDraw', data.lang, {
+        Lang.getEmbed('displayEmbeds.findWorkDraw', data.lang, {
           ISSUES: drawn.map(describeIssue).join('\n\n'),
           NOTICE: unmatchedNotice
-            ? Lang.getRef('giveIssue.noSkillMatch', data.lang)
-            : Lang.getRef('giveIssue.claimHint', data.lang),
+            ? Lang.getRef('findWork.noSkillMatch', data.lang)
+            : Lang.getRef('findWork.claimHint', data.lang),
         }),
       )
       components.push(
@@ -174,9 +174,9 @@ export class GiveIssueCommand implements Command {
     }
     if (reviews.length > 0) {
       embeds.push(
-        Lang.getEmbed('displayEmbeds.giveIssueReviews', data.lang, {
+        Lang.getEmbed('displayEmbeds.findWorkReviews', data.lang, {
           PULLS: reviews.map(describeReview).join('\n\n'),
-          HINT: Lang.getRef('giveIssue.reviewHint', data.lang),
+          HINT: Lang.getRef('findWork.reviewHint', data.lang),
         }),
       )
       components.push(
@@ -205,7 +205,7 @@ export class GiveIssueCommand implements Command {
       })
     } catch {
       await InteractionUtils.editReply(intr, {
-        embeds: [Lang.getEmbed('displayEmbeds.giveIssueTimedOut', data.lang)],
+        embeds: [Lang.getEmbed('displayEmbeds.findWorkTimedOut', data.lang)],
         components: [],
       })
       return
@@ -219,7 +219,7 @@ export class GiveIssueCommand implements Command {
     const choice = drawn[index]
     if (!choice) {
       await InteractionUtils.update(button, {
-        embeds: [Lang.getEmbed('displayEmbeds.giveIssueFailed', data.lang)],
+        embeds: [Lang.getEmbed('displayEmbeds.findWorkFailed', data.lang)],
         components: [],
       })
       return
@@ -231,7 +231,7 @@ export class GiveIssueCommand implements Command {
     if (existing) {
       await InteractionUtils.update(button, {
         embeds: [
-          Lang.getEmbed('displayEmbeds.giveIssueAlreadyClaimed', data.lang, {
+          Lang.getEmbed('displayEmbeds.findWorkAlreadyClaimed', data.lang, {
             REPO: issue.repo,
             NUMBER: issue.number.toString(),
           }),
@@ -247,7 +247,7 @@ export class GiveIssueCommand implements Command {
       // bot should raise that request itself is still open.
       await InteractionUtils.update(button, {
         embeds: [
-          Lang.getEmbed('displayEmbeds.giveIssueNeedsAccess', data.lang, {
+          Lang.getEmbed('displayEmbeds.findWorkNeedsAccess', data.lang, {
             LOGIN: githubLogin,
             REPO: issue.repo,
           }),
@@ -260,7 +260,7 @@ export class GiveIssueCommand implements Command {
     const result = await issuesService.assign(issue.repo, issue.number, githubLogin)
     if (result.status !== 'assigned') {
       await InteractionUtils.update(button, {
-        embeds: [Lang.getEmbed('displayEmbeds.giveIssueFailed', data.lang)],
+        embeds: [Lang.getEmbed('displayEmbeds.findWorkFailed', data.lang)],
         components: [],
       })
       return
@@ -278,12 +278,12 @@ export class GiveIssueCommand implements Command {
       // The assignment landed but the record didn't, so a later payout would
       // have nothing to attribute. Say so rather than implying a clean claim.
       Logger.error(
-        `/give-issue: assigned ${githubLogin} to ${issue.repo}#${issue.number} but failed to record the claim`,
+        `/find-work: assigned ${githubLogin} to ${issue.repo}#${issue.number} but failed to record the claim`,
         err,
       )
       await InteractionUtils.update(button, {
         embeds: [
-          Lang.getEmbed('displayEmbeds.giveIssueClaimNotRecorded', data.lang, {
+          Lang.getEmbed('displayEmbeds.findWorkClaimNotRecorded', data.lang, {
             REPO: issue.repo,
             NUMBER: issue.number.toString(),
             URL: issue.htmlUrl,
@@ -299,7 +299,7 @@ export class GiveIssueCommand implements Command {
     )
     await InteractionUtils.update(button, {
       embeds: [
-        Lang.getEmbed('displayEmbeds.giveIssueClaimed', data.lang, {
+        Lang.getEmbed('displayEmbeds.findWorkClaimed', data.lang, {
           REPO: issue.repo,
           NUMBER: issue.number.toString(),
           TITLE: issue.title,
@@ -320,7 +320,7 @@ export class GiveIssueCommand implements Command {
     const pullRequestsService = this.pullRequestsService
     if (!suggestion || !pullRequestsService) {
       await InteractionUtils.update(button, {
-        embeds: [Lang.getEmbed('displayEmbeds.giveIssueReviewFailed', data.lang)],
+        embeds: [Lang.getEmbed('displayEmbeds.findWorkReviewFailed', data.lang)],
         components: [],
       })
       return
@@ -331,7 +331,7 @@ export class GiveIssueCommand implements Command {
     if (result.status === 'not-assignable') {
       await InteractionUtils.update(button, {
         embeds: [
-          Lang.getEmbed('displayEmbeds.giveIssueReviewNeedsAccess', data.lang, {
+          Lang.getEmbed('displayEmbeds.findWorkReviewNeedsAccess', data.lang, {
             LOGIN: githubLogin,
             REPO: pr.repo,
           }),
@@ -342,7 +342,7 @@ export class GiveIssueCommand implements Command {
     }
     if (result.status !== 'assigned') {
       await InteractionUtils.update(button, {
-        embeds: [Lang.getEmbed('displayEmbeds.giveIssueReviewFailed', data.lang)],
+        embeds: [Lang.getEmbed('displayEmbeds.findWorkReviewFailed', data.lang)],
         components: [],
       })
       return
@@ -353,7 +353,7 @@ export class GiveIssueCommand implements Command {
     Logger.info(`${button.user.tag} requested review of ${pr.repo}#${pr.number} as ${githubLogin}`)
     await InteractionUtils.update(button, {
       embeds: [
-        Lang.getEmbed('displayEmbeds.giveIssueReviewRequested', data.lang, {
+        Lang.getEmbed('displayEmbeds.findWorkReviewRequested', data.lang, {
           LOGIN: githubLogin,
           REPO: pr.repo,
           NUMBER: pr.number.toString(),

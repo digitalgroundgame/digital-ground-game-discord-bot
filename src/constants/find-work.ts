@@ -10,7 +10,7 @@ export const DRAW_SIZE = 3
 /** Of those, how many are matched to the member's skill roles. The rest are wildcards. */
 export const MATCHED_SLOTS = 2
 
-/** An open, claimable issue as `/give-issue` sees it. */
+/** An open, claimable issue as `/find-work` sees it. */
 export interface CandidateIssue {
   /** `owner/name`, as GitHub spells it. */
   repo: string
@@ -29,20 +29,20 @@ export interface DrawnIssue {
   wildcard: boolean
 }
 
-interface GiveIssueConfig {
+interface FindWorkConfig {
   markerLabel: string
   excludeRepos: string[]
   allowedRoleKeys: string[]
 }
 
-const rawConfig = (Config.giveIssue ?? {}) as Partial<GiveIssueConfig>
+const rawConfig = (Config.findWork ?? {}) as Partial<FindWorkConfig>
 
 /**
  * The opt-in label an issue must carry to be offered. Curation lives on
  * GitHub rather than in this file — adding the label to an issue is what
  * advertises it, and removing the label withdraws it.
  */
-export const GiveIssueMarkerLabel: string =
+export const FindWorkMarkerLabel: string =
   typeof rawConfig.markerLabel === 'string' && rawConfig.markerLabel.trim() !== ''
     ? rawConfig.markerLabel.trim().toLowerCase()
     : 'available'
@@ -52,7 +52,7 @@ export const GiveIssueMarkerLabel: string =
  * the org, so this is the only lever for holding one back without unlabelling
  * every issue in it.
  */
-export const GiveIssueExcludedRepos: ReadonlySet<string> = new Set(
+export const FindWorkExcludedRepos: ReadonlySet<string> = new Set(
   (Array.isArray(rawConfig.excludeRepos) ? rawConfig.excludeRepos : [])
     .filter((repo): repo is string => typeof repo === 'string')
     .map((repo) => repo.trim().toLowerCase())
@@ -61,13 +61,13 @@ export const GiveIssueExcludedRepos: ReadonlySet<string> = new Set(
 
 /**
  * Role config keys (see `config.roles`) allowed to approve an access request
- * raised by a claim. This does *not* gate running `/give-issue` — the command
+ * raised by a claim. This does *not* gate running `/find-work` — the command
  * is open to every member.
  */
-export const GiveIssueApproverRoleKeys: RoleKey[] = validateAllowedRoleKeys(
+export const FindWorkApproverRoleKeys: RoleKey[] = validateAllowedRoleKeys(
   rawConfig.allowedRoleKeys,
-  'config.giveIssue.allowedRoleKeys',
-  '/give-issue',
+  'config.findWork.allowedRoleKeys',
+  '/find-work',
 )
 
 /**
@@ -98,7 +98,7 @@ export function skillSlugsForRoleNames(roleNames: readonly string[]): Set<string
   const slugs = new Set<string>()
   for (const name of roleNames) {
     const slug = toLabelSlug(name)
-    if (slug !== '' && slug !== GiveIssueMarkerLabel) slugs.add(slug)
+    if (slug !== '' && slug !== FindWorkMarkerLabel) slugs.add(slug)
   }
   return slugs
 }

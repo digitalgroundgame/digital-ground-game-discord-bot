@@ -15,7 +15,7 @@ export interface RecordClaimInput {
 
 /**
  * Records which Discord member claimed which GitHub issue through
- * `/give-issue`.
+ * `/find-work`.
  *
  * This table, not GitHub, is what makes a kudos payout attributable. The
  * payout job walks live claims and pays only a claimer who is still assigned

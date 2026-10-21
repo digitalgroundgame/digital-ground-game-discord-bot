@@ -8,7 +8,7 @@ const Config = require('../../config/config.json')
 
 /**
  * Re-read open pull requests and who has worked on the files they change, so
- * `/give-issue` can suggest reviews without walking histories mid-interaction.
+ * `/find-work` can suggest reviews without walking histories mid-interaction.
  *
  * Costs, per refresh: one request per public repo for its pulls, two per open
  * pull request (files and reviews), and one GraphQL query per twenty changed

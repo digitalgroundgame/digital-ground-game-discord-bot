@@ -33,15 +33,15 @@ export {
   DRAW_SIZE,
   type DrawnIssue,
   drawIssues,
-  GiveIssueApproverRoleKeys,
-  GiveIssueExcludedRepos,
-  GiveIssueMarkerLabel,
+  FindWorkApproverRoleKeys,
+  FindWorkExcludedRepos,
+  FindWorkMarkerLabel,
   issueMatchesSkills,
   MATCHED_SLOTS,
   partitionBySkills,
   skillSlugsForRoleNames,
   toLabelSlug,
-} from './give-issue.js'
+} from './find-work.js'
 export {
   type FileAuthorIndex,
   fileKey,
