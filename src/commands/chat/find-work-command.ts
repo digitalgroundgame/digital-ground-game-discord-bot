@@ -7,6 +7,7 @@ import {
   ComponentType,
   type EmbedBuilder,
   GuildMember,
+  type Locale,
   type PermissionsString,
 } from 'discord.js'
 import { RateLimiter } from 'discord.js-rate-limiter'
@@ -14,6 +15,7 @@ import { RateLimiter } from 'discord.js-rate-limiter'
 import {
   type DrawnIssue,
   drawIssues,
+  FindWorkPoints,
   type ReviewSuggestion,
   skillSlugsForRoleNames,
   partitionBySkills,
@@ -24,10 +26,10 @@ import { type EventData } from '../../models/internal-models.js'
 import {
   type GitHubIssuesService,
   type GitHubPullRequestsService,
-  type IssueClaimService,
   Lang,
   Logger,
   type UserService,
+  type WorkClaimService,
 } from '../../services/index.js'
 import { InteractionUtils } from '../../utils/index.js'
 import { type Command, CommandDeferType } from '../index.js'
@@ -43,6 +45,17 @@ function describeIssue(drawn: DrawnIssue, index: number): string {
     `**${index + 1}.** [${issue.repo} #${issue.number}](${issue.htmlUrl}) — ${issue.title}${tag}`,
     `> ${issue.labels.join(' · ')}`,
   ].join('\n')
+}
+
+/** "2 Democracy Points", pluralized the way `/democracy-points` does it. */
+function pointsText(points: number, lang: Locale): string {
+  const category = new Intl.PluralRules(lang).select(points)
+  return `${points} ${Lang.getRef(category === 'one' ? 'kudosUnits.one' : 'kudosUnits.other', lang)}`
+}
+
+/** The line promising a payout, or nothing when that payout is turned off. */
+function rewardLine(ref: string, points: number, lang: Locale): string {
+  return points > 0 ? Lang.getRef(ref, lang, { POINTS: pointsText(points, lang) }) : ''
 }
 
 /** How many of a suggestion's matched files to name before summarizing the rest. */
@@ -87,7 +100,7 @@ export class FindWorkCommand implements Command {
   constructor(
     private readonly issuesService?: GitHubIssuesService,
     private readonly userService?: UserService,
-    private readonly claimService?: IssueClaimService,
+    private readonly claimService?: WorkClaimService,
     private readonly pullRequestsService?: GitHubPullRequestsService,
   ) {}
 
@@ -95,7 +108,10 @@ export class FindWorkCommand implements Command {
     const issuesService = this.issuesService
     const userService = this.userService
     const claimService = this.claimService
-    if (!issuesService?.isConfigured() || !userService || !claimService) {
+    // The command is guild-only, so this only guards the type: points are
+    // paid per guild, and a claim needs one to be paid in.
+    const guildId = intr.guildId
+    if (!issuesService?.isConfigured() || !userService || !claimService || !guildId) {
       await InteractionUtils.send(
         intr,
         Lang.getEmbed('displayEmbeds.findWorkNotConfigured', data.lang),
@@ -213,7 +229,7 @@ export class FindWorkCommand implements Command {
 
     const index = Number.parseInt(button.customId.split('-').pop() ?? '', 10)
     if (button.customId.startsWith(reviewPrefix)) {
-      await this.requestReview(button, reviews[index], githubLogin, data)
+      await this.requestReview(button, reviews[index], githubLogin, guildId, claimService, data)
       return
     }
     const choice = drawn[index]
@@ -268,6 +284,7 @@ export class FindWorkCommand implements Command {
 
     try {
       await claimService.recordClaim({
+        guildId,
         discordUserId: intr.user.id,
         githubLogin,
         repo: issue.repo,
@@ -305,6 +322,11 @@ export class FindWorkCommand implements Command {
           TITLE: issue.title,
           URL: issue.htmlUrl,
           LOGIN: githubLogin,
+          REWARD: rewardLine(
+            'findWork.issueReward',
+            choice.wildcard ? FindWorkPoints.wildcardIssue : FindWorkPoints.issue,
+            data.lang,
+          ),
         }),
       ],
       components: [],
@@ -315,6 +337,8 @@ export class FindWorkCommand implements Command {
     button: ButtonInteraction,
     suggestion: ReviewSuggestion | undefined,
     githubLogin: string,
+    guildId: string,
+    claimService: WorkClaimService,
     data: EventData,
   ): Promise<void> {
     const pullRequestsService = this.pullRequestsService
@@ -348,8 +372,33 @@ export class FindWorkCommand implements Command {
       return
     }
 
-    // Reviews are not recorded as claims: the claim table is keyed to issues,
-    // and whether reviews should earn kudos is a separate decision.
+    try {
+      await claimService.recordReviewRequest({
+        guildId,
+        discordUserId: button.user.id,
+        githubLogin,
+        repo: pr.repo,
+        pullNumber: pr.number,
+      })
+    } catch (err: unknown) {
+      // Same as an unrecorded claim: the request landed, the payout won't.
+      Logger.error(
+        `/find-work: requested review of ${pr.repo}#${pr.number} from ${githubLogin} but failed to record it`,
+        err,
+      )
+      await InteractionUtils.update(button, {
+        embeds: [
+          Lang.getEmbed('displayEmbeds.findWorkReviewNotRecorded', data.lang, {
+            REPO: pr.repo,
+            NUMBER: pr.number.toString(),
+            URL: pr.htmlUrl,
+          }),
+        ],
+        components: [],
+      })
+      return
+    }
+
     Logger.info(`${button.user.tag} requested review of ${pr.repo}#${pr.number} as ${githubLogin}`)
     await InteractionUtils.update(button, {
       embeds: [
@@ -359,6 +408,7 @@ export class FindWorkCommand implements Command {
           NUMBER: pr.number.toString(),
           TITLE: pr.title,
           URL: pr.htmlUrl,
+          REWARD: rewardLine('findWork.reviewReward', FindWorkPoints.review, data.lang),
         }),
       ],
       components: [],

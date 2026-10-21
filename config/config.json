@@ -84,6 +84,12 @@
       "log": false,
       "runOnce": false,
       "initialDelaySecs": 0
+    },
+    "payFindWork": {
+      "schedule": "0 45 * * * *",
+      "log": false,
+      "runOnce": false,
+      "initialDelaySecs": 0
     }
   },
   "rateLimiting": {
@@ -149,7 +155,9 @@
     "// NOTE: excludeRepos": "Repositories never drawn from, as owner/name. Every other public repo in the org is in scope.",
     "excludeRepos": [],
     "// NOTE: allowedRoleKeys": "Who can approve an access request raised by a claim. Running /find-work is open to every member.",
-    "allowedRoleKeys": ["DIRECTOR", "COORDINATOR"]
+    "allowedRoleKeys": ["DIRECTOR", "COORDINATOR"],
+    "// NOTE: points": "Democracy Points paid automatically: per issue that closes as completed while the claimer is still assigned (wildcardIssue for one drawn from the wildcard slot), and per requested review the member submits. 0 turns that payout off.",
+    "points": { "issue": 1, "wildcardIssue": 2, "review": 1 }
   },
   "managedContent": {
     "// NOTE": "Role config keys (see roles below) allowed to run /content.",

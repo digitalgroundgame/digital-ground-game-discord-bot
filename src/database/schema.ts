@@ -88,6 +88,8 @@ export const issueClaim = sqliteTable(
   'issue_claim',
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
+    /** The guild the claim was made in, which is where its Democracy Points are paid. */
+    guildId: text('guild_id').notNull(),
     discordUserId: text('discord_user_id')
       .notNull()
       .references(() => user.discordUserId, { onDelete: 'cascade' }),
@@ -110,6 +112,46 @@ export const issueClaim = sqliteTable(
     uniqueIndex('issue_claim_repo_issue_state_uq').on(t.repo, t.issueNumber, t.state),
     // The payout job's read path: every unresolved claim, oldest first.
     index('issue_claim_state_claimed_at_idx').on(t.state, t.claimedAt),
+  ],
+)
+
+/** Where a review requested through `/find-work` has got to. */
+export const REVIEW_REQUEST_STATES = ['requested', 'completed', 'expired'] as const
+export type ReviewRequestState = (typeof REVIEW_REQUEST_STATES)[number]
+
+/**
+ * A pull request review a member took on through `/find-work`, recorded when
+ * the bot requested it on GitHub. Like `issue_claim`, it is what makes the
+ * Democracy Points payout attributable once the review is submitted.
+ */
+export const reviewRequest = sqliteTable(
+  'review_request',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    guildId: text('guild_id').notNull(),
+    discordUserId: text('discord_user_id')
+      .notNull()
+      .references(() => user.discordUserId, { onDelete: 'cascade' }),
+    githubLogin: text('github_login').notNull(),
+    /** `owner/name`, as GitHub spells it. */
+    repo: text('repo').notNull(),
+    pullNumber: integer('pull_number').notNull(),
+    state: text('state', { enum: REVIEW_REQUEST_STATES }).notNull().default('requested'),
+    requestedAt: integer('requested_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    resolvedAt: integer('resolved_at', { mode: 'timestamp' }),
+  },
+  (t) => [
+    // Several members can review one pull request, but each holds at most one
+    // live request on it.
+    uniqueIndex('review_request_repo_pull_login_state_uq').on(
+      t.repo,
+      t.pullNumber,
+      t.githubLogin,
+      t.state,
+    ),
+    index('review_request_state_requested_at_idx').on(t.state, t.requestedAt),
   ],
 )
 
@@ -158,5 +200,7 @@ export type NewLinkedAccount = typeof linkedAccount.$inferInsert
 export type ContentOverride = typeof contentOverride.$inferSelect
 export type IssueClaim = typeof issueClaim.$inferSelect
 export type NewIssueClaim = typeof issueClaim.$inferInsert
+export type ReviewRequest = typeof reviewRequest.$inferSelect
+export type NewReviewRequest = typeof reviewRequest.$inferInsert
 export type KudosTransaction = typeof kudosTransaction.$inferSelect
 export type NewKudosTransaction = typeof kudosTransaction.$inferInsert

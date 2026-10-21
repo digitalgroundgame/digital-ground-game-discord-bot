@@ -25,6 +25,44 @@ export type GiveKudosResult =
   | { status: 'duplicate' }
   | { status: 'cooldown'; retryAt: Date }
 
+/** A transaction on the app database, as handed to `db.transaction`'s callback. */
+export type DatabaseTransaction = Parameters<Parameters<Database['transaction']>[0]>[0]
+
+/** Points the bot pays out itself, rather than one member giving another. */
+export interface PointsAward {
+  guildId: string
+  /** The bot's own user id, so the ledger shows the award wasn't a member's give. */
+  giverDiscordId: string
+  receiverDiscordId: string
+  reason: string
+  points: number
+}
+
+/**
+ * Write a system award as `points` ledger rows — totals and leaderboards
+ * count rows, so this is how an award worth more than one point is recorded.
+ *
+ * Skips the self, duplicate and cooldown checks in `giveKudos`: those police
+ * members giving each other points, and a payout is instead made idempotent
+ * by the claim it settles, which the caller must update in the same
+ * transaction.
+ */
+export function insertPointsAward(tx: DatabaseTransaction, award: PointsAward): void {
+  if (award.points <= 0) return
+  const createdAt = new Date()
+  tx.insert(kudosTransaction)
+    .values(
+      Array.from({ length: award.points }, () => ({
+        guildId: award.guildId,
+        giverDiscordId: award.giverDiscordId,
+        receiverDiscordId: award.receiverDiscordId,
+        reason: award.reason,
+        createdAt,
+      })),
+    )
+    .run()
+}
+
 /**
  * Tracks kudos given between members as an append-only ledger. Totals and
  * leaderboards are derived by querying the ledger rather than kept in a

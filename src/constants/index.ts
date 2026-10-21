@@ -36,6 +36,8 @@ export {
   FindWorkApproverRoleKeys,
   FindWorkExcludedRepos,
   FindWorkMarkerLabel,
+  FindWorkPoints,
+  type FindWorkPointsConfig,
   issueMatchesSkills,
   MATCHED_SLOTS,
   partitionBySkills,

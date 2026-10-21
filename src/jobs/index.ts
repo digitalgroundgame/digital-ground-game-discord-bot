@@ -1,5 +1,6 @@
 export { AutoCloseWelcomeThreadsJob } from './auto-close-welcome-threads-job.js'
 export { Job } from './job.js'
+export { PayFindWorkJob } from './pay-find-work-job.js'
 export { RefreshGitHubIssuesJob } from './refresh-github-issues-job.js'
 export { RefreshGitHubPullRequestsJob } from './refresh-github-pull-requests-job.js'
 export { RefreshGitHubTeamsJob } from './refresh-github-teams-job.js'

@@ -5,6 +5,7 @@ import {
   historyPathFor,
   parseHistory,
   toOpenPullRequest,
+  toSubmittedReviews,
 } from '../../src/services/github-pull-requests-service.js'
 
 function raw(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -97,5 +98,19 @@ describe('parseHistory', () => {
 
   it('returns nothing for an empty repository', () => {
     expect(parseHistory({ repository: { defaultBranchRef: null } }, ['a.ts']).size).toBe(0)
+  })
+})
+
+describe('toSubmittedReviews', () => {
+  it('reads submitted reviews and skips pending or malformed ones', () => {
+    expect(
+      toSubmittedReviews([
+        { user: { login: 'Alice' }, state: 'APPROVED', submitted_at: '2026-10-02T00:00:00Z' },
+        { user: { login: 'bob' }, state: 'PENDING' },
+        { user: null, state: 'COMMENTED', submitted_at: '2026-10-02T00:00:00Z' },
+      ]),
+    ).toEqual([
+      { login: 'alice', state: 'APPROVED', submittedAt: new Date('2026-10-02T00:00:00Z') },
+    ])
   })
 })

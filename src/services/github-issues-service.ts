@@ -23,6 +23,33 @@ export type AssignResult =
   | { status: 'not-configured' }
   | { status: 'error'; message: string }
 
+/** What the payout job needs to know about a claimed issue. */
+export interface IssueStatus {
+  state: 'open' | 'closed'
+  /** GitHub's `state_reason`: `completed`, `not_planned`, `duplicate`, `reopened`, or null. */
+  stateReason: string | null
+  /** Assignee logins, lowercased. */
+  assignees: string[]
+}
+
+/** Read an issues-API entry into an `IssueStatus`, or null if it isn't one. Exported for tests. */
+export function toIssueStatus(raw: unknown): IssueStatus | null {
+  const body = raw as { state?: unknown; state_reason?: unknown; assignees?: unknown } | null
+  if (body?.state !== 'open' && body?.state !== 'closed') return null
+  const assignees = Array.isArray(body.assignees)
+    ? body.assignees
+        .map((a: { login?: unknown }) =>
+          typeof a?.login === 'string' ? a.login.toLowerCase() : '',
+        )
+        .filter((login) => login !== '')
+    : []
+  return {
+    state: body.state,
+    stateReason: typeof body.state_reason === 'string' ? body.state_reason : null,
+    assignees,
+  }
+}
+
 interface RawLabel {
   name?: unknown
 }
@@ -161,6 +188,20 @@ export class GitHubIssuesService {
         err,
       )
       return false
+    }
+  }
+
+  /** The current state of one issue, or null if it couldn't be read. */
+  public async getIssueStatus(repo: string, issueNumber: number): Promise<IssueStatus | null> {
+    if (!this.isConfigured()) return null
+    try {
+      return toIssueStatus(await githubGet(this.token, `/repos/${repo}/issues/${issueNumber}`))
+    } catch (err: unknown) {
+      Logger.error(
+        `GitHub Issues: failed to read ${repo}#${issueNumber}: ${describeError(err)}`,
+        err,
+      )
+      return null
     }
   }
 

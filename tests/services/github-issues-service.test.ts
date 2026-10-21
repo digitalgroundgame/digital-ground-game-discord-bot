@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { toCandidateIssue } from '../../src/services/github-issues-service.js'
+import { toCandidateIssue, toIssueStatus } from '../../src/services/github-issues-service.js'
 
 function raw(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -61,5 +61,22 @@ describe('toCandidateIssue', () => {
   it('rejects an unparseable timestamp rather than sorting on NaN', () => {
     expect(toCandidateIssue('r/x', raw({ updated_at: 'not a date' }))).toBeNull()
     expect(toCandidateIssue('r/x', raw({ updated_at: undefined }))).toBeNull()
+  })
+})
+
+describe('toIssueStatus', () => {
+  it('reads state, close reason and lowercased assignees', () => {
+    expect(
+      toIssueStatus({
+        state: 'closed',
+        state_reason: 'completed',
+        assignees: [{ login: 'Alice' }, { login: 'bob' }],
+      }),
+    ).toEqual({ state: 'closed', stateReason: 'completed', assignees: ['alice', 'bob'] })
+  })
+
+  it('rejects an entry without a known state', () => {
+    expect(toIssueStatus({ state: 'weird' })).toBeNull()
+    expect(toIssueStatus(null)).toBeNull()
   })
 })

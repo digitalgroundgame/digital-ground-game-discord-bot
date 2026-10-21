@@ -46,6 +46,7 @@ import {
 import { CustomClient } from './extensions/index.js'
 import {
   AutoCloseWelcomeThreadsJob,
+  PayFindWorkJob,
   RefreshGitHubIssuesJob,
   RefreshGitHubPullRequestsJob,
   RefreshGitHubTeamsJob,
@@ -61,16 +62,17 @@ import {
   ContentService,
   CrmService,
   EventDataService,
+  FindWorkPayoutService,
   GitHubIssuesService,
   GitHubPullRequestsService,
   GitHubTeamsService,
-  IssueClaimService,
   GoogleCalendarService,
   GoogleGroupsService,
   JobService,
   KudosService,
   Logger,
   UserService,
+  WorkClaimService,
 } from './services/index.js'
 import { CTAPostTrigger } from './triggers/cta-post.js'
 import { type Trigger } from './triggers/index.js'
@@ -184,7 +186,7 @@ async function start(): Promise<void> {
   // Stores the external accounts members link via /link-account, and is read
   // by /grant-access to resolve a member's Google email.
   const userService = database ? new UserService(database) : undefined
-  const issueClaimService = database ? new IssueClaimService(database) : undefined
+  const workClaimService = database ? new WorkClaimService(database) : undefined
   // Backs /democracy-points and the kudos reaction. Without a database, the command reports
   // itself as unconfigured and the reaction isn't registered.
   const kudosService = database ? new KudosService(database) : undefined
@@ -218,7 +220,7 @@ async function start(): Promise<void> {
     new FindWorkCommand(
       githubIssuesService,
       userService,
-      issueClaimService,
+      workClaimService,
       githubPullRequestsService,
     ),
     new KudosCommand(kudosService),
@@ -278,6 +280,20 @@ async function start(): Promise<void> {
   }
   if (githubPullRequestsService.isConfigured()) {
     jobs.push(new RefreshGitHubPullRequestsJob(githubPullRequestsService))
+  }
+  // Pays Democracy Points for finished /find-work claims. The bot's
+  // application id is its user id, and is recorded as the giver.
+  if (githubIssuesService.isConfigured() && workClaimService) {
+    jobs.push(
+      new PayFindWorkJob(
+        new FindWorkPayoutService(
+          githubIssuesService,
+          githubPullRequestsService,
+          workClaimService,
+          process.env.DISCORD_CLIENT_ID,
+        ),
+      ),
+    )
   }
 
   // Bot

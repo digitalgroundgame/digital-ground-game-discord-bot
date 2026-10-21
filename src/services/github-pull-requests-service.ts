@@ -58,6 +58,38 @@ function lowerLogin(user: unknown): string | null {
   return typeof login === 'string' ? login.toLowerCase() : null
 }
 
+/** A review someone has submitted on a pull request. */
+export interface SubmittedReview {
+  /** Lowercased. */
+  login: string
+  /** GitHub's review state: `APPROVED`, `CHANGES_REQUESTED`, `COMMENTED`, `DISMISSED`, … */
+  state: string
+  submittedAt: Date
+}
+
+/** What the payout job needs to know about a pull request a review was requested on. */
+export interface PullRequestStatus {
+  state: 'open' | 'closed'
+  reviews: SubmittedReview[]
+}
+
+/** Read a reviews-API page into submitted reviews, skipping pending or malformed ones. Exported for tests. */
+export function toSubmittedReviews(raw: unknown): SubmittedReview[] {
+  if (!Array.isArray(raw)) return []
+  const reviews: SubmittedReview[] = []
+  for (const entry of raw) {
+    const review = entry as { user?: unknown; state?: unknown; submitted_at?: unknown }
+    const login = lowerLogin(review.user)
+    if (login === null || typeof review.state !== 'string') continue
+    // A pending review has no submission time yet.
+    if (typeof review.submitted_at !== 'string') continue
+    const submittedAt = new Date(review.submitted_at)
+    if (Number.isNaN(submittedAt.getTime())) continue
+    reviews.push({ login, state: review.state, submittedAt })
+  }
+  return reviews
+}
+
 /**
  * Convert one pulls-API entry into an open pull request with no files or
  * reviews filled in yet, or null if it should not be offered. Exported for
@@ -316,6 +348,36 @@ export class GitHubPullRequestsService {
         err,
       )
       return false
+    }
+  }
+
+  /** A pull request's state and submitted reviews, or null if they couldn't be read. */
+  public async getPullRequestStatus(
+    repo: string,
+    pullNumber: number,
+  ): Promise<PullRequestStatus | null> {
+    if (!this.isConfigured()) return null
+    try {
+      const pull = (await githubGet(this.token, `/repos/${repo}/pulls/${pullNumber}`)) as {
+        state?: unknown
+      } | null
+      if (pull?.state !== 'open' && pull?.state !== 'closed') return null
+      const reviews: SubmittedReview[] = []
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const body = await githubGet(
+          this.token,
+          `/repos/${repo}/pulls/${pullNumber}/reviews?per_page=${PAGE_SIZE}&page=${page}`,
+        )
+        reviews.push(...toSubmittedReviews(body))
+        if (!Array.isArray(body) || body.length < PAGE_SIZE) break
+      }
+      return { state: pull.state, reviews }
+    } catch (err: unknown) {
+      Logger.error(
+        `GitHub Pull Requests: failed to read ${repo}#${pullNumber}: ${describeError(err)}`,
+        err,
+      )
+      return null
     }
   }
 

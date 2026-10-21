@@ -279,7 +279,7 @@
         "description": "{{ISSUES}}\n\n{{NOTICE}}"
       },
       "findWorkClaimed": {
-        "description": "Assigned **{{LOGIN}}** to [{{REPO}} #{{NUMBER}}]({{URL}}) — {{TITLE}}.\n\nIt’s yours. If you don’t get to it, say so and a lead can hand it back."
+        "description": "Assigned **{{LOGIN}}** to [{{REPO}} #{{NUMBER}}]({{URL}}) — {{TITLE}}.\n\nIt’s yours. If you don’t get to it, say so and a lead can hand it back.\n\n{{REWARD}}"
       },
       "findWorkAlreadyClaimed": {
         "description": "Someone claimed **{{REPO}} #{{NUMBER}}** just before you did. Run the command again for a fresh draw.",
@@ -290,7 +290,7 @@
         "color": "{{COM:colors.warning}}"
       },
       "findWorkClaimNotRecorded": {
-        "description": "You’ve been assigned to [{{REPO}} #{{NUMBER}}]({{URL}}), but the claim wasn’t recorded, so it won’t count toward kudos. Let a lead know.",
+        "description": "You’ve been assigned to [{{REPO}} #{{NUMBER}}]({{URL}}), but the claim wasn’t recorded, so it won’t earn {{COM:pointsName.other}}. Let a lead know.",
         "color": "{{COM:colors.warning}}"
       },
       "findWorkReviews": {
@@ -298,7 +298,11 @@
         "description": "{{PULLS}}\n\n{{HINT}}"
       },
       "findWorkReviewRequested": {
-        "description": "Requested a review from **{{LOGIN}}** on [{{REPO}} #{{NUMBER}}]({{URL}}) — {{TITLE}}."
+        "description": "Requested a review from **{{LOGIN}}** on [{{REPO}} #{{NUMBER}}]({{URL}}) — {{TITLE}}.\n\n{{REWARD}}"
+      },
+      "findWorkReviewNotRecorded": {
+        "description": "You’ve been requested as a reviewer on [{{REPO}} #{{NUMBER}}]({{URL}}), but it wasn’t recorded, so it won’t earn {{COM:pointsName.other}}. Let a lead know.",
+        "color": "{{COM:colors.warning}}"
       },
       "findWorkReviewNeedsAccess": {
         "description": "GitHub won’t request a review from **{{LOGIN}}** on **{{REPO}}** yet. That usually means an organization invitation is still unaccepted — check your email, then ask a lead about `/grant-access` if it persists.",
@@ -644,6 +648,8 @@
     },
     "findWork": {
       "claimHint": "Pick one to have yourself assigned on GitHub.",
+      "issueReward": "You’ll earn **{{POINTS}}** when it closes as completed while you’re still assigned.",
+      "reviewReward": "You’ll earn **{{POINTS}}** once you submit your review.",
       "reviewHint": "You’ve committed to files these change. Pick one to be requested as a reviewer.",
       "noSkillMatch": "None of your skill roles matched a labelled issue, so these are all wildcards. If that looks wrong, the role name and the GitHub label probably don't line up — tell a lead."
     }

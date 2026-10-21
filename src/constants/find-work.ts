@@ -33,6 +33,14 @@ interface FindWorkConfig {
   markerLabel: string
   excludeRepos: string[]
   allowedRoleKeys: string[]
+  points: Partial<Record<keyof FindWorkPointsConfig, unknown>>
+}
+
+/** Democracy Points paid for finished `/find-work` claims. */
+export interface FindWorkPointsConfig {
+  issue: number
+  wildcardIssue: number
+  review: number
 }
 
 const rawConfig = (Config.findWork ?? {}) as Partial<FindWorkConfig>
@@ -69,6 +77,30 @@ export const FindWorkApproverRoleKeys: RoleKey[] = validateAllowedRoleKeys(
   'config.findWork.allowedRoleKeys',
   '/find-work',
 )
+
+/** Payouts above this are almost certainly a typo, and would swamp the leaderboard. */
+const MAX_POINTS_PER_PAYOUT = 10
+
+function readPoints(key: keyof FindWorkPointsConfig, fallback: number): number {
+  const raw = rawConfig.points?.[key]
+  if (raw === undefined) return fallback
+  if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 0 || raw > MAX_POINTS_PER_PAYOUT) {
+    throw new Error(
+      `config.findWork.points.${key} must be a whole number from 0 to ${MAX_POINTS_PER_PAYOUT} (got: ${String(raw)})`,
+    )
+  }
+  return raw
+}
+
+/**
+ * Democracy Points paid automatically by the payout job (see
+ * `FindWorkPayoutService`). Zero turns that kind of payout off.
+ */
+export const FindWorkPoints: FindWorkPointsConfig = {
+  issue: readPoints('issue', 1),
+  wildcardIssue: readPoints('wildcardIssue', 2),
+  review: readPoints('review', 1),
+}
 
 /**
  * Normalize a Discord role name or a GitHub label into a comparable slug:

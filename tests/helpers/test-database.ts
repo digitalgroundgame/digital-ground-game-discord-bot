@@ -60,6 +60,40 @@ export function createTestDatabase(): TestDatabase {
       ON "kudos_transaction" ("guild_id", "giver_discord_id", "receiver_discord_id", "created_at");
     CREATE INDEX "kudos_transaction_guild_message_giver_idx"
       ON "kudos_transaction" ("guild_id", "message_id", "giver_discord_id");
+
+    CREATE TABLE "issue_claim" (
+      "id" integer PRIMARY KEY AUTOINCREMENT,
+      "guild_id" text NOT NULL,
+      "discord_user_id" text NOT NULL,
+      "github_login" text NOT NULL,
+      "repo" text NOT NULL,
+      "issue_number" integer NOT NULL,
+      "wildcard" integer NOT NULL DEFAULT false,
+      "state" text NOT NULL DEFAULT 'claimed',
+      "claimed_at" integer NOT NULL DEFAULT (unixepoch()),
+      "resolved_at" integer,
+      FOREIGN KEY ("discord_user_id") REFERENCES "user" ("discord_user_id") ON DELETE cascade
+    );
+    CREATE UNIQUE INDEX "issue_claim_repo_issue_state_uq"
+      ON "issue_claim" ("repo", "issue_number", "state");
+    CREATE INDEX "issue_claim_state_claimed_at_idx" ON "issue_claim" ("state", "claimed_at");
+
+    CREATE TABLE "review_request" (
+      "id" integer PRIMARY KEY AUTOINCREMENT,
+      "guild_id" text NOT NULL,
+      "discord_user_id" text NOT NULL,
+      "github_login" text NOT NULL,
+      "repo" text NOT NULL,
+      "pull_number" integer NOT NULL,
+      "state" text NOT NULL DEFAULT 'requested',
+      "requested_at" integer NOT NULL DEFAULT (unixepoch()),
+      "resolved_at" integer,
+      FOREIGN KEY ("discord_user_id") REFERENCES "user" ("discord_user_id") ON DELETE cascade
+    );
+    CREATE UNIQUE INDEX "review_request_repo_pull_login_state_uq"
+      ON "review_request" ("repo", "pull_number", "github_login", "state");
+    CREATE INDEX "review_request_state_requested_at_idx"
+      ON "review_request" ("state", "requested_at");
   `)
   return drizzle(sqlite, { schema })
 }
