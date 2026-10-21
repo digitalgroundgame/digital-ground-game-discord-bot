@@ -167,6 +167,16 @@ describe('GitHubTeamsService', () => {
       expect(result).toEqual({ status: 'error', message: 'no response after 10000ms' })
     })
 
+    it('names the timeout when node-fetch aborts the request', async () => {
+      const abort = new Error('The operation was aborted.')
+      abort.name = 'AbortError'
+      fetchMock.mockRejectedValue(abort)
+
+      const result = await new GitHubTeamsService('t', 'dgg').addMember('dev-team', 'octocat')
+
+      expect(result).toEqual({ status: 'error', message: 'no response after 10000ms' })
+    })
+
     it('surfaces the message from a network failure', async () => {
       fetchMock.mockRejectedValue(new Error('ENOTFOUND api.github.com'))
 

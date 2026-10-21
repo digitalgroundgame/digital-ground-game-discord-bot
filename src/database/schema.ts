@@ -113,6 +113,44 @@ export const issueClaim = sqliteTable(
   ],
 )
 
+/**
+ * A single kudos "give" from one member to another. Kept as an append-only
+ * ledger (rather than a running total column) so totals, weekly/monthly
+ * leaderboard windows, and the give cooldown can all be derived from the same
+ * rows instead of kept in sync by hand.
+ */
+export const kudosTransaction = sqliteTable(
+  'kudos_transaction',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    guildId: text('guild_id').notNull(),
+    giverDiscordId: text('giver_discord_id').notNull(),
+    receiverDiscordId: text('receiver_discord_id').notNull(),
+    reason: text('reason'),
+    // Set when kudos was given by reacting to a message.
+    channelId: text('channel_id'),
+    messageId: text('message_id'),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => [
+    // Totals: count a receiver's rows within a guild.
+    index('kudos_transaction_guild_receiver_idx').on(t.guildId, t.receiverDiscordId),
+    // Leaderboards: filter a guild's rows to the current calendar window.
+    index('kudos_transaction_guild_created_idx').on(t.guildId, t.createdAt),
+    // Cooldown check: has this giver already given to this receiver recently.
+    index('kudos_transaction_guild_giver_receiver_idx').on(
+      t.guildId,
+      t.giverDiscordId,
+      t.receiverDiscordId,
+      t.createdAt,
+    ),
+    // Duplicate check: has this giver already given kudos for this message.
+    index('kudos_transaction_guild_message_giver_idx').on(t.guildId, t.messageId, t.giverDiscordId),
+  ],
+)
+
 export type User = typeof user.$inferSelect
 export type NewUser = typeof user.$inferInsert
 export type LinkedAccount = typeof linkedAccount.$inferSelect
@@ -120,3 +158,5 @@ export type NewLinkedAccount = typeof linkedAccount.$inferInsert
 export type ContentOverride = typeof contentOverride.$inferSelect
 export type IssueClaim = typeof issueClaim.$inferSelect
 export type NewIssueClaim = typeof issueClaim.$inferInsert
+export type KudosTransaction = typeof kudosTransaction.$inferSelect
+export type NewKudosTransaction = typeof kudosTransaction.$inferInsert

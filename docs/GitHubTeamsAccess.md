@@ -186,7 +186,7 @@ the Discord side, by `grantAccess.allowedRoleKeys` in `config.json`.
 That makes the Discord role the real access control on your GitHub org
 membership: anyone holding it is exercising the token account's authority,
 bounded only by what the command exposes — any team in the org that is not on
-`excludeTeams`, at either team role including maintainer (see
+`excludeTeams`, at either `role: member` or `role: maintainer` (see
 [Team roles](#team-roles)), and only against usernames someone has linked with
 `/link-account`.
 
@@ -208,7 +208,7 @@ to the token's account, not to the person who ran the command. The Discord
 actor is recorded only in the bot's own logs:
 
 ```
-<discord-tag> granted <target-tag> access to team '<shortname>' — active
+<discord-tag> granted <target-tag> access to team '<shortname>' as <role> — <status>
 ```
 
 Answering "who added this person" needs both logs together.

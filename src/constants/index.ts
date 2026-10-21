@@ -51,3 +51,9 @@ export {
   type ReviewSuggestion,
   suggestReviews,
 } from './review-suggestions.js'
+export {
+  KudosEmoji,
+  KudosGiveAllowedRoleKeys,
+  KudosGiveCooldownDays,
+  KudosLeaderboardTimeZone,
+} from './kudos.js'
