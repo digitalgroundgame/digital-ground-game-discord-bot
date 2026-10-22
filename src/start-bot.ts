@@ -27,7 +27,7 @@ import {
   type Command,
 } from './commands/index.js'
 import { ONBOARDING_CONFIGS, SendOnboarding } from './commands/user/index.js'
-import { KudosGiveAllowedRoleKeys } from './constants/index.js'
+import { GitHubExcludedTeamSlugs, KudosGiveAllowedRoleKeys } from './constants/index.js'
 import { createDatabase, type Database } from './database/index.js'
 import {
   ButtonHandler,
@@ -134,12 +134,18 @@ async function start(): Promise<void> {
   }
 
   // Token and org used by /grant-access to discover GitHub teams and manage
-  // their membership.
+  // their membership. Fails closed: every team not excluded is grantable, so
+  // the token is withheld until at least one team is excluded.
+  const githubExclusionsSet = GitHubExcludedTeamSlugs.size > 0
   const githubTeamsService = new GitHubTeamsService(
-    process.env.GITHUB_TEAMS_TOKEN,
+    githubExclusionsSet ? process.env.GITHUB_TEAMS_TOKEN : undefined,
     process.env.GITHUB_TEAMS_ORG,
   )
-  if (!githubTeamsService.isConfigured()) {
+  if (!githubExclusionsSet && process.env.GITHUB_TEAMS_TOKEN?.trim()) {
+    Logger.warn(
+      '/grant-access: disabled for service:github — grantAccess.excludeTeams in config.json is empty, which would make every org team grantable. List at least one team slug (e.g. an admin or leadership team) to enable it.',
+    )
+  } else if (!githubTeamsService.isConfigured()) {
     Logger.warn(
       '/grant-access: disabled for service:github — set GITHUB_TEAMS_TOKEN (a token from an org owner or team maintainer with the Members org permission / admin:org scope) and GITHUB_TEAMS_ORG (the organization its teams are read from). /link-account remains available.',
     )

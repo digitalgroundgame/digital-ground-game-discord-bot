@@ -170,9 +170,6 @@
       "grantAccessAlreadyMember": {
         "description": "{{USER}} is already a member of the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}}."
       },
-      "grantAccessPending": {
-        "description": "{{USER}} was invited to the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}} as `{{IDENTIFIER}}`. They'll be added once they accept the invite."
-      },
       "grantAccessFailed": {
         "description": "Couldn't add {{USER}} to the **{{TEAM_LABEL}}** team. Please try again or contact an administrator.",
         "color": "{{COM:colors.warning}}"
@@ -410,6 +407,10 @@
       "member": "Member",
       "maintainer": "Maintainer (can add and remove this team's members on GitHub)"
     },
+    "githubTeamRoleLabels": {
+      "member": "Member",
+      "maintainer": "Maintainer"
+    },
     "arguments": {
       "command": "command",
       "contentKey": "key",
@@ -568,6 +569,14 @@
     "kudosUnits": {
       "one": "{{COM:pointsName.one}}",
       "other": "{{COM:pointsName.other}}"
+    },
+    "grantAccessResources": {
+      "google": "Google Group",
+      "github": "GitHub team"
+    },
+    "grantAccessRequirements": {
+      "google": "The service account credentials and database connection must be set.",
+      "github": "A GitHub API token, an organization, a list of excluded teams, and a database connection must be set."
     },
     "kudosAnnouncement": {
       "given": "{{EMOJI}} {{GIVER}} gave {{RECEIVER}} a {{COM:pointsName.one}}!",

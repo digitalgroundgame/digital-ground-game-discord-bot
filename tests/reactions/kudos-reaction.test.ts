@@ -212,6 +212,25 @@ describe('KudosReaction', () => {
     })
   })
 
+  it('removes the coin without any lookup once a member passes their attempt limit', async () => {
+    reaction = new KudosReaction(service, {
+      allowedRoleIds: [ServerRoles.ADMIN.id],
+      attemptLimit: { amount: 2, intervalMs: 60_000 },
+    })
+    const giveSpy = vi.spyOn(service, 'giveKudos')
+
+    for (let i = 0; i < 2; i++) {
+      const { msgReaction, msg, reactor } = createContext({ authorId: GIVER_ID })
+      await reaction.execute(msgReaction, msg, reactor, data)
+    }
+    const limited = createContext({ reactorRoleIds: [ServerRoles.ADMIN.id] })
+    await reaction.execute(limited.msgReaction, limited.msg, limited.reactor, data)
+
+    expect(limited.guild.members.fetch).not.toHaveBeenCalled()
+    expect(giveSpy).not.toHaveBeenCalled()
+    expect(limited.msgReaction.users.remove).toHaveBeenCalledWith(GIVER_ID)
+  })
+
   it('logs a warning instead of throwing when the reaction cannot be removed', async () => {
     const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => {})
     const { msgReaction, msg, reactor } = createContext({ authorId: GIVER_ID, removeFails: true })

@@ -8,12 +8,7 @@ import {
 } from 'discord.js'
 import { RateLimiter } from 'discord.js-rate-limiter'
 
-import {
-  KudosEmoji,
-  KudosGiveAllowedRoleKeys,
-  ServerRoles,
-  getRoleNameById,
-} from '../../constants/index.js'
+import { KudosEmoji, KudosGiveAllowedRoleIds, getRoleNameById } from '../../constants/index.js'
 import { KudosSubcommand } from '../../enums/index.js'
 import { Language } from '../../models/enum-helpers/index.js'
 import { type EventData } from '../../models/internal-models.js'
@@ -25,8 +20,6 @@ import {
 } from '../../services/index.js'
 import { InteractionUtils, RoleUtils } from '../../utils/index.js'
 import { type Command, CommandDeferType } from '../index.js'
-
-const GIVE_ALLOWED_ROLE_IDS = KudosGiveAllowedRoleKeys.map((key) => ServerRoles[key].id)
 
 export interface KudosCommandOptions {
   /** Roles allowed to give Democracy Points; empty means anyone. Defaults to config. */
@@ -61,7 +54,7 @@ export class KudosCommand implements Command {
     private readonly kudosService?: KudosService,
     options: KudosCommandOptions = {},
   ) {
-    this.giveAllowedRoleIds = options.giveAllowedRoleIds ?? GIVE_ALLOWED_ROLE_IDS
+    this.giveAllowedRoleIds = options.giveAllowedRoleIds ?? KudosGiveAllowedRoleIds
   }
 
   public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
