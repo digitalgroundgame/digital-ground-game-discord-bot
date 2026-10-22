@@ -303,6 +303,34 @@
       "kudosNotConfigured": {
         "description": "{{COM:pointsName.other}} aren't configured on this bot. The database connection must be set.",
         "color": "{{COM:colors.warning}}"
+      },
+      "clipSubmitted": {
+        "description": "Thanks! Your clip suggestion was sent to the media team: {{LINK}}",
+        "color": "{{COM:colors.success}}"
+      },
+      "clipNotConfigured": {
+        "description": "Clip suggestions aren't set up yet. Please try again later, or let a media team member know.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "clipDeliveryFailed": {
+        "description": "Your clip suggestion couldn't be delivered to the media team. Please try again later, or let a media team member know.",
+        "color": "{{COM:colors.error}}"
+      },
+      "clipInvalidUrl": {
+        "description": "That doesn't look like a video link. Paste the full link, starting with `https://`.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "clipMissingStart": {
+        "description": "Add a `start` time, or use a link that already has a timestamp (for example one ending in `&t=1h2m3s`).",
+        "color": "{{COM:colors.warning}}"
+      },
+      "clipInvalidTime": {
+        "description": "I couldn't read the `{{FIELD}}` time. Use a format like `1:02:03`, `62:03`, `1h2m3s`, or plain seconds such as `3723`.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "clipEndBeforeStart": {
+        "description": "The `end` time ({{END}}) must be after the start time ({{START}}).",
+        "color": "{{COM:colors.warning}}"
       }
     },
     "validationEmbeds": {
@@ -396,7 +424,8 @@
       "grantAccess": "grant-access",
       "linkAccount": "link-account",
       "pingSkillRole": "ping-skill-role",
-      "kudos": "democracy-points"
+      "kudos": "democracy-points",
+      "clip": "clip"
     },
     "userCommands": {
       "sendDevOnboarding": "Send Dev Onboarding",
@@ -424,7 +453,10 @@
       "skill": "skill",
       "note": "note",
       "reason": "reason",
-      "period": "period"
+      "period": "period",
+      "url": "url",
+      "start": "start",
+      "end": "end"
     },
     "commandDescs": {
       "content": "View or edit bot-managed content (welcome, onboarding, rules text).",
@@ -445,7 +477,8 @@
       "kudos": "Give {{COM:pointsName.other}}, view a member's total, or check the leaderboard.",
       "kudosGive": "Give a member a {{COM:pointsName.one}} for something they did well.",
       "kudosView": "View a member's total {{COM:pointsName.other}}.",
-      "kudosLeaderboard": "View the weekly or monthly {{COM:pointsName.other}} leaderboard."
+      "kudosLeaderboard": "View the weekly or monthly {{COM:pointsName.other}} leaderboard.",
+      "clip": "Suggest a moment from a video for the media team to clip."
     },
     "argDescs": {
       "contentKey": "The content entry to manage.",
@@ -466,7 +499,11 @@
       "kudosGiveUser": "The member to give a {{COM:pointsName.one}} to.",
       "kudosGiveReason": "Optional: what you're giving the {{COM:pointsName.one}} for.",
       "kudosViewUser": "The member to view {{COM:pointsName.other}} for (defaults to you).",
-      "kudosLeaderboardPeriod": "Weekly or monthly leaderboard."
+      "kudosLeaderboardPeriod": "Weekly or monthly leaderboard.",
+      "clipUrl": "Video link (YouTube, Twitch, etc.). A link with a timestamp works on its own.",
+      "clipStart": "Where the clip starts, e.g. 1:02:03, 62:03 or 1h2m3s. Optional if the link has one.",
+      "clipEnd": "Optional: where the clip ends, in the same formats as start.",
+      "clipNote": "Optional: what happens in the clip, so the media team knows what to look for."
     },
     "fields": {
       "commands": "Commands",
@@ -572,6 +609,19 @@
     "kudosAnnouncement": {
       "given": "{{EMOJI}} {{GIVER}} gave {{RECEIVER}} a {{COM:pointsName.one}}!",
       "givenWithReason": "{{EMOJI}} {{GIVER}} gave {{RECEIVER}} a {{COM:pointsName.one}}: {{REASON}}"
+    },
+    "clipSuggestion": {
+      "titleYoutube": "YouTube clip suggestion",
+      "titleTwitch": "Twitch clip suggestion",
+      "titleOther": "Clip suggestion",
+      "start": "Start",
+      "end": "End",
+      "length": "Length",
+      "link": "Link",
+      "submittedBy": "Submitted by",
+      "range": "{{START}} - {{END}}",
+      "postTitle": "{{NOTE}} @ {{RANGE}}",
+      "postTitleNoNote": "Clip @ {{RANGE}}"
     },
     "links": {
       "authorEmbed": "[{{COM:bot.author}}]({{COM:links.author}})",

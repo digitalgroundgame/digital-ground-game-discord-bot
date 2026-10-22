@@ -7,6 +7,7 @@ import { runCalendarSyncCli } from './calendar-sync-cli.js'
 import {
   AttendanceTrackCommand,
   CensusCommand,
+  ClipCommand,
   ContentCommand,
   DevCommand,
   GrantAccessCommand,
@@ -190,6 +191,7 @@ async function start(): Promise<void> {
     new ContentCommand(contentService),
     new PingSkillRoleCommand(),
     new KudosCommand(kudosService),
+    new ClipCommand(),
 
     // User Context Commands
     ...ONBOARDING_CONFIGS.map((config) => new SendOnboarding(config, contentService)),
