@@ -159,17 +159,23 @@
         "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ Couldn't reach the CRM to verify your permissions, so attendance won't be synced. Leave the channel or run `/stop-attendance-track` to get the list."
       },
       "grantAccessAdded": {
-        "description": "{{USER}} was added to the **{{TEAM_LABEL}}** Google Group."
+        "description": "{{USER}} was added to the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}}."
+      },
+      "grantAccessAddedRole": {
+        "description": "{{USER}} was added to the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}} as **{{ROLE_LABEL}}**."
+      },
+      "grantAccessPendingRole": {
+        "description": "{{USER}} was invited to the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}} as `{{IDENTIFIER}}` (**{{ROLE_LABEL}}**). They\u0027ll be added once they accept the invite."
       },
       "grantAccessAlreadyMember": {
-        "description": "{{USER}} is already a member of the **{{TEAM_LABEL}}** Google Group."
+        "description": "{{USER}} is already a member of the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}}."
       },
       "grantAccessFailed": {
         "description": "Couldn't add {{USER}} to the **{{TEAM_LABEL}}** team. Please try again or contact an administrator.",
         "color": "{{COM:colors.warning}}"
       },
       "grantAccessNotLinked": {
-        "description": "{{USER}} hasn't linked a Google account yet. Have them run `/link-account`, or run `/link-account` with their `user` to link it for them.",
+        "description": "{{USER}} hasn't linked a {{ACCOUNT_LABEL}} account yet. Have them run `/link-account`, or run `/link-account` with their `user` to link it for them.",
         "color": "{{COM:colors.warning}}"
       },
       "grantAccessUnknownService": {
@@ -177,11 +183,11 @@
         "color": "{{COM:colors.warning}}"
       },
       "grantAccessUnknownTeam": {
-        "description": "Unknown team `{{TEAM}}`. No matching Google Group is configured.",
+        "description": "Unknown team `{{TEAM}}`. No matching {{RESOURCE_LABEL}} is configured.",
         "color": "{{COM:colors.warning}}"
       },
       "grantAccessNotConfigured": {
-        "description": "Google group management isn't configured on this bot. The service account credentials and database connection must be set.",
+        "description": "{{RESOURCE_LABEL}} management isn't configured on this bot. {{REQUIREMENT}}",
         "color": "{{COM:colors.warning}}"
       },
       "linkAccountSuccess": {
@@ -263,6 +269,36 @@
       },
       "pingSkillRoleNoneOnline": {
         "description": "No other members of **{{SKILL}}** are online right now, so nobody was pinged.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "kudosGiven": {
+        "description": "You gave {{USER}} a {{COM:pointsName.one}}! They now have **{{TOTAL}}** {{POINTS}}.",
+        "color": "{{COM:colors.success}}"
+      },
+      "kudosSelf": {
+        "description": "You can't give yourself {{COM:pointsName.other}}.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "kudosBotTarget": {
+        "description": "You can't give a bot {{COM:pointsName.other}}.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "kudosCooldown": {
+        "description": "You already gave {{USER}} a {{COM:pointsName.one}} recently. You can give them another one <t:{{RETRY_TIMESTAMP}}:R>.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "kudosView": {
+        "description": "{{USER}} has **{{TOTAL}}** {{POINTS}}."
+      },
+      "kudosLeaderboard": {
+        "title": "🏆 {{PERIOD_LABEL}} {{COM:pointsName.other}} Leaderboard",
+        "description": ["{{ENTRIES}}"]
+      },
+      "kudosLeaderboardEmpty": {
+        "description": "No {{COM:pointsName.other}} have been given yet this {{PERIOD}}."
+      },
+      "kudosNotConfigured": {
+        "description": "{{COM:pointsName.other}} aren't configured on this bot. The database connection must be set.",
         "color": "{{COM:colors.warning}}"
       }
     },
@@ -356,7 +392,8 @@
       "stopAttendanceTrack": "stop-attendance-track",
       "grantAccess": "grant-access",
       "linkAccount": "link-account",
-      "pingSkillRole": "ping-skill-role"
+      "pingSkillRole": "ping-skill-role",
+      "kudos": "democracy-points"
     },
     "userCommands": {
       "sendDevOnboarding": "Send Dev Onboarding",
@@ -366,6 +403,14 @@
       "sendWelcomeOnboarding": "Send Welcome Onboarding"
     },
     "messageCommands": {},
+    "githubTeamRoles": {
+      "member": "Member",
+      "maintainer": "Maintainer (can add and remove this team's members on GitHub)"
+    },
+    "githubTeamRoleLabels": {
+      "member": "Member",
+      "maintainer": "Maintainer"
+    },
     "arguments": {
       "command": "command",
       "contentKey": "key",
@@ -374,10 +419,13 @@
       "attendanceEventName": "name",
       "service": "service",
       "team": "team",
+      "role": "role",
       "user": "user",
       "identifier": "identifier",
       "skill": "skill",
-      "note": "note"
+      "note": "note",
+      "reason": "reason",
+      "period": "period"
     },
     "commandDescs": {
       "content": "View or edit bot-managed content (welcome, onboarding, rules text).",
@@ -392,9 +440,13 @@
       "census": "Gives a link to the Census form.",
       "attendanceTrack": "Tracks voice-channel attendance until you leave or stop tracking.",
       "stopAttendanceTrack": "Stops your active attendance tracker and sends the results immediately.",
-      "grantAccess": "Grant a member access to a team's service (e.g. a Google Group).",
-      "linkAccount": "Link an external account (e.g. your Google email) to a Discord profile.",
-      "pingSkillRole": "Ping the online members of a skill role (works in forum posts)."
+      "grantAccess": "Grant a member access to a team's service (e.g. a Google Group or GitHub team).",
+      "linkAccount": "Link an external account (e.g. your Google email or GitHub username) to a Discord profile.",
+      "pingSkillRole": "Ping the online members of a skill role (works in forum posts).",
+      "kudos": "Give {{COM:pointsName.other}}, view a member's total, or check the leaderboard.",
+      "kudosGive": "Give a member a {{COM:pointsName.one}} for something they did well.",
+      "kudosView": "View a member's total {{COM:pointsName.other}}.",
+      "kudosLeaderboard": "View the weekly or monthly {{COM:pointsName.other}} leaderboard."
     },
     "argDescs": {
       "contentKey": "The content entry to manage.",
@@ -406,11 +458,16 @@
       "grantAccessService": "The service to grant access to.",
       "grantAccessTeam": "The team whose service the member should be added to.",
       "grantAccessUser": "The member to grant access to.",
+      "grantAccessRole": "GitHub only: the team role to grant. Defaults to member.",
       "linkAccountService": "The service to link an account for.",
       "linkAccountIdentifier": "The account identifier (e.g. a Google email address).",
       "linkAccountUser": "Coordinators only: the member to link an account for (defaults to you).",
       "pingSkillRoleSkill": "The skill role whose online members should be pinged.",
-      "pingSkillRoleNote": "An optional note to include with the ping."
+      "pingSkillRoleNote": "An optional note to include with the ping.",
+      "kudosGiveUser": "The member to give a {{COM:pointsName.one}} to.",
+      "kudosGiveReason": "Optional: what you're giving the {{COM:pointsName.one}} for.",
+      "kudosViewUser": "The member to view {{COM:pointsName.other}} for (defaults to you).",
+      "kudosLeaderboardPeriod": "Weekly or monthly leaderboard."
     },
     "fields": {
       "commands": "Commands",
@@ -502,6 +559,28 @@
     "pingSkillRole": {
       "header": "📣 Paging online **{{SKILL}}** members (requested by {{USER}})",
       "headerWithNote": "📣 Paging online **{{SKILL}}** members (requested by {{USER}}): {{NOTE}}"
+    },
+    "kudosPeriods": {
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "week": "week",
+      "month": "month"
+    },
+    "kudosUnits": {
+      "one": "{{COM:pointsName.one}}",
+      "other": "{{COM:pointsName.other}}"
+    },
+    "grantAccessResources": {
+      "google": "Google Group",
+      "github": "GitHub team"
+    },
+    "grantAccessRequirements": {
+      "google": "The service account credentials and database connection must be set.",
+      "github": "A GitHub API token, an organization, a list of excluded teams, and a database connection must be set."
+    },
+    "kudosAnnouncement": {
+      "given": "{{EMOJI}} {{GIVER}} gave {{RECEIVER}} a {{COM:pointsName.one}}!",
+      "givenWithReason": "{{EMOJI}} {{GIVER}} gave {{RECEIVER}} a {{COM:pointsName.one}}: {{REASON}}"
     },
     "links": {
       "authorEmbed": "[{{COM:bot.author}}]({{COM:links.author}})",
