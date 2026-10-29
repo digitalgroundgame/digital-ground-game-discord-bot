@@ -255,6 +255,7 @@ General-purpose informational commands.
 #### DM Proxy
 
 - **[DM Proxy Integration](../src/integrations/dm-proxy-integration/index.ts)**: Auth-keyed DM relay listening at `/send-dm`; the CRM (and future callers) POST a user ID and message, and the bot delivers it as a direct message ([details](./DmProxyIntegration.md))
+- **[DM History Integration](../src/integrations/dm-proxy-integration/history.ts)**: Auth-keyed reader listening at `/dm-history`; the CRM POSTs a user ID and gets back a page of the bot's DM conversation with that user ([details](./DmHistoryIntegration.md))
 
 #### Infrastructure
 

@@ -12,6 +12,7 @@ import {
   SendDmPayload,
   ValidationError,
 } from './constants.js'
+import { evalOnOneShard } from './shard-eval.js'
 
 const sendDmOnShard = async (client: Client, ctx: SendDmPayload): Promise<DmEvalResult> => {
   try {
@@ -35,23 +36,12 @@ export class DmProxyIntegration implements Integration {
     try {
       const { userId, message } = this.validatePayload(req.body)
 
-      const shard =
-        shardManager.shards.find(({ ready }) => ready)?.id ?? shardManager.shards.firstKey()
-
-      if (shard == null) {
-        throw new Error('Cannot send DM: no local shard is running.')
-      }
-
-      let timer: NodeJS.Timeout | undefined
-      const result: DmEvalResult = await Promise.race([
-        shardManager.broadcastEval(sendDmOnShard, { shard, context: { userId, message } }),
-        new Promise<never>((_, reject) => {
-          timer = setTimeout(
-            () => reject(new Error(`Shard ${shard} did not answer within ${EVAL_TIMEOUT_MS}ms.`)),
-            EVAL_TIMEOUT_MS,
-          )
-        }),
-      ]).finally(() => clearTimeout(timer))
+      const result: DmEvalResult = await evalOnOneShard(
+        shardManager,
+        sendDmOnShard,
+        { userId, message },
+        EVAL_TIMEOUT_MS,
+      )
 
       if (!result.ok) {
         const { status, body } = this.httpErrorResponse(result)

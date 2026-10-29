@@ -13,6 +13,7 @@ declare global {
       CRM_API_TOKEN?: string // bot, when crm is enabled
       // Optional integrations and overrides.
       INTEGRATION_DM_PROXY?: string // unset disables the /integrations/send-dm endpoint
+      INTEGRATION_DM_HISTORY?: string // unset disables the /integrations/dm-history endpoint
       PORT?: string // overrides config.api.port when set (injected by the hosting platform)
       SQLITE_PATH?: string // unset disables the database-backed features
       GOOGLE_CALENDAR_ID?: string

@@ -11,6 +11,7 @@ import {
 } from './controllers/index.js'
 import { validateEnv } from './config/environment.js'
 import {
+  DmHistoryIntegration,
   DmProxyIntegration,
   type Integration,
   PragmaticPapersIntegration,
@@ -90,7 +91,11 @@ async function start(): Promise<void> {
   const guildsController = new GuildsController(shardManager)
   const shardsController = new ShardsController(shardManager)
   const rootController = new RootController()
-  const integrations: Integration[] = [new PragmaticPapersIntegration(), new DmProxyIntegration()]
+  const integrations: Integration[] = [
+    new PragmaticPapersIntegration(),
+    new DmProxyIntegration(),
+    new DmHistoryIntegration(),
+  ]
   const integrationsController = new IntegrationsController(integrations, shardManager)
 
   const controllers: Controller[] = [
