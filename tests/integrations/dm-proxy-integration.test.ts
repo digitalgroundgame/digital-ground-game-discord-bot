@@ -15,7 +15,16 @@ const API_KEY = 'test-api-key'
 const USER_ID = '123456789012345678'
 const CONSTANTS_MODULE = '../../src/integrations/dm-proxy-integration/constants.js'
 
-const DELIVERED = { ok: true }
+const MESSAGE_ID = '223456789012345678'
+const CHANNEL_ID = '323456789012345678'
+
+const DELIVERED = { ok: true, messageId: MESSAGE_ID, channelId: CHANNEL_ID }
+const DELIVERED_BODY = {
+  error: false,
+  delivered: true,
+  messageId: MESSAGE_ID,
+  channelId: CHANNEL_ID,
+}
 
 async function buildApp(
   broadcastEval: (...args: unknown[]) => unknown = vi.fn().mockResolvedValue(DELIVERED),
@@ -92,7 +101,7 @@ describe('DmProxyIntegration', () => {
     const res = await post(app, { userId: USER_ID, message: 'Reminder: canvass at noon.' })
 
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({ error: false, delivered: true })
+    expect(res.body).toEqual(DELIVERED_BODY)
     expect(broadcastEval).toHaveBeenCalledTimes(1)
     const options = broadcastEval.mock.calls[0]![1] as {
       shard: number
@@ -114,7 +123,7 @@ describe('DmProxyIntegration', () => {
     const res = await post(app, { userId: USER_ID, message: 'Reminder: canvass at noon.' })
 
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({ error: false, delivered: true })
+    expect(res.body).toEqual(DELIVERED_BODY)
     expect(broadcastEval).toHaveBeenCalledTimes(1)
     const options = broadcastEval.mock.calls[0]![1] as {
       shard: number
@@ -139,7 +148,7 @@ describe('DmProxyIntegration', () => {
     const res = await post(app, { userId: USER_ID, message: 'Reminder: canvass at noon.' })
 
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({ error: false, delivered: true })
+    expect(res.body).toEqual(DELIVERED_BODY)
     expect(broadcastEval).toHaveBeenCalledTimes(1)
     const options = broadcastEval.mock.calls[0]![1] as {
       shard: number
@@ -161,7 +170,7 @@ describe('DmProxyIntegration', () => {
     const res = await post(app, { userId: USER_ID, message: 'Reminder: canvass at noon.' })
 
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({ error: false, delivered: true })
+    expect(res.body).toEqual(DELIVERED_BODY)
     expect(broadcastEval).toHaveBeenCalledTimes(1)
     const options = broadcastEval.mock.calls[0]![1] as {
       shard: number
@@ -183,6 +192,27 @@ describe('DmProxyIntegration', () => {
 
     const script = broadcastEval.mock.calls[0]![0] as (...args: unknown[]) => unknown
     expect(() => new Function(`return (${script})`)).not.toThrow()
+  })
+
+  it("returns the sent message's id and DM channel id from the shard", async () => {
+    // Callers store these to tell their own DMs apart from the bot's other DMs.
+    const broadcastEval = vi.fn().mockResolvedValue(DELIVERED)
+    const { app } = await buildApp(broadcastEval)
+
+    await post(app, { userId: USER_ID, message: 'hello' })
+
+    const script = broadcastEval.mock.calls[0]![0] as (
+      client: unknown,
+      ctx: { userId: string; message: string },
+    ) => Promise<unknown>
+    const send = vi.fn().mockResolvedValue({ id: MESSAGE_ID, channelId: CHANNEL_ID })
+    const client = { users: { fetch: vi.fn().mockResolvedValue({ send }) } }
+
+    const result = await script(client, { userId: USER_ID, message: 'hello' })
+
+    expect(client.users.fetch).toHaveBeenCalledWith(USER_ID)
+    expect(send).toHaveBeenCalledWith('hello')
+    expect(result).toEqual(DELIVERED)
   })
 
   it('returns 502 when the shard reports a failure with no Discord error code', async () => {
@@ -435,6 +465,6 @@ describe('DmProxyIntegration', () => {
     const res = await post(app, { userId: USER_ID, message: 'x'.repeat(2000) })
 
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({ error: false, delivered: true })
+    expect(res.body).toEqual(DELIVERED_BODY)
   })
 })
