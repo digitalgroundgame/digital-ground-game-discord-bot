@@ -46,6 +46,11 @@ const fetchDmHistoryOnShard = async (
           url: attachment.url,
           contentType: attachment.contentType ?? null,
         })),
+        reactions: message.reactions.cache.map((reaction) => ({
+          emoji: reaction.emoji.id ? `:${reaction.emoji.name}:` : (reaction.emoji.name ?? ''),
+          count: reaction.count,
+          me: reaction.me,
+        })),
       })),
     }
   } catch (error) {

@@ -64,6 +64,7 @@ Each message:
 | `editedAt` | string \| null | ISO 8601 timestamp of the last edit. |
 | `referencedMessageId` | string \| null | The message this one replies to, when the user used Discord's Reply. |
 | `attachments` | array | `{ id, name, url, contentType }` for each file. Discord's attachment URLs expire, so fetch a fresh page rather than storing them. |
+| `reactions` | array | `{ emoji, count, me }` for each emoji on the message. `emoji` is the emoji itself, or `:name:` for a custom one. `count` includes the bot's own reaction when `me` is true, so in a DM the user has reacted when `count` is more than `me` accounts for. |
 
 ## Paging
 
@@ -91,11 +92,15 @@ Service's DRF token (`CRM_API_URL` and `CRM_API_TOKEN`, the same pair `/attendan
   sent; the CRM reads it through `/integrations/dm-history` if it needs it. The bot forwards every DM and keeps no
   subscription state, so the CRM decides which ones matter. The call is not awaited, so trigger
   processing doesn't wait on it.
+- **Each reaction to the bot's DMs.** When a person adds or removes a reaction on a message the
+  bot sent them in a DM, the bot POSTs `{ "message_id", "user_id", "emoji", "added" }` to
+  `/api/discord/inbound-reactions/`. `emoji` is formatted as in `reactions` above, and `added` is
+  false for a removal. Reactions in servers, and to the person's own messages, are not forwarded.
 - **Catch-up at startup.** Once per manager start, after the shards and the API are up, the manager
   POSTs to `/api/discord/inbound-dms/catch-up/`, and the CRM re-reads the DM history the bot missed
   while it was down.
 
-Both requests are retried once, about 2 seconds later, after a network error or a 5xx. After that
+Each request is retried once, about 2 seconds later, after a network error or a 5xx. After that
 the bot logs a warning and moves on. While `crm.enabled` is true in `config/config.json` (the
 default), the bot and the manager both refuse to start without `CRM_API_URL` and `CRM_API_TOKEN`.
-With it false, neither request is sent.
+With it false, no request is sent.

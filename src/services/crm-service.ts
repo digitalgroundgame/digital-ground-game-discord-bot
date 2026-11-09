@@ -9,6 +9,7 @@ const RECORD_ATTENDANCE_PATH = '/api/discord/staged-event-participations/'
 const CAN_RECORD_ATTENDANCE_PATH = '/api/discord/can-record-attendance/'
 const INBOUND_DM_PATH = '/api/discord/inbound-dms/'
 const INBOUND_DM_CATCH_UP_PATH = '/api/discord/inbound-dms/catch-up/'
+const INBOUND_REACTION_PATH = '/api/discord/inbound-reactions/'
 
 // IDs and the time only: the CRM never receives a DM's text from this call.
 export interface CrmInboundDmPayload {
@@ -16,6 +17,13 @@ export interface CrmInboundDmPayload {
   channel_id: string
   author_id: string
   created_at: string // ISO 8601
+}
+
+export interface CrmInboundReactionPayload {
+  message_id: string // the bot's message that was reacted to
+  user_id: string // who reacted
+  emoji: string // the emoji itself, or :name: for a custom one
+  added: boolean // false when the reaction was removed
 }
 
 export interface CrmAttendancePayload {
@@ -91,6 +99,11 @@ export class CrmService {
   /** Tells the CRM about a DM sent to the bot. Never throws; failures are logged. */
   public async reportInboundDm(payload: CrmInboundDmPayload): Promise<void> {
     await this.postWithRetry('inbound-dm', INBOUND_DM_PATH, payload)
+  }
+
+  /** Tells the CRM someone reacted to, or un-reacted to, a DM the bot sent. Never throws. */
+  public async reportReaction(payload: CrmInboundReactionPayload): Promise<void> {
+    await this.postWithRetry('inbound-reaction', INBOUND_REACTION_PATH, payload)
   }
 
   /** Asks the CRM to re-read DMs the bot missed while it was down. Never throws. */

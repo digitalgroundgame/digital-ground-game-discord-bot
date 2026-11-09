@@ -40,6 +40,25 @@ describe('CrmService', () => {
     vi.useRealTimers()
   })
 
+  describe('reportReaction', () => {
+    it('POSTs the reaction to the inbound-reactions endpoint', async () => {
+      fetchMock.mockResolvedValue(response(202))
+      const reaction = {
+        message_id: '423456789012345678',
+        user_id: '123456789012345678',
+        emoji: '👍',
+        added: false,
+      }
+
+      await new CrmService().reportReaction(reaction)
+
+      const [url, init] = call(0)
+      expect(url).toBe('http://crm.test/api/discord/inbound-reactions/')
+      expect(init.method).toBe('post')
+      expect(JSON.parse(init.body)).toEqual(reaction)
+    })
+  })
+
   describe('reportInboundDm', () => {
     it('POSTs the DM IDs and time, without text, to the inbound-dms endpoint', async () => {
       fetchMock.mockResolvedValue(response(202))

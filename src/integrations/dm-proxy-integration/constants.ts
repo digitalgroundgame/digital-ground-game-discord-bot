@@ -62,6 +62,12 @@ export interface DmHistoryAttachment {
   contentType: string | null
 }
 
+export interface DmHistoryReaction {
+  emoji: string // the emoji itself, or :name: for a custom one
+  count: number // includes the bot's own reaction, when `me`
+  me: boolean // whether the bot reacted with it
+}
+
 export interface DmHistoryMessage {
   id: string
   authorId: string
@@ -70,6 +76,7 @@ export interface DmHistoryMessage {
   editedAt: string | null
   referencedMessageId: string | null // the message this one replies to, if any
   attachments: DmHistoryAttachment[]
+  reactions: DmHistoryReaction[]
 }
 
 export interface DmHistoryEvalSuccess {

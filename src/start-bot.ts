@@ -34,6 +34,7 @@ import { createDatabase, type Database } from './database/index.js'
 import {
   ButtonHandler,
   CommandHandler,
+  DmReactionHandler,
   GuildJoinHandler,
   GuildLeaveHandler,
   GuildMemberAddHandler,
@@ -285,6 +286,7 @@ async function start(): Promise<void> {
   const triggerHandler = new TriggerHandler(triggers, eventDataService)
   const messageHandler = new MessageHandler(triggerHandler, crmService)
   const reactionHandler = new ReactionHandler(reactions, eventDataService)
+  const dmReactionHandler = new DmReactionHandler(crmService)
   const guildScheduledEventHandler = new GuildScheduledEventHandler(googleCalendarService)
 
   // Jobs
@@ -360,6 +362,7 @@ async function start(): Promise<void> {
         )
       }
     },
+    dmReactionHandler,
   )
 
   await bot.start()

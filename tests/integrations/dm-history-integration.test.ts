@@ -25,6 +25,7 @@ function historyMessage(id: string, authorId: string) {
     editedAt: null,
     referencedMessageId: null,
     attachments: [],
+    reactions: [],
   }
 }
 
@@ -161,6 +162,7 @@ describe('DmHistoryIntegration', () => {
                 },
               ],
             ]),
+            reactions: { cache: new Collection() },
           },
         ],
         [
@@ -173,6 +175,15 @@ describe('DmHistoryIntegration', () => {
             editedAt: null,
             reference: null,
             attachments: new Collection(),
+            reactions: {
+              cache: new Collection([
+                ['👍', { emoji: { id: null, name: '👍' }, count: 1, me: false }],
+                [
+                  '600000000000000001',
+                  { emoji: { id: '600000000000000001', name: 'party_parrot' }, count: 2, me: true },
+                ],
+              ]),
+            },
           },
         ],
       ]),
@@ -215,6 +226,7 @@ describe('DmHistoryIntegration', () => {
               contentType: 'image/png',
             },
           ],
+          reactions: [],
         },
         {
           id: OLDER.id,
@@ -224,6 +236,11 @@ describe('DmHistoryIntegration', () => {
           editedAt: null,
           referencedMessageId: null,
           attachments: [],
+          // Custom emoji by name: the CRM shows them as text.
+          reactions: [
+            { emoji: '👍', count: 1, me: false },
+            { emoji: ':party_parrot:', count: 2, me: true },
+          ],
         },
       ],
     })

@@ -23,6 +23,7 @@ import { createRequire } from 'node:module'
 import {
   type ButtonHandler,
   type CommandHandler,
+  type DmReactionHandler,
   type GuildJoinHandler,
   type GuildLeaveHandler,
   type GuildMemberAddHandler,
@@ -58,6 +59,7 @@ export class Bot {
     private jobService: JobService,
     private voiceStateUpdateHandler?: VoiceStateUpdateHandler,
     private onBotReady?: () => Promise<void>,
+    private dmReactionHandler?: DmReactionHandler,
   ) {}
 
   public async start(): Promise<void> {
@@ -84,6 +86,11 @@ export class Bot {
       Events.MessageReactionAdd,
       (messageReaction: MessageReaction | PartialMessageReaction, user: User | PartialUser) =>
         this.onReaction(messageReaction, user),
+    )
+    this.client.on(
+      Events.MessageReactionRemove,
+      (messageReaction: MessageReaction | PartialMessageReaction, user: User | PartialUser) =>
+        this.onReactionRemove(messageReaction, user),
     )
     this.client.on(Events.GuildScheduledEventCreate, (event: GuildScheduledEvent) =>
       this.onGuildScheduledEventCreate(event),
@@ -262,6 +269,9 @@ export class Bot {
       return
     }
 
+    // Before filling: the forwarder works from the raw event, and never throws.
+    void this.dmReactionHandler?.process(msgReaction, reactor, true)
+
     try {
       const filledReaction = await PartialUtils.fillReaction(msgReaction)
       if (!filledReaction) {
@@ -279,6 +289,19 @@ export class Bot {
     } catch (error) {
       Logger.error(Logs.error.reaction, error)
     }
+  }
+
+  private async onReactionRemove(
+    msgReaction: MessageReaction | PartialMessageReaction,
+    reactor: User | PartialUser,
+  ): Promise<void> {
+    if (
+      !this.ready ||
+      (Debug.dummyMode.enabled && !Debug.dummyMode.whitelist.includes(reactor.id))
+    ) {
+      return
+    }
+    await this.dmReactionHandler?.process(msgReaction, reactor, false)
   }
 
   private async onGuildScheduledEventCreate(event: GuildScheduledEvent): Promise<void> {
