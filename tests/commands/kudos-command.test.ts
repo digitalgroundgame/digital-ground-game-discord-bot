@@ -120,6 +120,21 @@ describe('KudosCommand', () => {
     expect(target.send).not.toHaveBeenCalled()
   })
 
+  it('records the announcement as the give’s source so coins on it can pile on', async () => {
+    const service = new KudosService(createTestDatabase())
+    const command = new KudosCommand(service, ADMIN_ONLY)
+    const target = createMockUser({
+      id: '222333444555666777',
+      toString: vi.fn().mockReturnValue('<@222333444555666777>'),
+    })
+    const intr = createGiveInteraction('333444555666777888', target)
+    intr.followUp.mockResolvedValue({ id: '888999000111222333', channelId: '555666777888999000' })
+
+    await command.execute(intr, data)
+
+    expect(await service.getReceiverForMessage(GUILD_ID, '888999000111222333')).toBe(target.id)
+  })
+
   it('announces without a reason when none is given', async () => {
     const db = createTestDatabase()
     const service = new KudosService(db)

@@ -15,6 +15,8 @@ const GUILD_ID = '111222333444555666'
 const CHANNEL_ID = '555666777888999000'
 const GIVER_ID = '333444555666777888'
 const AUTHOR_ID = '222333444555666777'
+const BOT_ID = '999888777666555444'
+const PILER_ID = '444555666777888999'
 const data = new EventData(Language.Default, Language.Default)
 
 interface ContextOptions {
@@ -22,6 +24,7 @@ interface ContextOptions {
   authorId?: string
   messageId?: string
   authorBot?: boolean
+  sentByClient?: boolean
   webhookId?: string | null
   system?: boolean
   reactorRoleIds?: string[]
@@ -41,9 +44,9 @@ function createContext(options: ContextOptions = {}): {
 
   const reactor = createMockUser({ id: reactorId, tag: `reactor-${reactorId}` })
   const author = createMockUser({
-    id: authorId,
+    id: options.sentByClient ? BOT_ID : authorId,
     tag: `author-${authorId}`,
-    bot: options.authorBot ?? false,
+    bot: options.sentByClient ? true : (options.authorBot ?? false),
     toString: vi.fn().mockReturnValue(`<@${authorId}>`),
   })
 
@@ -75,6 +78,7 @@ function createContext(options: ContextOptions = {}): {
     channelId: CHANNEL_ID,
     guild,
     author,
+    client: { user: { id: BOT_ID } },
     webhookId: options.webhookId ?? null,
     system: options.system ?? false,
   }
@@ -166,6 +170,72 @@ describe('KudosReaction', () => {
 
     expect(giveSpy).not.toHaveBeenCalled()
     expect(msgReaction.users.remove).toHaveBeenCalledWith(GIVER_ID)
+  })
+
+  describe('on a /democracy-points give announcement', () => {
+    const ANNOUNCEMENT_ID = '888999000111222333'
+
+    beforeEach(async () => {
+      const given = await service.giveKudos(GUILD_ID, GIVER_ID, AUTHOR_ID, 'great work')
+      if (given.status !== 'given') throw new Error('setup give failed')
+      await service.setSource(GUILD_ID, given.transactionId, {
+        channelId: CHANNEL_ID,
+        messageId: ANNOUNCEMENT_ID,
+      })
+    })
+
+    it('gives the announced receiver a point from each member who piles on', async () => {
+      const pileOn = createContext({
+        reactorId: PILER_ID,
+        sentByClient: true,
+        messageId: ANNOUNCEMENT_ID,
+      })
+
+      await reaction.execute(pileOn.msgReaction, pileOn.msg, pileOn.reactor, data)
+
+      expect(await service.getTotal(GUILD_ID, AUTHOR_ID)).toBe(2)
+      expect(await service.getTotal(GUILD_ID, BOT_ID)).toBe(0)
+      expect(pileOn.msgReaction.users.remove).not.toHaveBeenCalled()
+    })
+
+    it('keeps the original giver’s coin without recording a second point', async () => {
+      const { msgReaction, msg, reactor } = createContext({
+        sentByClient: true,
+        messageId: ANNOUNCEMENT_ID,
+      })
+
+      await reaction.execute(msgReaction, msg, reactor, data)
+
+      expect(await service.getTotal(GUILD_ID, AUTHOR_ID)).toBe(1)
+      expect(msgReaction.users.remove).not.toHaveBeenCalled()
+    })
+
+    it('removes the receiver’s own coin on their announcement', async () => {
+      const { msgReaction, msg, reactor } = createContext({
+        reactorId: AUTHOR_ID,
+        sentByClient: true,
+        messageId: ANNOUNCEMENT_ID,
+      })
+
+      await reaction.execute(msgReaction, msg, reactor, data)
+
+      expect(await service.getTotal(GUILD_ID, AUTHOR_ID)).toBe(1)
+      expect(msgReaction.users.remove).toHaveBeenCalledWith(AUTHOR_ID)
+    })
+
+    it('removes a coin on any other bot message', async () => {
+      const giveSpy = vi.spyOn(service, 'giveKudos')
+      const { msgReaction, msg, reactor } = createContext({
+        reactorId: PILER_ID,
+        sentByClient: true,
+        messageId: 'not-an-announcement',
+      })
+
+      await reaction.execute(msgReaction, msg, reactor, data)
+
+      expect(giveSpy).not.toHaveBeenCalled()
+      expect(msgReaction.users.remove).toHaveBeenCalledWith(PILER_ID)
+    })
   })
 
   it('lets any member give kudos without looking them up when no roles are configured', async () => {
