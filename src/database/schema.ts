@@ -83,7 +83,9 @@ export const kudosTransaction = sqliteTable(
     giverDiscordId: text('giver_discord_id').notNull(),
     receiverDiscordId: text('receiver_discord_id').notNull(),
     reason: text('reason'),
-    // Set when kudos was given by reacting to a message.
+    // The message the kudos is tied to: the message reacted to, or the
+    // announcement of a `/democracy-points give`. Null if the announcement
+    // failed or predates pile-on.
     channelId: text('channel_id'),
     messageId: text('message_id'),
     createdAt: integer('created_at', { mode: 'timestamp' })
