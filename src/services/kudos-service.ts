@@ -142,17 +142,24 @@ export class KudosService {
   }
 
   /**
-   * The member who received the give that a message is the source of, if any.
-   * Used to find who a bot announcement is about.
+   * The first give tied to a message, if any: for a bot announcement, the
+   * `/democracy-points give` it announced. Used to find who an announcement is
+   * about and why.
    */
-  public async getReceiverForMessage(guildId: string, messageId: string): Promise<string | null> {
+  public async getGiveForMessage(
+    guildId: string,
+    messageId: string,
+  ): Promise<{ receiverDiscordId: string; reason: string | null } | null> {
     const [row] = await this.db
-      .select({ receiverDiscordId: kudosTransaction.receiverDiscordId })
+      .select({
+        receiverDiscordId: kudosTransaction.receiverDiscordId,
+        reason: kudosTransaction.reason,
+      })
       .from(kudosTransaction)
       .where(and(eq(kudosTransaction.guildId, guildId), eq(kudosTransaction.messageId, messageId)))
       .orderBy(asc(kudosTransaction.id))
       .limit(1)
-    return row?.receiverDiscordId ?? null
+    return row ?? null
   }
 
   /** All-time kudos total for a receiver within a guild. */

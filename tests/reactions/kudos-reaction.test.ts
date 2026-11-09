@@ -186,6 +186,7 @@ describe('KudosReaction', () => {
     })
 
     it('gives the announced receiver a point from each member who piles on', async () => {
+      const giveSpy = vi.spyOn(service, 'giveKudos')
       const pileOn = createContext({
         reactorId: PILER_ID,
         sentByClient: true,
@@ -197,6 +198,34 @@ describe('KudosReaction', () => {
       expect(await service.getTotal(GUILD_ID, AUTHOR_ID)).toBe(2)
       expect(await service.getTotal(GUILD_ID, BOT_ID)).toBe(0)
       expect(pileOn.msgReaction.users.remove).not.toHaveBeenCalled()
+      // The pile-on carries the announced reason, marked as a pile-on.
+      expect(giveSpy).toHaveBeenCalledWith(GUILD_ID, PILER_ID, AUTHOR_ID, 'pile on: great work', {
+        channelId: CHANNEL_ID,
+        messageId: ANNOUNCEMENT_ID,
+      })
+    })
+
+    it('records a bare pile-on reason when the announcement had none', async () => {
+      const given = await service.giveKudos(GUILD_ID, PILER_ID, GIVER_ID)
+      if (given.status !== 'given') throw new Error('setup give failed')
+      await service.setSource(GUILD_ID, given.transactionId, {
+        channelId: CHANNEL_ID,
+        messageId: 'reasonless-announcement',
+      })
+      const giveSpy = vi.spyOn(service, 'giveKudos')
+      const pileOn = createContext({
+        reactorId: AUTHOR_ID,
+        sentByClient: true,
+        messageId: 'reasonless-announcement',
+      })
+
+      await reaction.execute(pileOn.msgReaction, pileOn.msg, pileOn.reactor, data)
+
+      expect(await service.getTotal(GUILD_ID, GIVER_ID)).toBe(2)
+      expect(giveSpy).toHaveBeenCalledWith(GUILD_ID, AUTHOR_ID, GIVER_ID, 'pile on', {
+        channelId: CHANNEL_ID,
+        messageId: 'reasonless-announcement',
+      })
     })
 
     it('keeps the original giver’s coin without recording a second point', async () => {

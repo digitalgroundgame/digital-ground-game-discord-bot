@@ -132,7 +132,10 @@ describe('KudosCommand', () => {
 
     await command.execute(intr, data)
 
-    expect(await service.getReceiverForMessage(GUILD_ID, '888999000111222333')).toBe(target.id)
+    expect(await service.getGiveForMessage(GUILD_ID, '888999000111222333')).toEqual({
+      receiverDiscordId: target.id,
+      reason: '[great work](https://example.com)',
+    })
   })
 
   it('announces without a reason when none is given', async () => {
