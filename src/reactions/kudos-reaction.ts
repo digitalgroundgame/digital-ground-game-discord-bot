@@ -108,11 +108,13 @@ export class KudosReaction implements Reaction {
    * webhook, and system messages reward no one.
    */
   private async findReceiverId(msg: Message, guildId: string): Promise<string | null> {
-    if (msg.webhookId || msg.system) {
-      return null
-    }
+    // Checked before the webhook test: an interaction follow-up like the
+    // announcement is sent through the app's webhook, so it has a webhookId.
     if (msg.author.id === msg.client.user?.id) {
       return this.kudosService.getReceiverForMessage(guildId, msg.id)
+    }
+    if (msg.webhookId || msg.system) {
+      return null
     }
     if (msg.author.bot) {
       return null

@@ -79,7 +79,8 @@ function createContext(options: ContextOptions = {}): {
     guild,
     author,
     client: { user: { id: BOT_ID } },
-    webhookId: options.webhookId ?? null,
+    // An interaction follow-up is sent through the app's webhook.
+    webhookId: options.sentByClient ? BOT_ID : (options.webhookId ?? null),
     system: options.system ?? false,
   }
 
