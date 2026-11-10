@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { kudosTransaction } from '../../src/database/schema.js'
+import { type IssueClaim, kudosTransaction } from '../../src/database/schema.js'
 import { WorkClaimService } from '../../src/services/work-claim-service.js'
 import { createTestDatabase, type TestDatabase } from '../helpers/test-database.js'
 
@@ -16,6 +16,11 @@ describe('WorkClaimService', () => {
     service = new WorkClaimService(db)
   })
 
+  async function liveClaim(): Promise<IssueClaim | undefined> {
+    const live = await service.listLiveClaims()
+    return live.find((c) => c.repo === 'org/site' && c.issueNumber === 7)
+  }
+
   async function claim(): Promise<void> {
     await service.recordClaim({
       guildId: GUILD_ID,
@@ -29,7 +34,7 @@ describe('WorkClaimService', () => {
 
   it('records a live claim', async () => {
     await claim()
-    const live = await service.findLiveClaim('org/site', 7)
+    const live = await liveClaim()
     expect(live).toMatchObject({ guildId: GUILD_ID, githubLogin: 'alice', wildcard: true })
   })
 
@@ -74,7 +79,7 @@ describe('WorkClaimService', () => {
 
     expect(await service.settleClaim(live, 'expired')).toBe(true)
     expect(db.select().from(kudosTransaction).all()).toEqual([])
-    expect(await service.findLiveClaim('org/site', 7)).toBeUndefined()
+    expect(await liveClaim()).toBeUndefined()
   })
 
   it('lets the issue be claimed again after an expiry', async () => {
@@ -113,15 +118,15 @@ describe('WorkClaimService', () => {
       wildcard: false,
     })
     expect(second).toBeUndefined()
-    expect((await service.findLiveClaim('org/site', 7))?.githubLogin).toBe('alice')
+    expect((await liveClaim())?.githubLogin).toBe('alice')
   })
 
   it('frees the issue when a claim is released', async () => {
     await claim()
-    const live = await service.findLiveClaim('org/site', 7)
+    const live = await liveClaim()
     if (!live) throw new Error('expected a live claim')
     await service.releaseClaim(live.id)
-    expect(await service.findLiveClaim('org/site', 7)).toBeUndefined()
+    expect(await liveClaim()).toBeUndefined()
     await claim()
     expect(await service.listLiveClaims()).toHaveLength(1)
   })
