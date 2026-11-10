@@ -219,19 +219,21 @@ describe('GitHubTeamsService', () => {
       expect(init.signal).toBeInstanceOf(AbortSignal)
     })
 
-    it('caches the name and slug of every discovered team', async () => {
+    it('caches the name, slug and parent of every discovered team', async () => {
       fetchMock.mockResolvedValue(
         teamsResponse([
-          { name: 'Blue Book', slug: 'blue-book', id: 1, privacy: 'closed' },
-          { name: 'CRM', slug: 'crm', id: 2 },
+          { name: 'Blue Book', slug: 'blue-book', id: 1, privacy: 'closed', parent: null },
+          { name: 'CRM', slug: 'crm', id: 2, parent: { name: 'Blue Book', slug: 'blue-book' } },
+          { name: 'Orphan', slug: 'orphan' },
         ]),
       )
       const service = new GitHubTeamsService('t', 'dgg')
 
       expect(await service.refreshTeams()).toBe(true)
       expect(service.getTeams()).toEqual([
-        { name: 'Blue Book', slug: 'blue-book' },
-        { name: 'CRM', slug: 'crm' },
+        { name: 'Blue Book', slug: 'blue-book', parentSlug: null },
+        { name: 'CRM', slug: 'crm', parentSlug: 'blue-book' },
+        { name: 'Orphan', slug: 'orphan', parentSlug: null },
       ])
     })
 
@@ -250,7 +252,9 @@ describe('GitHubTeamsService', () => {
 
       await service.refreshTeams()
 
-      expect(service.getTeams()).toEqual([{ name: 'Blue Book', slug: 'blue-book' }])
+      expect(service.getTeams()).toEqual([
+        { name: 'Blue Book', slug: 'blue-book', parentSlug: null },
+      ])
     })
 
     it('keeps paging while a full page comes back', async () => {
@@ -290,7 +294,9 @@ describe('GitHubTeamsService', () => {
       fetchMock.mockResolvedValueOnce(errorResponse(403, 'Forbidden'))
 
       expect(await service.refreshTeams()).toBe(false)
-      expect(service.getTeams()).toEqual([{ name: 'Blue Book', slug: 'blue-book' }])
+      expect(service.getTeams()).toEqual([
+        { name: 'Blue Book', slug: 'blue-book', parentSlug: null },
+      ])
     })
 
     it('survives a body that is not an array', async () => {

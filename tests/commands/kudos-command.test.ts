@@ -2,7 +2,7 @@
 import { Collection } from 'discord.js'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { CommandDeferType } from '../../src/commands/index.js'
+import { ChatCommandMetadata, CommandDeferType } from '../../src/commands/index.js'
 import { KudosCommand } from '../../src/commands/chat/kudos-command.js'
 import { ServerRoles } from '../../src/constants/index.js'
 import { Language } from '../../src/models/enum-helpers/index.js'
@@ -120,7 +120,35 @@ describe('KudosCommand', () => {
     expect(target.send).not.toHaveBeenCalled()
   })
 
-  it('announces without a reason when none is given', async () => {
+  it('records the announcement as the give’s source so coins on it can pile on', async () => {
+    const service = new KudosService(createTestDatabase())
+    const command = new KudosCommand(service, ADMIN_ONLY)
+    const target = createMockUser({
+      id: '222333444555666777',
+      toString: vi.fn().mockReturnValue('<@222333444555666777>'),
+    })
+    const intr = createGiveInteraction('333444555666777888', target)
+    intr.followUp.mockResolvedValue({ id: '888999000111222333', channelId: '555666777888999000' })
+
+    await command.execute(intr, data)
+
+    expect(await service.getGiveForMessage(GUILD_ID, '888999000111222333')).toEqual({
+      receiverDiscordId: target.id,
+      reason: '[great work](https://example.com)',
+    })
+  })
+
+  it('requires a reason so Discord moves to it after the member is picked', () => {
+    const give = (ChatCommandMetadata.KUDOS as any).options.find(
+      (option: any) => option.name === 'give',
+    )
+    expect(give.options.map((option: any) => [option.name, option.required])).toEqual([
+      ['user', true],
+      ['reason', true],
+    ])
+  })
+
+  it('announces without a reason when the reason is only whitespace', async () => {
     const db = createTestDatabase()
     const service = new KudosService(db)
     const command = new KudosCommand(service, ADMIN_ONLY)
@@ -129,7 +157,7 @@ describe('KudosCommand', () => {
       toString: vi.fn().mockReturnValue('<@222333444555666777>'),
     })
     const intr = createGiveInteraction('333444555666777888', target)
-    intr.options.getString.mockReturnValue(null)
+    intr.options.getString.mockReturnValue('   ')
 
     await command.execute(intr, data)
 

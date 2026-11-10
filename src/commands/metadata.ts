@@ -237,7 +237,7 @@ export const ChatCommandMetadata: {
         description_localizations: Lang.getRefLocalizationMap('commandDescs.kudosGive'),
         options: [
           { ...Args.KUDOS_GIVE_USER, required: true },
-          { ...Args.KUDOS_GIVE_REASON, required: false },
+          { ...Args.KUDOS_GIVE_REASON, required: true },
         ],
       },
       {

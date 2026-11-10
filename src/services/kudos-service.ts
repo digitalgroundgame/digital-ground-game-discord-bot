@@ -13,14 +13,17 @@ export interface KudosLeaderboardEntry {
   total: number
 }
 
-/** The message a kudos was given for, when given by reaction. */
+/**
+ * The message a kudos is tied to: the message reacted to, or the public
+ * announcement of a `/democracy-points give`.
+ */
 export interface KudosSource {
   channelId: string
   messageId: string
 }
 
 export type GiveKudosResult =
-  | { status: 'given'; total: number }
+  | { status: 'given'; transactionId: number; total: number }
   | { status: 'self' }
   | { status: 'duplicate' }
   | { status: 'cooldown'; retryAt: Date }
@@ -135,7 +138,8 @@ export class KudosService {
         return { status: 'cooldown' as const, retryAt }
       }
 
-      tx.insert(kudosTransaction)
+      const inserted = tx
+        .insert(kudosTransaction)
         .values({
           guildId,
           giverDiscordId,
@@ -145,9 +149,10 @@ export class KudosService {
           messageId: source?.messageId,
           createdAt: givenAt,
         })
-        .run()
+        .returning({ id: kudosTransaction.id })
+        .get()
 
-      return { status: 'given' as const }
+      return { status: 'given' as const, transactionId: inserted.id }
     })
 
     if (outcome.status !== 'given') {
@@ -156,7 +161,43 @@ export class KudosService {
 
     const total = await this.getTotal(guildId, receiverDiscordId)
     Logger.info(`${giverDiscordId} gave kudos to ${receiverDiscordId} in guild ${guildId}`)
-    return { status: 'given', total }
+    return { status: 'given', transactionId: outcome.transactionId, total }
+  }
+
+  /**
+   * Ties an already-recorded give to the message announcing it, so coin
+   * reactions on the announcement can be traced back to its receiver.
+   */
+  public async setSource(
+    guildId: string,
+    transactionId: number,
+    source: KudosSource,
+  ): Promise<void> {
+    await this.db
+      .update(kudosTransaction)
+      .set({ channelId: source.channelId, messageId: source.messageId })
+      .where(and(eq(kudosTransaction.guildId, guildId), eq(kudosTransaction.id, transactionId)))
+  }
+
+  /**
+   * The first give tied to a message, if any: for a bot announcement, the
+   * `/democracy-points give` it announced. Used to find who an announcement is
+   * about and why.
+   */
+  public async getGiveForMessage(
+    guildId: string,
+    messageId: string,
+  ): Promise<{ receiverDiscordId: string; reason: string | null } | null> {
+    const [row] = await this.db
+      .select({
+        receiverDiscordId: kudosTransaction.receiverDiscordId,
+        reason: kudosTransaction.reason,
+      })
+      .from(kudosTransaction)
+      .where(and(eq(kudosTransaction.guildId, guildId), eq(kudosTransaction.messageId, messageId)))
+      .orderBy(asc(kudosTransaction.id))
+      .limit(1)
+    return row ?? null
   }
 
   /** All-time kudos total for a receiver within a guild. */

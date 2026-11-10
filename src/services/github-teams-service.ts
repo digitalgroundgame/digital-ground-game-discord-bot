@@ -55,9 +55,10 @@ function describeError(err: unknown): string {
  * The org's teams are discovered rather than configured: `refreshTeams`
  * caches the list in memory (see `RefreshGitHubTeamsJob`) so `/grant-access`
  * autocomplete can be served synchronously, well inside Discord's three
- * second deadline. The cache is only a convenience — `addMember` is
- * authoritative and rejects an unknown slug on its own, so a stale or empty
- * cache costs suggestions, never correctness.
+ * second deadline. The cache is also what `/grant-access` resolves teams
+ * against: only listed teams can be granted, and each team's cached parent
+ * decides whether an exclusion covers it. A stale cache can therefore lag a
+ * team's creation or move by up to one refresh.
  *
  * Requires a token that is *both* owned by an organization owner or team
  * maintainer *and* scoped to write team membership: the "Members" org
@@ -155,7 +156,11 @@ export class GitHubTeamsService {
         }
 
         for (const entry of body) {
-          if (isGitHubTeam(entry)) collected.push({ name: entry.name, slug: entry.slug })
+          if (!isGitHubTeam(entry)) continue
+          // Kept so an exclusion can cover the child teams that inherit its access.
+          const parent = (entry as { parent?: { slug?: unknown } | null }).parent
+          const parentSlug = typeof parent?.slug === 'string' ? parent.slug : null
+          collected.push({ name: entry.name, slug: entry.slug, parentSlug })
         }
         if (body.length < TEAMS_PAGE_SIZE) break
       }
@@ -175,8 +180,9 @@ export class GitHubTeamsService {
    * member" from "newly added" — both come back as `active`, and re-running
    * with a different role promotes or demotes in place. A user who isn't yet in
    * the organization instead gets an emailed invite and comes back `pending`
-   * until they accept it. An unknown slug comes back as an `error`, which is
-   * what keeps a stale team cache from mattering.
+   * until they accept it. An unknown slug comes back as an `error`. Callers
+   * must resolve `team` against the cache first, since exclusions are applied
+   * there and not here.
    */
   public async addMember(
     team: string,
