@@ -169,7 +169,7 @@ export const ChatCommandMetadata: {
       },
     ],
   },
-  GIVE_ISSUE: {
+  FIND_WORK: {
     type: ApplicationCommandType.ChatInput,
     name: Lang.getRef('chatCommands.findWork', Language.Default),
     name_localizations: Lang.getRefLocalizationMap('chatCommands.findWork'),

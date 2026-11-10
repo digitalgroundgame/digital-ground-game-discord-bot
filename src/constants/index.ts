@@ -34,7 +34,6 @@ export {
   DRAW_SIZE,
   type DrawnIssue,
   drawIssues,
-  FindWorkApproverRoleKeys,
   FindWorkExcludedRepos,
   FindWorkMarkerLabel,
   FindWorkPoints,

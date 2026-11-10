@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { kudosTransaction } from '../../src/database/schema.js'
+import { issueClaim, kudosTransaction } from '../../src/database/schema.js'
 import {
+  CLAIM_GRACE_MS,
   decideIssueClaim,
   decideReviewRequest,
   FindWorkPayoutService,
+  ISSUE_CLAIM_MAX_AGE_MS,
+  REVIEW_REQUEST_MAX_AGE_MS,
 } from '../../src/services/find-work-payout-service.js'
 import {
   type GitHubIssuesService,
@@ -25,21 +28,32 @@ function issue(overrides: Partial<IssueStatus> = {}): IssueStatus {
     stateReason: null,
     assignees: ['alice'],
     closedByCode: false,
+    closerLogin: null,
     ...overrides,
   }
 }
 
 describe('decideIssueClaim', () => {
-  const claim = { githubLogin: 'Alice' }
+  const now = new Date('2026-10-10T12:00:00Z')
+  const claim = { githubLogin: 'Alice', claimedAt: new Date('2026-10-01T12:00:00Z') }
+  const byAlice = { closedByCode: true, closerLogin: 'alice' }
 
   it('waits while the issue is open and the claimer is assigned', () => {
-    expect(decideIssueClaim(claim, issue())).toBe('wait')
+    expect(decideIssueClaim(claim, issue(), now)).toBe('wait')
   })
 
   it('pays when code closes it as completed with the claimer still assigned', () => {
-    const closed = { state: 'closed', closedByCode: true } as const
+    const closed = { state: 'closed', ...byAlice } as const
     expect(decideIssueClaim(claim, issue({ ...closed, stateReason: 'completed' }))).toBe('pay')
     expect(decideIssueClaim(claim, issue({ ...closed, stateReason: null }))).toBe('pay')
+  })
+
+  // The claimer only held the issue; whoever wrote the closing code did the work.
+  it('expires when someone else’s code closes it, even with the claimer still assigned', () => {
+    const closed = { state: 'closed', stateReason: 'completed', closedByCode: true } as const
+    expect(decideIssueClaim(claim, issue({ ...closed, closerLogin: 'bob' }))).toBe('expire')
+    // A commit whose author has no GitHub account can't be attributed.
+    expect(decideIssueClaim(claim, issue({ ...closed, closerLogin: null }))).toBe('expire')
   })
 
   // Otherwise anyone who can close issues could claim one, close it, and be paid.
@@ -61,13 +75,28 @@ describe('decideIssueClaim', () => {
 
   // Whoever took it over did the work; the original claimer dropped it.
   it('expires when the claimer is no longer assigned, open or closed', () => {
-    expect(decideIssueClaim(claim, issue({ assignees: ['bob'] }))).toBe('expire')
+    expect(decideIssueClaim(claim, issue({ assignees: ['bob'] }), now)).toBe('expire')
     expect(
       decideIssueClaim(
         claim,
-        issue({ state: 'closed', stateReason: 'completed', assignees: ['bob'] }),
+        issue({ state: 'closed', stateReason: 'completed', assignees: ['bob'], ...byAlice }),
+        now,
       ),
     ).toBe('expire')
+  })
+
+  // The claim is recorded before the GitHub assignment lands, so a run in
+  // that gap must not read the missing assignee as a dropped claim.
+  it('waits on a fresh claim whose assignment has not landed yet', () => {
+    const fresh = { ...claim, claimedAt: new Date(now.getTime() - CLAIM_GRACE_MS + 1000) }
+    expect(decideIssueClaim(fresh, issue({ assignees: [] }), now)).toBe('wait')
+    const settled = { ...claim, claimedAt: new Date(now.getTime() - CLAIM_GRACE_MS - 1000) }
+    expect(decideIssueClaim(settled, issue({ assignees: [] }), now)).toBe('expire')
+  })
+
+  it('expires a claim left open past the maximum age', () => {
+    const old = { ...claim, claimedAt: new Date(now.getTime() - ISSUE_CLAIM_MAX_AGE_MS - 1000) }
+    expect(decideIssueClaim(old, issue(), now)).toBe('expire')
   })
 })
 
@@ -96,7 +125,7 @@ describe('decideReviewRequest', () => {
         { login: 'alice', state: 'APPROVED', submittedAt: new Date('2026-09-01T00:00:00Z') },
       ],
     })
-    expect(decideReviewRequest(request, status)).toBe('wait')
+    expect(decideReviewRequest(request, status, new Date('2026-10-02T12:00:00Z'))).toBe('wait')
   })
 
   it('tolerates a review timestamped a moment before the stored request time', () => {
@@ -110,6 +139,13 @@ describe('decideReviewRequest', () => {
 
   it('expires when the pull request closes without a review', () => {
     expect(decideReviewRequest(request, pull({ state: 'closed' }))).toBe('expire')
+  })
+
+  it('expires a request still unreviewed past the maximum age', () => {
+    const later = new Date(requestedAt.getTime() + REVIEW_REQUEST_MAX_AGE_MS + 1000)
+    expect(decideReviewRequest(request, pull(), later)).toBe('expire')
+    const sooner = new Date(requestedAt.getTime() + REVIEW_REQUEST_MAX_AGE_MS - 1000)
+    expect(decideReviewRequest(request, pull(), sooner)).toBe('wait')
   })
 })
 
@@ -159,7 +195,12 @@ describe('FindWorkPayoutService', () => {
   })
 
   it('pays the wildcard rate for a completed wildcard claim and the review rate for a review', async () => {
-    issueStatus = issue({ state: 'closed', stateReason: 'completed', closedByCode: true })
+    issueStatus = issue({
+      state: 'closed',
+      stateReason: 'completed',
+      closedByCode: true,
+      closerLogin: 'alice',
+    })
     pullStatus = {
       state: 'open',
       reviews: [{ login: 'bob', state: 'APPROVED', submittedAt: new Date(Date.now() + 1000) }],
@@ -177,6 +218,10 @@ describe('FindWorkPayoutService', () => {
   })
 
   it('expires without paying', async () => {
+    // Past the grace period, so a missing assignee reads as a dropped claim.
+    db.update(issueClaim)
+      .set({ claimedAt: new Date(Date.now() - CLAIM_GRACE_MS - 60_000) })
+      .run()
     issueStatus = issue({ assignees: [] })
     pullStatus = { state: 'closed', reviews: [] }
 
@@ -184,8 +229,42 @@ describe('FindWorkPayoutService', () => {
     expect(db.select().from(kudosTransaction).all()).toEqual([])
   })
 
+  it('keeps settling the rest when one claim fails', async () => {
+    await claims.recordClaim({
+      guildId: 'guild-1',
+      discordUserId: 'member-3',
+      githubLogin: 'carol',
+      repo: 'org/site',
+      issueNumber: 8,
+      wildcard: false,
+    })
+    let calls = 0
+    const flaky = {
+      getIssueStatus: async (_repo: string, issueNumber: number) => {
+        calls++
+        if (issueNumber === 7) throw new Error('boom')
+        return issue({
+          state: 'closed',
+          stateReason: 'completed',
+          assignees: ['carol'],
+          closedByCode: true,
+          closerLogin: 'carol',
+        })
+      },
+    } as unknown as GitHubIssuesService
+
+    const run = new FindWorkPayoutService(flaky, pulls, claims, 'bot-1', POINTS)
+    expect(await run.run()).toEqual({ paid: 1, expired: 0 })
+    expect(calls).toBe(2)
+  })
+
   it('settles a completed claim without a ledger row when its payout is turned off', async () => {
-    issueStatus = issue({ state: 'closed', stateReason: 'completed', closedByCode: true })
+    issueStatus = issue({
+      state: 'closed',
+      stateReason: 'completed',
+      closedByCode: true,
+      closerLogin: 'alice',
+    })
     const off = new FindWorkPayoutService(issues, pulls, claims, 'bot-1', {
       ...POINTS,
       wildcardIssue: 0,
