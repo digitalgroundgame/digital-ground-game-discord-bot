@@ -30,6 +30,31 @@ export {
 export { type LinkableAccount, LinkableAccounts, getLinkableAccount } from './linkable-accounts.js'
 export { PingSkillRoleAllowedRoleKeys } from './skill-roles.js'
 export {
+  type CandidateIssue,
+  DRAW_SIZE,
+  type DrawnIssue,
+  drawIssues,
+  FindWorkApproverRoleKeys,
+  FindWorkExcludedRepos,
+  FindWorkMarkerLabel,
+  FindWorkPoints,
+  type FindWorkPointsConfig,
+  issueMatchesSkills,
+  MATCHED_SLOTS,
+  partitionBySkills,
+  skillSlugsForRoleNames,
+  toLabelSlug,
+} from './find-work.js'
+export {
+  type FileAuthorIndex,
+  fileKey,
+  isNoiseFile,
+  type OpenPullRequest,
+  REVIEW_SUGGESTION_LIMIT,
+  type ReviewSuggestion,
+  suggestReviews,
+} from './review-suggestions.js'
+export {
   KudosEmoji,
   KudosGiveAllowedRoleIds,
   KudosGiveAllowedRoleKeys,

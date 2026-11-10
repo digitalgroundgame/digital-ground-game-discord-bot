@@ -9,6 +9,7 @@ import {
   CensusCommand,
   ContentCommand,
   DevCommand,
+  FindWorkCommand,
   GrantAccessCommand,
   HelpCommand,
   InfoCommand,
@@ -45,6 +46,9 @@ import {
 import { CustomClient } from './extensions/index.js'
 import {
   AutoCloseWelcomeThreadsJob,
+  PayFindWorkJob,
+  RefreshGitHubIssuesJob,
+  RefreshGitHubPullRequestsJob,
   RefreshGitHubTeamsJob,
   SyncDggpGoogleCalendarJob,
   type Job,
@@ -58,6 +62,9 @@ import {
   ContentService,
   CrmService,
   EventDataService,
+  FindWorkPayoutService,
+  GitHubIssuesService,
+  GitHubPullRequestsService,
   GitHubTeamsService,
   GoogleCalendarService,
   GoogleGroupsService,
@@ -65,6 +72,7 @@ import {
   KudosService,
   Logger,
   UserService,
+  WorkClaimService,
 } from './services/index.js'
 import { CTAPostTrigger } from './triggers/cta-post.js'
 import { type Trigger } from './triggers/index.js'
@@ -151,6 +159,25 @@ async function start(): Promise<void> {
     )
   }
 
+  // A separate token from GITHUB_TEAMS_TOKEN on purpose: /find-work is open
+  // to every member, and the credential it reaches should not also be able to
+  // change organization membership.
+  const githubIssuesService = new GitHubIssuesService(
+    process.env.GITHUB_ISSUES_TOKEN,
+    process.env.GITHUB_TEAMS_ORG,
+  )
+  if (!githubIssuesService.isConfigured()) {
+    Logger.warn(
+      '/find-work: disabled — set GITHUB_ISSUES_TOKEN (repository Issues and Pull requests read & write, plus Metadata) and GITHUB_TEAMS_ORG (the organization its public repositories are read from).',
+    )
+  }
+
+  // Review suggestions ride on the same token and org as the issue pool.
+  const githubPullRequestsService = new GitHubPullRequestsService(
+    process.env.GITHUB_ISSUES_TOKEN,
+    process.env.GITHUB_TEAMS_ORG,
+  )
+
   let database: Database | undefined
   if (process.env.SQLITE_PATH) {
     try {
@@ -165,6 +192,7 @@ async function start(): Promise<void> {
   // Stores the external accounts members link via /link-account, and is read
   // by /grant-access to resolve a member's Google email.
   const userService = database ? new UserService(database) : undefined
+  const workClaimService = database ? new WorkClaimService(database) : undefined
   // Backs /democracy-points and the kudos reaction. Without a database, the command reports
   // itself as unconfigured and the reaction isn't registered.
   const kudosService = database ? new KudosService(database) : undefined
@@ -195,6 +223,12 @@ async function start(): Promise<void> {
     new LinkAccountCommand(userService),
     new ContentCommand(contentService),
     new PingSkillRoleCommand(),
+    new FindWorkCommand(
+      githubIssuesService,
+      userService,
+      workClaimService,
+      githubPullRequestsService,
+    ),
     new KudosCommand(kudosService),
 
     // User Context Commands
@@ -245,6 +279,27 @@ async function start(): Promise<void> {
   // token and org, and the service would no-op anyway.
   if (githubTeamsService.isConfigured()) {
     jobs.push(new RefreshGitHubTeamsJob(githubTeamsService))
+  }
+  // Keeps the /find-work pool current. Same reasoning as above.
+  if (githubIssuesService.isConfigured()) {
+    jobs.push(new RefreshGitHubIssuesJob(githubIssuesService))
+  }
+  if (githubPullRequestsService.isConfigured()) {
+    jobs.push(new RefreshGitHubPullRequestsJob(githubPullRequestsService))
+  }
+  // Pays Democracy Points for finished /find-work claims. The bot's
+  // application id is its user id, and is recorded as the giver.
+  if (githubIssuesService.isConfigured() && workClaimService) {
+    jobs.push(
+      new PayFindWorkJob(
+        new FindWorkPayoutService(
+          githubIssuesService,
+          githubPullRequestsService,
+          workClaimService,
+          process.env.DISCORD_CLIENT_ID,
+        ),
+      ),
+    )
   }
 
   // Bot
