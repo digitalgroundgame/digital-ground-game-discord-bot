@@ -20,7 +20,13 @@ import { createTestDatabase, type TestDatabase } from '../helpers/test-database.
 const POINTS = { issue: 1, wildcardIssue: 2, review: 1 }
 
 function issue(overrides: Partial<IssueStatus> = {}): IssueStatus {
-  return { state: 'open', stateReason: null, assignees: ['alice'], ...overrides }
+  return {
+    state: 'open',
+    stateReason: null,
+    assignees: ['alice'],
+    closedByCode: false,
+    ...overrides,
+  }
 }
 
 describe('decideIssueClaim', () => {
@@ -30,11 +36,18 @@ describe('decideIssueClaim', () => {
     expect(decideIssueClaim(claim, issue())).toBe('wait')
   })
 
-  it('pays when it closes as completed with the claimer still assigned', () => {
+  it('pays when code closes it as completed with the claimer still assigned', () => {
+    const closed = { state: 'closed', closedByCode: true } as const
+    expect(decideIssueClaim(claim, issue({ ...closed, stateReason: 'completed' }))).toBe('pay')
+    expect(decideIssueClaim(claim, issue({ ...closed, stateReason: null }))).toBe('pay')
+  })
+
+  // Otherwise anyone who can close issues could claim one, close it, and be paid.
+  it('expires when it was closed by hand', () => {
     expect(decideIssueClaim(claim, issue({ state: 'closed', stateReason: 'completed' }))).toBe(
-      'pay',
+      'expire',
     )
-    expect(decideIssueClaim(claim, issue({ state: 'closed', stateReason: null }))).toBe('pay')
+    expect(decideIssueClaim(claim, issue({ state: 'closed', stateReason: null }))).toBe('expire')
   })
 
   it('expires when it closes as not planned or a duplicate', () => {
@@ -146,7 +159,7 @@ describe('FindWorkPayoutService', () => {
   })
 
   it('pays the wildcard rate for a completed wildcard claim and the review rate for a review', async () => {
-    issueStatus = issue({ state: 'closed', stateReason: 'completed' })
+    issueStatus = issue({ state: 'closed', stateReason: 'completed', closedByCode: true })
     pullStatus = {
       state: 'open',
       reviews: [{ login: 'bob', state: 'APPROVED', submittedAt: new Date(Date.now() + 1000) }],
@@ -172,7 +185,7 @@ describe('FindWorkPayoutService', () => {
   })
 
   it('settles a completed claim without a ledger row when its payout is turned off', async () => {
-    issueStatus = issue({ state: 'closed', stateReason: 'completed' })
+    issueStatus = issue({ state: 'closed', stateReason: 'completed', closedByCode: true })
     const off = new FindWorkPayoutService(issues, pulls, claims, 'bot-1', {
       ...POINTS,
       wildcardIssue: 0,

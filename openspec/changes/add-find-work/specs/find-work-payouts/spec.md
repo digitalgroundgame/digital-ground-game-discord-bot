@@ -29,12 +29,17 @@ A job SHALL settle live claims and review requests on a schedule (hourly by defa
 
 ### Requirement: Issue claim payout
 
-A live issue claim SHALL pay when the issue is closed as completed, or closed with no reason, and the claimer's GitHub login is still among its assignees. It SHALL expire when the claimer is no longer assigned, or when the issue is closed as not planned or as a duplicate. Otherwise it SHALL stay live. Points MUST be paid into the guild where the claim was made, with the bot as the giver.
+A live issue claim SHALL pay when a merged pull request or a commit closed the issue as completed, or with no reason, and the claimer's GitHub login is still among its assignees. It SHALL expire when the claimer is no longer assigned, when the issue was closed by hand, or when it was closed as not planned or as a duplicate. Otherwise it SHALL stay live. Points MUST be paid into the guild where the claim was made, with the bot as the giver.
 
 #### Scenario: Claimer finishes the issue
 
-- **WHEN** the issue closes as completed with the claimer still assigned
+- **WHEN** a merged pull request closes the issue as completed with the claimer still assigned
 - **THEN** the claim is marked completed and the claimer receives the issue points
+
+#### Scenario: Closed by hand
+
+- **WHEN** the claimer, or anyone else, closes the issue as completed without a merged pull request or commit
+- **THEN** the claim expires without payment, so nobody can be paid for closing their own claim
 
 #### Scenario: Work taken over
 
@@ -43,7 +48,7 @@ A live issue claim SHALL pay when the issue is closed as completed, or closed wi
 
 #### Scenario: Closed as not planned
 
-- **WHEN** the issue closes as not planned with the claimer still assigned
+- **WHEN** the issue is closed as not planned with the claimer still assigned
 - **THEN** the claim expires without payment
 
 #### Scenario: Still in progress

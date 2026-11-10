@@ -27,11 +27,14 @@ The work already exists on the `give-issue-pr-review` branch. This change record
 - **Claims recorded locally, not inferred from GitHub.** GitHub knows who is assigned but not which Discord member asked or whether it came from the wildcard slot. The GitHub login is denormalized onto the claim so a later relink doesn't reattribute it.
 - **Settlement is one transaction guarded on the live state.** The state change and the points award commit together, and the update only matches a row still `claimed` or `requested`, so reruns can't double-pay.
 - **Pay only a claimer still assigned at close.** This stops paying someone who dropped the issue and stops paying the original claimer when someone else took it over.
+- **Pay only for a close that came from code.** The payout reads the issue's latest close event and pays only when its closer is a merged pull request or a commit. Without this, anyone able to close issues could claim one, close it and be paid. It costs one GraphQL read per closed claim, and an issue closed by hand after an unlinked merge expires instead of paying.
+- **Claim before assigning.** The claim row is inserted first and the one-live-claim index decides a race between two members; the claim is withdrawn if the GitHub assignment doesn't land.
 - **Unreadable status means wait.** If GitHub can't be read, the claim is left for the next run instead of expired.
 - **Ephemeral reply with a five-minute button window.** A draw is personal, and an ephemeral reply keeps channels clean. The cost is that buttons stop working when the interaction expires.
 
 ## Risks / Trade-offs
 
-- A null `state_reason` on a closed issue is treated as completed, since that is what GitHub records when no reason is given → an issue closed carelessly may pay out. Accepted, because the alternative would withhold most legitimate payouts.
+- A null `state_reason` on a closed issue is treated as completed, since that is what GitHub records when no reason is given. Because a close must also come from a merged pull request or commit, this no longer lets a careless or self-made close pay out.
+- A pull request that fixes an issue without a closing keyword (`Fixes #n`) leaves the claim to expire when someone closes the issue by hand. The `/find-work` reward line tells members a merged pull request has to close the issue.
 - Review timestamps from GitHub are compared with a one-minute allowance for clock skew → a review submitted just before the request could count. Accepted as negligible.
 - Point amounts are capped at 10 per payout in config validation to catch typos that would swamp the leaderboard.

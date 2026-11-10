@@ -29,7 +29,7 @@ The implementation already exists on the `give-issue-pr-review` branch. Boxes ar
 ## 5. Payouts
 
 - [x] 5.1 Record and settle claims and review requests in one transaction that only matches live records, and verify with `tests/services/work-claim-service.test.ts`
-- [x] 5.2 Decide pay, expire or wait for issue claims and review requests, leaving unreadable records live, and verify with `tests/services/find-work-payout-service.test.ts`
+- [x] 5.2 Decide pay, expire or wait for issue claims and review requests, paying issues only when a merged pull request or commit closed them and leaving unreadable records live, and verify with `tests/services/find-work-payout-service.test.ts`
 - [x] 5.3 Register the hourly `PayFindWorkJob` with the bot as giver, and verify `pnpm run check-types` passes
 
 ## 6. Rollout

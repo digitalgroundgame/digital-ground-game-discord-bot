@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { toCandidateIssue, toIssueStatus } from '../../src/services/github-issues-service.js'
+import {
+  toCandidateIssue,
+  toClosedByCode,
+  toIssueStatus,
+} from '../../src/services/github-issues-service.js'
 
 function raw(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -72,11 +76,37 @@ describe('toIssueStatus', () => {
         state_reason: 'completed',
         assignees: [{ login: 'Alice' }, { login: 'bob' }],
       }),
-    ).toEqual({ state: 'closed', stateReason: 'completed', assignees: ['alice', 'bob'] })
+    ).toEqual({
+      state: 'closed',
+      stateReason: 'completed',
+      assignees: ['alice', 'bob'],
+      closedByCode: false,
+    })
   })
 
   it('rejects an entry without a known state', () => {
     expect(toIssueStatus({ state: 'weird' })).toBeNull()
     expect(toIssueStatus(null)).toBeNull()
+  })
+})
+
+describe('toClosedByCode', () => {
+  function closedBy(closer: unknown): unknown {
+    return { repository: { issue: { timelineItems: { nodes: [{ closer }] } } } }
+  }
+
+  it('counts a merged pull request or a commit as code', () => {
+    expect(toClosedByCode(closedBy({ __typename: 'PullRequest', merged: true }))).toBe(true)
+    expect(toClosedByCode(closedBy({ __typename: 'Commit' }))).toBe(true)
+  })
+
+  it('does not count a close by hand or an unmerged pull request', () => {
+    expect(toClosedByCode(closedBy(null))).toBe(false)
+    expect(toClosedByCode(closedBy({ __typename: 'PullRequest', merged: false }))).toBe(false)
+  })
+
+  it('rejects an answer without a timeline', () => {
+    expect(toClosedByCode({ repository: { issue: null } })).toBeNull()
+    expect(toClosedByCode(null)).toBeNull()
   })
 })

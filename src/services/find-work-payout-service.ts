@@ -25,10 +25,13 @@ const CLOCK_SKEW_MS = 60_000
  * Decide an issue claim from the issue's current state.
  *
  * Pays only a claimer who is still assigned when the issue closes as
- * completed. A claimer who was unassigned — because they dropped it or
- * someone took it over — expires, as does a claim on an issue closed as not
- * planned or a duplicate. A null close reason is treated as completed, since
- * that is what GitHub records when no reason is given.
+ * completed through code landing: a merged pull request or a commit that
+ * closes it. A close made by hand expires the claim, because otherwise anyone
+ * able to close issues could claim one, close it and be paid for no work.
+ * A claimer who was unassigned — because they dropped it or someone took it
+ * over — expires, as does a claim on an issue closed as not planned or a
+ * duplicate. A null close reason is treated as completed, since that is what
+ * GitHub records when no reason is given.
  */
 export function decideIssueClaim(
   claim: Pick<IssueClaim, 'githubLogin'>,
@@ -37,7 +40,7 @@ export function decideIssueClaim(
   const stillAssigned = status.assignees.includes(claim.githubLogin.toLowerCase())
   if (status.state === 'closed') {
     const completed = status.stateReason === null || status.stateReason === 'completed'
-    return completed && stillAssigned ? 'pay' : 'expire'
+    return completed && stillAssigned && status.closedByCode ? 'pay' : 'expire'
   }
   return stillAssigned ? 'wait' : 'expire'
 }

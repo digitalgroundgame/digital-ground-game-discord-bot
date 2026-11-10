@@ -4,6 +4,7 @@ import {
   describeError,
   GITHUB_API_BASE,
   githubGet,
+  githubGraphql,
   githubHeaders,
   listPublicOrgRepos,
   MAX_PAGES,
@@ -30,6 +31,12 @@ export interface IssueStatus {
   stateReason: string | null
   /** Assignee logins, lowercased. */
   assignees: string[]
+  /**
+   * Whether the issue's latest close came from code landing: a merged pull
+   * request or a commit that references it. False while the issue is open,
+   * and false for a close made by hand.
+   */
+  closedByCode: boolean
 }
 
 /** Read an issues-API entry into an `IssueStatus`, or null if it isn't one. Exported for tests. */
@@ -47,7 +54,54 @@ export function toIssueStatus(raw: unknown): IssueStatus | null {
     state: body.state,
     stateReason: typeof body.state_reason === 'string' ? body.state_reason : null,
     assignees,
+    closedByCode: false,
   }
+}
+
+/**
+ * The latest close on an issue, and what did it. GitHub sets `closer` to the
+ * pull request or commit that closed the issue through a closing keyword, and
+ * leaves it null for a close made by hand.
+ */
+const CLOSER_QUERY = `
+  query ($owner: String!, $name: String!, $number: Int!) {
+    repository(owner: $owner, name: $name) {
+      issue(number: $number) {
+        timelineItems(itemTypes: [CLOSED_EVENT], last: 1) {
+          nodes {
+            ... on ClosedEvent {
+              closer {
+                __typename
+                ... on PullRequest { merged }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`
+
+/**
+ * Read `CLOSER_QUERY`'s answer into whether code closed the issue, or null if
+ * the answer isn't one. Exported for tests.
+ */
+export function toClosedByCode(data: unknown): boolean | null {
+  const issue = (
+    data as {
+      repository?: {
+        issue?: { timelineItems?: { nodes?: unknown } } | null
+      } | null
+    } | null
+  )?.repository?.issue
+  const nodes = issue?.timelineItems?.nodes
+  if (!Array.isArray(nodes)) return null
+  const closer = (
+    nodes[nodes.length - 1] as { closer?: { __typename?: unknown; merged?: unknown } | null }
+  )?.closer
+  if (!closer) return false
+  if (closer.__typename === 'PullRequest') return closer.merged === true
+  return closer.__typename === 'Commit'
 }
 
 interface RawLabel {
@@ -195,7 +249,18 @@ export class GitHubIssuesService {
   public async getIssueStatus(repo: string, issueNumber: number): Promise<IssueStatus | null> {
     if (!this.isConfigured()) return null
     try {
-      return toIssueStatus(await githubGet(this.token, `/repos/${repo}/issues/${issueNumber}`))
+      const status = toIssueStatus(
+        await githubGet(this.token, `/repos/${repo}/issues/${issueNumber}`),
+      )
+      if (status?.state !== 'closed') return status
+      // Paying for a close needs to know what closed it, so a closer that
+      // can't be read leaves the claim for the next run like any other miss.
+      const [owner, name] = repo.split('/')
+      const closedByCode = toClosedByCode(
+        await githubGraphql(this.token, CLOSER_QUERY, { owner, name, number: issueNumber }),
+      )
+      if (closedByCode === null) throw new Error('unexpected closer response')
+      return { ...status, closedByCode }
     } catch (err: unknown) {
       Logger.error(
         `GitHub Issues: failed to read ${repo}#${issueNumber}: ${describeError(err)}`,
