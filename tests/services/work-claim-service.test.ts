@@ -87,6 +87,43 @@ describe('WorkClaimService', () => {
     expect(await service.listLiveClaims()).toHaveLength(1)
   })
 
+  it('settles the same issue more than once across re-claims', async () => {
+    for (let round = 0; round < 3; round++) {
+      await claim()
+      const [live] = await service.listLiveClaims()
+      if (!live) throw new Error('expected a live claim')
+      expect(await service.settleClaim(live, 'expired')).toBe(true)
+    }
+    await claim()
+    const [live] = await service.listLiveClaims()
+    if (!live) throw new Error('expected a live claim')
+    const award = { giverDiscordId: BOT_ID, reason: 'r', points: 1 }
+    expect(await service.settleClaim(live, 'completed', award)).toBe(true)
+    expect(await service.listLiveClaims()).toHaveLength(0)
+  })
+
+  it('refuses a second live claim on the same issue', async () => {
+    await claim()
+    await expect(claim()).rejects.toThrow()
+  })
+
+  it('settles repeat review requests from the same member', async () => {
+    const input = {
+      guildId: GUILD_ID,
+      discordUserId: 'member-1',
+      githubLogin: 'alice',
+      repo: 'org/site',
+      pullNumber: 9,
+    }
+    for (let round = 0; round < 2; round++) {
+      await service.recordReviewRequest(input)
+      const [live] = await service.listLiveReviewRequests()
+      if (!live) throw new Error('expected a live request')
+      expect(await service.settleReviewRequest(live, 'expired')).toBe(true)
+    }
+    expect(await service.listLiveReviewRequests()).toHaveLength(0)
+  })
+
   it('ignores a second live review request from the same member', async () => {
     const input = {
       guildId: GUILD_ID,

@@ -74,8 +74,8 @@ export function createTestDatabase(): TestDatabase {
       "resolved_at" integer,
       FOREIGN KEY ("discord_user_id") REFERENCES "user" ("discord_user_id") ON DELETE cascade
     );
-    CREATE UNIQUE INDEX "issue_claim_repo_issue_state_uq"
-      ON "issue_claim" ("repo", "issue_number", "state");
+    CREATE UNIQUE INDEX "issue_claim_live_uq"
+      ON "issue_claim" ("repo", "issue_number") WHERE "state" = 'claimed';
     CREATE INDEX "issue_claim_state_claimed_at_idx" ON "issue_claim" ("state", "claimed_at");
 
     CREATE TABLE "review_request" (
@@ -90,8 +90,8 @@ export function createTestDatabase(): TestDatabase {
       "resolved_at" integer,
       FOREIGN KEY ("discord_user_id") REFERENCES "user" ("discord_user_id") ON DELETE cascade
     );
-    CREATE UNIQUE INDEX "review_request_repo_pull_login_state_uq"
-      ON "review_request" ("repo", "pull_number", "github_login", "state");
+    CREATE UNIQUE INDEX "review_request_live_uq"
+      ON "review_request" ("repo", "pull_number", "github_login") WHERE "state" = 'requested';
     CREATE INDEX "review_request_state_requested_at_idx"
       ON "review_request" ("state", "requested_at");
   `)

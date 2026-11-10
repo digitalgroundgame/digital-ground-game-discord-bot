@@ -107,9 +107,11 @@ export const issueClaim = sqliteTable(
     resolvedAt: integer('resolved_at', { mode: 'timestamp' }),
   },
   (t) => [
-    // One live claim per issue. Re-claiming after an expiry is a new row, so
-    // this is deliberately not unique on (repo, issueNumber) alone.
-    uniqueIndex('issue_claim_repo_issue_state_uq').on(t.repo, t.issueNumber, t.state),
+    // One live claim per issue. Partial, so settled rows don't count: an issue
+    // can be claimed, dropped and re-claimed any number of times.
+    uniqueIndex('issue_claim_live_uq')
+      .on(t.repo, t.issueNumber)
+      .where(sql`${t.state} = 'claimed'`),
     // The payout job's read path: every unresolved claim, oldest first.
     index('issue_claim_state_claimed_at_idx').on(t.state, t.claimedAt),
   ],
@@ -145,12 +147,9 @@ export const reviewRequest = sqliteTable(
   (t) => [
     // Several members can review one pull request, but each holds at most one
     // live request on it.
-    uniqueIndex('review_request_repo_pull_login_state_uq').on(
-      t.repo,
-      t.pullNumber,
-      t.githubLogin,
-      t.state,
-    ),
+    uniqueIndex('review_request_live_uq')
+      .on(t.repo, t.pullNumber, t.githubLogin)
+      .where(sql`${t.state} = 'requested'`),
     index('review_request_state_requested_at_idx').on(t.state, t.requestedAt),
   ],
 )
