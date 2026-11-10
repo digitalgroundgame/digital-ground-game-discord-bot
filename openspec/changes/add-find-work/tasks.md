@@ -23,7 +23,7 @@ The implementation already exists on the `give-issue-pr-review` branch. Boxes ar
 
 - [x] 4.1 Add the command, its registration metadata and its `lang/lang.en-US.json` strings, and verify it builds with `pnpm run check-types`
 - [x] 4.2 Gate on configuration and a linked GitHub account, and reply with the draw, review suggestions and claim buttons, and verify `pnpm run check-types` passes
-- [x] 4.3 On a claim, refuse a duplicate live claim, check assignability, assign on GitHub and record the claim, and verify `pnpm run check-types` passes
+- [x] 4.3 On a claim, record it first (refusing when another live claim exists), then check assignability and assign on GitHub, withdrawing the claim if either fails, and verify `pnpm run check-types` passes
 - [x] 4.4 On a review, request the review on GitHub and record it, and verify `pnpm run check-types` passes
 
 ## 5. Payouts

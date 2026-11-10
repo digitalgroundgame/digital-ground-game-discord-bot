@@ -82,12 +82,12 @@ Alongside the draw, the bot SHALL suggest up to two open pull requests in the or
 
 ### Requirement: Claiming an issue
 
-Pressing an issue's claim button within five minutes SHALL assign the member's linked GitHub account to that issue and record the claim, noting whether it came from the wildcard slot. Only the member who ran the command can press the buttons. The bot MUST refuse a claim when another live claim exists on the issue, and MUST NOT assign when the GitHub account can't be assigned on that repository. The confirmation SHALL state the points the claim will pay when that payout is enabled.
+Pressing an issue's claim button within five minutes SHALL assign the member's linked GitHub account to that issue and record the claim, noting whether it came from the wildcard slot. Only the member who ran the command can press the buttons. The claim MUST be recorded before the assignment, so that when another live claim exists on the issue the bot refuses without assigning. When the account can't be assigned, or the assignment fails, the bot MUST withdraw the claim.
 
 #### Scenario: Successful claim
 
 - **WHEN** the member presses "Claim #42" and the issue has no live claim
-- **THEN** the bot assigns their GitHub account to the issue, records the claim, and confirms with the points it will pay
+- **THEN** the bot records the claim, assigns their GitHub account to the issue, and confirms with the points it will pay when that payout is enabled
 
 #### Scenario: Someone claimed it first
 
@@ -99,10 +99,15 @@ Pressing an issue's claim button within five minutes SHALL assign the member's l
 - **WHEN** the member's GitHub account can't be assigned on the issue's repository, for example because of an unaccepted organization invitation
 - **THEN** the bot explains that access is needed and does not assign
 
-#### Scenario: Assigned but not recorded
+#### Scenario: Two members claim at once
 
-- **WHEN** the GitHub assignment succeeds but recording the claim fails
-- **THEN** the bot tells the member the assignment landed but the claim was not recorded, so no payout will follow
+- **WHEN** two members press claim on the same issue at about the same time
+- **THEN** only one claim is recorded and only that member is assigned; the other is told the issue is already claimed
+
+#### Scenario: Assignment fails
+
+- **WHEN** the claim is recorded but GitHub refuses the assignment
+- **THEN** the claim is withdrawn, the issue can be claimed again, and the member is told the claim failed
 
 #### Scenario: Buttons time out
 

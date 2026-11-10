@@ -104,7 +104,26 @@ describe('WorkClaimService', () => {
 
   it('refuses a second live claim on the same issue', async () => {
     await claim()
-    await expect(claim()).rejects.toThrow()
+    const second = await service.recordClaim({
+      guildId: GUILD_ID,
+      discordUserId: 'member-2',
+      githubLogin: 'bob',
+      repo: 'org/site',
+      issueNumber: 7,
+      wildcard: false,
+    })
+    expect(second).toBeUndefined()
+    expect((await service.findLiveClaim('org/site', 7))?.githubLogin).toBe('alice')
+  })
+
+  it('frees the issue when a claim is released', async () => {
+    await claim()
+    const live = await service.findLiveClaim('org/site', 7)
+    if (!live) throw new Error('expected a live claim')
+    await service.releaseClaim(live.id)
+    expect(await service.findLiveClaim('org/site', 7)).toBeUndefined()
+    await claim()
+    expect(await service.listLiveClaims()).toHaveLength(1)
   })
 
   it('settles repeat review requests from the same member', async () => {

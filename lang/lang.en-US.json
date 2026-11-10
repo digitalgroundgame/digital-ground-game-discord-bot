@@ -289,10 +289,6 @@
         "description": "GitHub won’t let **{{LOGIN}}** be assigned to **{{REPO}}** yet. That usually means an organization invitation is still unaccepted — check your email, then ask a lead about `/grant-access` if it persists.",
         "color": "{{COM:colors.warning}}"
       },
-      "findWorkClaimNotRecorded": {
-        "description": "You’ve been assigned to [{{REPO}} #{{NUMBER}}]({{URL}}), but the claim wasn’t recorded, so it won’t earn {{COM:pointsName.other}}. Let a lead know.",
-        "color": "{{COM:colors.warning}}"
-      },
       "findWorkReviews": {
         "title": "Pull requests you know your way around",
         "description": "{{PULLS}}\n\n{{HINT}}"

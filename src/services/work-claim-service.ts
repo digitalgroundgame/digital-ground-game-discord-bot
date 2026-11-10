@@ -58,12 +58,20 @@ function ensureUser(tx: DatabaseTransaction, discordUserId: string, now: Date): 
 export class WorkClaimService {
   constructor(private readonly db: Database) {}
 
-  /** Record an accepted issue claim. */
-  public async recordClaim(input: RecordClaimInput): Promise<void> {
+  /**
+   * Record an issue claim, returning its id, or `undefined` when someone
+   * already holds a live claim on the issue.
+   *
+   * Called before the GitHub assignment, so the one-live-claim index is what
+   * decides a race between two members pressing Claim at once: only one
+   * insert lands, and only that member goes on to be assigned.
+   */
+  public async recordClaim(input: RecordClaimInput): Promise<number | undefined> {
     const now = new Date()
-    this.db.transaction((tx) => {
+    const id = this.db.transaction((tx) => {
       ensureUser(tx, input.discordUserId, now)
-      tx.insert(issueClaim)
+      const result = tx
+        .insert(issueClaim)
         .values({
           guildId: input.guildId,
           discordUserId: input.discordUserId,
@@ -74,11 +82,26 @@ export class WorkClaimService {
           state: 'claimed',
           claimedAt: now,
         })
+        .onConflictDoNothing()
         .run()
+      return result.changes === 0 ? undefined : Number(result.lastInsertRowid)
     })
+    if (id === undefined) return undefined
     Logger.info(
       `Work claim: ${input.discordUserId} (${input.githubLogin}) claimed ${input.repo}#${input.issueNumber}${input.wildcard ? ' [wildcard]' : ''}`,
     )
+    return id
+  }
+
+  /**
+   * Withdraw a claim whose GitHub assignment never landed, so the issue is
+   * free to claim again and the claim leaves no trace in the history.
+   */
+  public async releaseClaim(id: number): Promise<void> {
+    this.db
+      .delete(issueClaim)
+      .where(and(eq(issueClaim.id, id), eq(issueClaim.state, 'claimed')))
+      .run()
   }
 
   /** The live claim on an issue, if someone already holds one. */

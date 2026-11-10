@@ -242,9 +242,28 @@ export class FindWorkCommand implements Command {
     }
     const { issue } = choice
 
-    // Someone else may have taken it between the draw and the press.
-    const existing = await claimService.findLiveClaim(issue.repo, issue.number)
-    if (existing) {
+    // Record the claim before assigning, so the one-live-claim index settles a
+    // race between two members pressing Claim on the same issue: only one
+    // insert lands, and the other member is never assigned.
+    let claimId: number | undefined
+    try {
+      claimId = await claimService.recordClaim({
+        guildId,
+        discordUserId: intr.user.id,
+        githubLogin,
+        repo: issue.repo,
+        issueNumber: issue.number,
+        wildcard: choice.wildcard,
+      })
+    } catch (err: unknown) {
+      Logger.error(`/find-work: failed to record a claim on ${issue.repo}#${issue.number}`, err)
+      await InteractionUtils.update(button, {
+        embeds: [Lang.getEmbed('displayEmbeds.findWorkFailed', data.lang)],
+        components: [],
+      })
+      return
+    }
+    if (claimId === undefined) {
       await InteractionUtils.update(button, {
         embeds: [
           Lang.getEmbed('displayEmbeds.findWorkAlreadyClaimed', data.lang, {
@@ -256,11 +275,22 @@ export class FindWorkCommand implements Command {
       })
       return
     }
+    const release = async (): Promise<void> => {
+      try {
+        await claimService.releaseClaim(claimId)
+      } catch (err: unknown) {
+        Logger.error(
+          `/find-work: failed to release the unassigned claim on ${issue.repo}#${issue.number}`,
+          err,
+        )
+      }
+    }
 
     if (!(await issuesService.isAssignable(issue.repo, githubLogin))) {
       // On a public repo this mostly means an unaccepted org invitation. A
       // lead has to grant access before the assignment can land; whether the
       // bot should raise that request itself is still open.
+      await release()
       await InteractionUtils.update(button, {
         embeds: [
           Lang.getEmbed('displayEmbeds.findWorkNeedsAccess', data.lang, {
@@ -275,37 +305,9 @@ export class FindWorkCommand implements Command {
 
     const result = await issuesService.assign(issue.repo, issue.number, githubLogin)
     if (result.status !== 'assigned') {
+      await release()
       await InteractionUtils.update(button, {
         embeds: [Lang.getEmbed('displayEmbeds.findWorkFailed', data.lang)],
-        components: [],
-      })
-      return
-    }
-
-    try {
-      await claimService.recordClaim({
-        guildId,
-        discordUserId: intr.user.id,
-        githubLogin,
-        repo: issue.repo,
-        issueNumber: issue.number,
-        wildcard: choice.wildcard,
-      })
-    } catch (err: unknown) {
-      // The assignment landed but the record didn't, so a later payout would
-      // have nothing to attribute. Say so rather than implying a clean claim.
-      Logger.error(
-        `/find-work: assigned ${githubLogin} to ${issue.repo}#${issue.number} but failed to record the claim`,
-        err,
-      )
-      await InteractionUtils.update(button, {
-        embeds: [
-          Lang.getEmbed('displayEmbeds.findWorkClaimNotRecorded', data.lang, {
-            REPO: issue.repo,
-            NUMBER: issue.number.toString(),
-            URL: issue.htmlUrl,
-          }),
-        ],
         components: [],
       })
       return
