@@ -103,10 +103,13 @@ export class KudosCommand implements Command {
     }
 
     const targetUser = intr.options.getUser(Lang.getRef('arguments.user', Language.Default), true)
-    const reason = intr.options
-      .getString(Lang.getRef('arguments.reason', Language.Default))
-      ?.replace(/\s+/g, ' ')
-      .trim()
+    // Required so Discord moves straight to it after the member is picked,
+    // and every announcement says why. Blank after cleanup means no reason.
+    const reason =
+      intr.options
+        .getString(Lang.getRef('arguments.reason', Language.Default), true)
+        .replace(/\s+/g, ' ')
+        .trim() || undefined
 
     if (targetUser.bot) {
       await InteractionUtils.editReply(
