@@ -465,7 +465,7 @@
       "pingSkillRoleSkill": "The skill role whose online members should be pinged.",
       "pingSkillRoleNote": "An optional note to include with the ping.",
       "kudosGiveUser": "The member to give a {{COM:pointsName.one}} to.",
-      "kudosGiveReason": "Optional: what you're giving the {{COM:pointsName.one}} for.",
+      "kudosGiveReason": "What you're giving the {{COM:pointsName.one}} for. Shown in the announcement.",
       "kudosViewUser": "The member to view {{COM:pointsName.other}} for (defaults to you).",
       "kudosLeaderboardPeriod": "Weekly or monthly leaderboard."
     },
