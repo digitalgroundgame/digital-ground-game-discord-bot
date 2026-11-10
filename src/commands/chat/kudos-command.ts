@@ -145,7 +145,7 @@ export class KudosCommand implements Command {
             POINTS: pointsUnit(result.total, data.lang),
           }),
         )
-        await this.announce(intr, data, targetUser, reason)
+        await this.announce(intr, data, kudosService, result.transactionId, targetUser, reason)
 
         Logger.info(`${intr.user.tag} gave a Democracy Point to ${targetUser.tag}`)
         return
@@ -155,12 +155,16 @@ export class KudosCommand implements Command {
 
   /**
    * Publicly announces a give so the receiver sees it. Only the receiver is
-   * pinged; mentions inside the reason are not. A failure is logged rather
-   * than thrown, since the point is already recorded and confirmed.
+   * pinged; mentions inside the reason are not. The announcement becomes the
+   * give's source message, so others can pile on by reacting to it with the
+   * coin. A failure is logged rather than thrown, since the point is already
+   * recorded and confirmed.
    */
   private async announce(
     intr: ChatInputCommandInteraction,
     data: EventData,
+    kudosService: KudosService,
+    transactionId: number,
     receiver: User,
     reason: string | undefined,
   ): Promise<void> {
@@ -178,7 +182,16 @@ export class KudosCommand implements Command {
       : Lang.getRef('kudosAnnouncement.given', data.lang, vars)
 
     try {
-      await InteractionUtils.send(intr, { content, allowedMentions: { users: [receiver.id] } })
+      const message = await InteractionUtils.send(intr, {
+        content,
+        allowedMentions: { users: [receiver.id] },
+      })
+      if (message && intr.guild) {
+        await kudosService.setSource(intr.guild.id, transactionId, {
+          channelId: message.channelId,
+          messageId: message.id,
+        })
+      }
     } catch (error) {
       Logger.error(
         `democracy-points: failed to announce ${intr.user.tag}'s Democracy Point to ${receiver.tag}`,

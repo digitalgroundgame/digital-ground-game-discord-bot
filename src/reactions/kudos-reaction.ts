@@ -10,6 +10,9 @@ import { RoleUtils } from '../utils/index.js'
 const require = createRequire(import.meta.url)
 const Config = require('../../config/config.json')
 
+/** Reason prefix recorded for a coin on a give announcement. */
+const PILE_ON_REASON = 'pile on'
+
 export interface KudosReactionOptions {
   /** Roles allowed to give Democracy Points; empty means anyone. Defaults to config. */
   allowedRoleIds?: string[]
@@ -19,7 +22,9 @@ export interface KudosReactionOptions {
 
 /**
  * Reacting to a message with the kudos emoji gives its author a Democracy
- * Point. Reactions that can't count (self, bot/webhook/system author, missing
+ * Point. Reacting to the bot's announcement of a `/democracy-points give`
+ * instead gives the announced receiver a point, so others can pile on.
+ * Reactions that can't count (self, bot/webhook/system author, missing
  * role, cooldown) are removed so a visible coin always means a recorded point.
  * The generic reaction limit is skipped because it would leave coins on
  * messages without recording points. Instead, a member past their own attempt
@@ -57,8 +62,9 @@ export class KudosReaction implements Reaction {
       return
     }
 
-    const author = msg.author
-    if (author.bot || msg.webhookId || msg.system || author.id === reactor.id) {
+    const target = await this.findTarget(msg, msg.guild.id)
+    const receiverId = target?.receiverId
+    if (!receiverId || receiverId === reactor.id) {
       await this.removeReaction(msgReaction, reactor)
       return
     }
@@ -72,7 +78,7 @@ export class KudosReaction implements Reaction {
     }
 
     const result = await this.kudosService
-      .giveKudos(msg.guild.id, reactor.id, author.id, undefined, {
+      .giveKudos(msg.guild.id, reactor.id, receiverId, target.reason, {
         channelId: msg.channelId,
         messageId: msg.id,
       })
@@ -94,10 +100,38 @@ export class KudosReaction implements Reaction {
         return
       }
       case 'given': {
-        Logger.info(`${reactor.tag} gave a Democracy Point to ${author.tag} by reaction`)
+        Logger.info(`${reactor.tag} gave a Democracy Point to ${receiverId} by reaction`)
         return
       }
     }
+  }
+
+  /**
+   * Who a coin on this message rewards, and the reason to record: the author
+   * of a member's message, or the receiver of one of the bot's own give
+   * announcements, with the announced reason marked as a pile-on. Other bot,
+   * webhook, and system messages reward no one.
+   */
+  private async findTarget(
+    msg: Message,
+    guildId: string,
+  ): Promise<{ receiverId: string; reason?: string } | null> {
+    // Checked before the webhook test: an interaction follow-up like the
+    // announcement is sent through the app's webhook, so it has a webhookId.
+    if (msg.author.id === msg.client.user?.id) {
+      const give = await this.kudosService.getGiveForMessage(guildId, msg.id)
+      if (!give) {
+        return null
+      }
+      return {
+        receiverId: give.receiverDiscordId,
+        reason: give.reason ? `${PILE_ON_REASON}: ${give.reason}` : PILE_ON_REASON,
+      }
+    }
+    if (msg.webhookId || msg.system || msg.author.bot) {
+      return null
+    }
+    return { receiverId: msg.author.id }
   }
 
   private async removeReaction(msgReaction: MessageReaction, reactor: User): Promise<void> {

@@ -120,6 +120,24 @@ describe('KudosCommand', () => {
     expect(target.send).not.toHaveBeenCalled()
   })
 
+  it('records the announcement as the give’s source so coins on it can pile on', async () => {
+    const service = new KudosService(createTestDatabase())
+    const command = new KudosCommand(service, ADMIN_ONLY)
+    const target = createMockUser({
+      id: '222333444555666777',
+      toString: vi.fn().mockReturnValue('<@222333444555666777>'),
+    })
+    const intr = createGiveInteraction('333444555666777888', target)
+    intr.followUp.mockResolvedValue({ id: '888999000111222333', channelId: '555666777888999000' })
+
+    await command.execute(intr, data)
+
+    expect(await service.getGiveForMessage(GUILD_ID, '888999000111222333')).toEqual({
+      receiverDiscordId: target.id,
+      reason: '[great work](https://example.com)',
+    })
+  })
+
   it('requires a reason so Discord moves to it after the member is picked', () => {
     const give = (ChatCommandMetadata.KUDOS as any).options.find(
       (option: any) => option.name === 'give',
