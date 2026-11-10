@@ -240,9 +240,9 @@ describe('FindWorkPayoutService', () => {
     })
     let calls = 0
     const flaky = {
-      getIssueStatus: async () => {
+      getIssueStatus: async (_repo: string, issueNumber: number) => {
         calls++
-        if (calls === 1) throw new Error('boom')
+        if (issueNumber === 7) throw new Error('boom')
         return issue({
           state: 'closed',
           stateReason: 'completed',
