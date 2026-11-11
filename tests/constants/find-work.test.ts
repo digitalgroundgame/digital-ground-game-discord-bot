@@ -188,4 +188,29 @@ describe('parseFindWorkPoints', () => {
   it.each([50, -1, 1.5, '1', null])('rejects %j, naming the bad key', (value) => {
     expect(() => parseFindWorkPoints({ issue: value })).toThrow('config.findWork.points.issue')
   })
+
+  // Otherwise the typo'd amount is silently ignored and the default is paid.
+  it('rejects a misspelled key, naming it', () => {
+    expect(() => parseFindWorkPoints({ wildcard: 5 })).toThrow(
+      'config.findWork.points has unknown key(s) wildcard',
+    )
+  })
+
+  it('ignores comment keys, as elsewhere in the config', () => {
+    expect(parseFindWorkPoints({ '// NOTE': 'paid per issue', issue: 3 })).toMatchObject({
+      issue: 3,
+    })
+  })
+
+  it.each([3, 'lots', [1, 2, 1]])('rejects a points value of %j that isn’t an object', (value) => {
+    expect(() => parseFindWorkPoints(value)).toThrow('config.findWork.points must be an object')
+  })
+
+  it('returns amounts nothing can change at runtime', () => {
+    const points = parseFindWorkPoints({}) as { issue: number }
+    expect(Object.isFrozen(points)).toBe(true)
+    expect(() => {
+      points.issue = 9
+    }).toThrow(TypeError)
+  })
 })

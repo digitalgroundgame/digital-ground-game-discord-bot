@@ -8,7 +8,7 @@ vi.mock('../../src/services/logger.js', () => ({
 
 import { CommandDeferType } from '../../src/commands/index.js'
 import { FindWorkCommand } from '../../src/commands/chat/find-work-command.js'
-import { type CandidateIssue, FindWorkPoints } from '../../src/constants/find-work.js'
+import { type CandidateIssue, type FindWorkPointsConfig } from '../../src/constants/find-work.js'
 import { fileKey, type OpenPullRequest } from '../../src/constants/review-suggestions.js'
 import { Language } from '../../src/models/enum-helpers/index.js'
 import { EventData } from '../../src/models/internal-models.js'
@@ -26,6 +26,8 @@ const MEMBER_ID = '333444555666777888'
 const INTERACTION_ID = '987612345678901234'
 const REPO = 'digitalgroundgame/website'
 const data = new EventData(Language.Default, Language.Default)
+/** Distinct from each other and from the config, so a reply can only show the right one. */
+const POINTS: FindWorkPointsConfig = { issue: 3, wildcardIssue: 5, review: 4 }
 
 function issue(overrides: Partial<CandidateIssue> & { number: number }): CandidateIssue {
   return {
@@ -50,20 +52,15 @@ const PULL: OpenPullRequest = {
 }
 const FILE_AUTHORS = new Map([[fileKey(REPO, 'src/nav.ts'), new Map([['alice', 3]])]])
 
-const OPEN_UNASSIGNED = {
-  state: 'open',
-  stateReason: null,
-  assignees: [],
-  closedByCode: false,
-  closerLogin: null,
-}
+const OPEN_UNASSIGNED = { state: 'open', stateReason: null, assignees: [] }
+const ASSIGNED_TO_ALICE = { ...OPEN_UNASSIGNED, assignees: ['alice'] }
 
 function issuesService(pool: CandidateIssue[], overrides: Record<string, unknown> = {}): any {
   return {
     isConfigured: vi.fn().mockReturnValue(true),
     getIssues: vi.fn().mockReturnValue(pool),
-    getIssueStatus: vi.fn().mockResolvedValue(OPEN_UNASSIGNED),
-    isAssignable: vi.fn().mockResolvedValue(true),
+    getIssueState: vi.fn().mockResolvedValue(OPEN_UNASSIGNED),
+    isAssignable: vi.fn().mockResolvedValue('assignable'),
     assign: vi.fn().mockResolvedValue({ status: 'assigned' }),
     ...overrides,
   }
@@ -131,8 +128,12 @@ describe('FindWorkCommand', () => {
     await users.linkAccount(MEMBER_ID, 'github', { externalId: 'alice' })
   })
 
-  function command(issues: any, pulls: any = pullRequestsService()): FindWorkCommand {
-    return new FindWorkCommand(issues, users, claims, pulls)
+  function command(
+    issues: any,
+    pulls: any = pullRequestsService(),
+    points: FindWorkPointsConfig = POINTS,
+  ): FindWorkCommand {
+    return new FindWorkCommand(issues, users, claims, pulls, points)
   }
 
   describe('before the draw', () => {
@@ -207,7 +208,7 @@ describe('FindWorkCommand', () => {
 
       // Answered before any GitHub call, so a slow GitHub can't fail the button.
       expect(pressed.deferUpdate.mock.invocationCallOrder[0]).toBeLessThan(
-        issues.getIssueStatus.mock.invocationCallOrder[0],
+        issues.getIssueState.mock.invocationCallOrder[0],
       )
       expect(issues.assign).toHaveBeenCalledWith(REPO, 42, 'alice')
       expect(await claims.listLiveClaims()).toMatchObject([
@@ -215,7 +216,7 @@ describe('FindWorkCommand', () => {
       ])
       const reply = described(pressed.editReply.mock.calls[0])
       expect(reply).toContain('Assigned **alice**')
-      expect(reply).toContain(`**${FindWorkPoints.wildcardIssue} `)
+      expect(reply).toContain('**5 Democracy Points**')
     })
 
     it('promises the ordinary rate for a skill-matched issue', async () => {
@@ -224,7 +225,30 @@ describe('FindWorkCommand', () => {
       await command(issues).execute(interaction(pressed, ['Back End']), data)
 
       expect(await claims.listLiveClaims()).toMatchObject([{ issueNumber: 42, wildcard: false }])
-      expect(described(pressed.editReply.mock.calls[0])).toContain(`**${FindWorkPoints.issue} `)
+      expect(described(pressed.editReply.mock.calls[0])).toContain('**3 Democracy Points**')
+    })
+
+    it('shows no reward line when issue payouts are turned off', async () => {
+      const pressed = claimButton()
+      await command(issuesService([issue({ number: 42 })]), pullRequestsService(), {
+        ...POINTS,
+        wildcardIssue: 0,
+      }).execute(interaction(pressed), data)
+
+      const reply = described(pressed.editReply.mock.calls[0])
+      expect(reply).toContain('Assigned **alice**')
+      expect(reply).not.toContain('earn')
+    })
+
+    it('says the claim failed and assigns nothing when the claim can’t be recorded', async () => {
+      vi.spyOn(claims, 'recordClaim').mockRejectedValue(new Error('disk full'))
+      const pressed = claimButton()
+      const issues = issuesService([issue({ number: 42 })])
+      await command(issues).execute(interaction(pressed), data)
+
+      expect(described(pressed.editReply.mock.calls[0])).toContain('Couldn’t claim that issue')
+      expect(issues.getIssueState).not.toHaveBeenCalled()
+      expect(issues.assign).not.toHaveBeenCalled()
     })
 
     it('refuses an issue someone else already holds a live claim on', async () => {
@@ -245,10 +269,13 @@ describe('FindWorkCommand', () => {
       expect(await claims.listLiveClaims()).toMatchObject([{ githubLogin: 'bob' }])
     })
 
-    it('releases the claim when GitHub shows the issue was taken since the draw', async () => {
+    it.each([
+      ['assigned', { ...OPEN_UNASSIGNED, assignees: ['bob'] }],
+      ['closed', { ...OPEN_UNASSIGNED, state: 'closed', stateReason: 'completed' }],
+    ])('releases the claim when GitHub shows the issue was %s since the draw', async (_, state) => {
       const pressed = claimButton()
       const issues = issuesService([issue({ number: 42 })], {
-        getIssueStatus: vi.fn().mockResolvedValue({ ...OPEN_UNASSIGNED, assignees: ['bob'] }),
+        getIssueState: vi.fn().mockResolvedValue(state),
       })
       await command(issues).execute(interaction(pressed), data)
 
@@ -260,7 +287,7 @@ describe('FindWorkCommand', () => {
     it('releases the claim when the issue cannot be re-read', async () => {
       const pressed = claimButton()
       const issues = issuesService([issue({ number: 42 })], {
-        getIssueStatus: vi.fn().mockResolvedValue(null),
+        getIssueState: vi.fn().mockResolvedValue(null),
       })
       await command(issues).execute(interaction(pressed), data)
 
@@ -272,7 +299,7 @@ describe('FindWorkCommand', () => {
     it('explains access is needed and releases the claim when the account is not assignable', async () => {
       const pressed = claimButton()
       const issues = issuesService([issue({ number: 42 })], {
-        isAssignable: vi.fn().mockResolvedValue(false),
+        isAssignable: vi.fn().mockResolvedValue('not-assignable'),
       })
       await command(issues).execute(interaction(pressed), data)
 
@@ -283,6 +310,33 @@ describe('FindWorkCommand', () => {
       expect(await claims.listLiveClaims()).toEqual([])
     })
 
+    // A GitHub outage says nothing about the member's access.
+    it('says the claim failed, not that access is needed, when GitHub can’t answer the access check', async () => {
+      const pressed = claimButton()
+      const issues = issuesService([issue({ number: 42 })], {
+        isAssignable: vi.fn().mockResolvedValue('error'),
+      })
+      await command(issues).execute(interaction(pressed), data)
+
+      const reply = described(pressed.editReply.mock.calls[0])
+      expect(reply).toContain('Couldn’t claim that issue')
+      expect(reply).not.toContain('won’t let')
+      expect(issues.assign).not.toHaveBeenCalled()
+      expect(await claims.listLiveClaims()).toEqual([])
+    })
+
+    it('releases the claim without re-reading when GitHub drops the assignee', async () => {
+      const pressed = claimButton()
+      const issues = issuesService([issue({ number: 42 })], {
+        assign: vi.fn().mockResolvedValue({ status: 'not-assignable' }),
+      })
+      await command(issues).execute(interaction(pressed), data)
+
+      expect(described(pressed.editReply.mock.calls[0])).toContain('Couldn’t claim that issue')
+      expect(issues.getIssueState).toHaveBeenCalledOnce()
+      expect(await claims.listLiveClaims()).toEqual([])
+    })
+
     it('releases the claim so the issue can be claimed again when assignment fails', async () => {
       const pressed = claimButton()
       const issues = issuesService([issue({ number: 42 })], {
@@ -290,8 +344,43 @@ describe('FindWorkCommand', () => {
       })
       await command(issues).execute(interaction(pressed), data)
 
+      // Re-read to confirm the member really isn't assigned before releasing.
+      expect(issues.getIssueState).toHaveBeenCalledTimes(2)
       expect(described(pressed.editReply.mock.calls[0])).toContain('Couldn’t claim that issue')
       expect(await claims.listLiveClaims()).toEqual([])
+    })
+
+    // A timeout can hit after GitHub applied the assignment.
+    it('keeps the claim when the assignment errored but GitHub shows the member assigned', async () => {
+      const pressed = claimButton()
+      const issues = issuesService([issue({ number: 42 })], {
+        getIssueState: vi
+          .fn()
+          .mockResolvedValueOnce(OPEN_UNASSIGNED)
+          .mockResolvedValueOnce(ASSIGNED_TO_ALICE),
+        assign: vi.fn().mockResolvedValue({ status: 'error', message: 'timeout' }),
+      })
+      await command(issues).execute(interaction(pressed), data)
+
+      expect(described(pressed.editReply.mock.calls[0])).toContain('Assigned **alice**')
+      expect(await claims.listLiveClaims()).toMatchObject([
+        { issueNumber: 42, githubLogin: 'alice' },
+      ])
+    })
+
+    // The payout job expires it after the grace period if the assignment never landed.
+    it('keeps the claim and says so when the assignment can’t be confirmed either way', async () => {
+      const pressed = claimButton()
+      const issues = issuesService([issue({ number: 42 })], {
+        getIssueState: vi.fn().mockResolvedValueOnce(OPEN_UNASSIGNED).mockResolvedValueOnce(null),
+        assign: vi.fn().mockResolvedValue({ status: 'error', message: 'timeout' }),
+      })
+      await command(issues).execute(interaction(pressed), data)
+
+      expect(described(pressed.editReply.mock.calls[0])).toContain('didn’t confirm whether')
+      expect(await claims.listLiveClaims()).toMatchObject([
+        { issueNumber: 42, githubLogin: 'alice' },
+      ])
     })
   })
 
@@ -308,7 +397,19 @@ describe('FindWorkCommand', () => {
       ])
       const reply = described(pressed.editReply.mock.calls[0])
       expect(reply).toContain('Requested a review from **alice**')
-      expect(reply).toContain(`**${FindWorkPoints.review} `)
+      expect(reply).toContain('**4 Democracy Points**')
+    })
+
+    it('tells the member the request wasn’t recorded when saving it fails', async () => {
+      vi.spyOn(claims, 'recordReviewRequest').mockRejectedValue(new Error('disk full'))
+      const pressed = reviewButton()
+      const pulls = pullRequestsService([PULL])
+      await command(issuesService([]), pulls).execute(interaction(pressed), data)
+
+      expect(pulls.requestReview).toHaveBeenCalledOnce()
+      const reply = described(pressed.editReply.mock.calls[0])
+      expect(reply).toContain('wasn’t recorded')
+      expect(reply).not.toContain('Requested a review from')
     })
 
     it('explains access is needed and records nothing when GitHub refuses the reviewer', async () => {
@@ -325,21 +426,15 @@ describe('FindWorkCommand', () => {
     })
 
     it('shows no reward line when review payouts are turned off', async () => {
-      const saved = FindWorkPoints.review
-      FindWorkPoints.review = 0
-      try {
-        const pressed = reviewButton()
-        await command(issuesService([]), pullRequestsService([PULL])).execute(
-          interaction(pressed),
-          data,
-        )
+      const pressed = reviewButton()
+      await command(issuesService([]), pullRequestsService([PULL]), {
+        ...POINTS,
+        review: 0,
+      }).execute(interaction(pressed), data)
 
-        const reply = described(pressed.editReply.mock.calls[0])
-        expect(reply).toContain('Requested a review from **alice**')
-        expect(reply).not.toContain('earn')
-      } finally {
-        FindWorkPoints.review = saved
-      }
+      const reply = described(pressed.editReply.mock.calls[0])
+      expect(reply).toContain('Requested a review from **alice**')
+      expect(reply).not.toContain('earn')
     })
   })
 })

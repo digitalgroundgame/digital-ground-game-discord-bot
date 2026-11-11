@@ -30,7 +30,7 @@ export interface DrawnIssue {
 interface FindWorkConfig {
   markerLabel: string
   excludeRepos: string[]
-  points: Partial<Record<keyof FindWorkPointsConfig, unknown>>
+  points: unknown
 }
 
 /** Democracy Points paid for finished `/find-work` claims. */
@@ -67,10 +67,14 @@ export const FindWorkExcludedRepos: ReadonlySet<string> = new Set(
 /** Payouts above this are almost certainly a typo, and would swamp the leaderboard. */
 const MAX_POINTS_PER_PAYOUT = 10
 
-type RawPoints = FindWorkConfig['points'] | undefined
+const POINT_KEYS: readonly (keyof FindWorkPointsConfig)[] = ['issue', 'wildcardIssue', 'review']
 
-function readPoints(points: RawPoints, key: keyof FindWorkPointsConfig, fallback: number): number {
-  const raw = points?.[key]
+function readPoints(
+  points: Readonly<Record<string, unknown>>,
+  key: keyof FindWorkPointsConfig,
+  fallback: number,
+): number {
+  const raw = points[key]
   if (raw === undefined) return fallback
   if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 0 || raw > MAX_POINTS_PER_PAYOUT) {
     throw new Error(
@@ -82,22 +86,42 @@ function readPoints(points: RawPoints, key: keyof FindWorkPointsConfig, fallback
 
 /**
  * Read `config.findWork.points`, filling in defaults for missing keys and
- * throwing on any value outside 0–10. Exported for tests; the bot reads it
- * once, at import, so a bad value stops startup.
+ * throwing on any value outside 0–10, on a `points` that isn't an object, and
+ * on a key it doesn't know, so a misspelled key fails loudly instead of
+ * quietly paying the default. Keys starting with `//` are comments, as
+ * elsewhere in the config. Exported for tests; the bot reads it once, at
+ * import, so a bad value stops startup.
  */
-export function parseFindWorkPoints(points: RawPoints): FindWorkPointsConfig {
-  return {
-    issue: readPoints(points, 'issue', 1),
-    wildcardIssue: readPoints(points, 'wildcardIssue', 2),
-    review: readPoints(points, 'review', 1),
+export function parseFindWorkPoints(points: unknown): Readonly<FindWorkPointsConfig> {
+  const raw = points ?? {}
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new Error(
+      `config.findWork.points must be an object with ${POINT_KEYS.join(', ')} (got: ${JSON.stringify(raw)})`,
+    )
   }
+  const entries = raw as Readonly<Record<string, unknown>>
+  const unknownKeys = Object.keys(entries).filter(
+    (key) => !key.startsWith('//') && !(POINT_KEYS as readonly string[]).includes(key),
+  )
+  if (unknownKeys.length > 0) {
+    throw new Error(
+      `config.findWork.points has unknown key(s) ${unknownKeys.join(', ')}; expected ${POINT_KEYS.join(', ')}`,
+    )
+  }
+  return Object.freeze({
+    issue: readPoints(entries, 'issue', 1),
+    wildcardIssue: readPoints(entries, 'wildcardIssue', 2),
+    review: readPoints(entries, 'review', 1),
+  })
 }
 
 /**
  * Democracy Points paid automatically by the payout job (see
- * `FindWorkPayoutService`). Zero turns that kind of payout off.
+ * `FindWorkPayoutService`) and promised by `/find-work`. Zero turns that kind
+ * of payout off. Frozen, so nothing can change what the bot pays at runtime;
+ * code that needs other amounts, such as tests, takes them as an argument.
  */
-export const FindWorkPoints: FindWorkPointsConfig = parseFindWorkPoints(rawConfig.points)
+export const FindWorkPoints: Readonly<FindWorkPointsConfig> = parseFindWorkPoints(rawConfig.points)
 
 /**
  * Normalize a Discord role name or a GitHub label into a comparable slug:

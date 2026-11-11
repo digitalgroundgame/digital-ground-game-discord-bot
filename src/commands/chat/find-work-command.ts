@@ -16,6 +16,7 @@ import {
   type DrawnIssue,
   drawIssues,
   FindWorkPoints,
+  type FindWorkPointsConfig,
   type ReviewSuggestion,
   skillSlugsForRoleNames,
   partitionBySkills,
@@ -102,6 +103,8 @@ export class FindWorkCommand implements Command {
     private readonly userService?: UserService,
     private readonly claimService?: WorkClaimService,
     private readonly pullRequestsService?: GitHubPullRequestsService,
+    /** The amounts promised in replies; the payout job pays the same config. */
+    private readonly points: Readonly<FindWorkPointsConfig> = FindWorkPoints,
   ) {}
 
   public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
@@ -294,7 +297,7 @@ export class FindWorkCommand implements Command {
     // The pool is refreshed hourly, so the issue may have been assigned or
     // closed on GitHub since it was drawn. Check before assigning, or the
     // member would land as a second assignee beside whoever took it.
-    const live = await issuesService.getIssueStatus(issue.repo, issue.number)
+    const live = await issuesService.getIssueState(issue.repo, issue.number)
     if (!live || live.state !== 'open' || live.assignees.length > 0) {
       await release()
       await InteractionUtils.editReply(button, {
@@ -311,17 +314,21 @@ export class FindWorkCommand implements Command {
       return
     }
 
-    if (!(await issuesService.isAssignable(issue.repo, githubLogin))) {
-      // On a public repo this mostly means an unaccepted org invitation. A
-      // lead has to grant access before the assignment can land; whether the
-      // bot should raise that request itself is still open.
+    const assignable = await issuesService.isAssignable(issue.repo, githubLogin)
+    if (assignable !== 'assignable') {
+      // On a public repo `not-assignable` mostly means an unaccepted org
+      // invitation. A lead has to grant access before the assignment can
+      // land; whether the bot should raise that request itself is still open.
+      // `error` is GitHub not answering, which says nothing about access.
       await release()
       await InteractionUtils.editReply(button, {
         embeds: [
-          Lang.getEmbed('displayEmbeds.findWorkNeedsAccess', data.lang, {
-            LOGIN: githubLogin,
-            REPO: issue.repo,
-          }),
+          assignable === 'not-assignable'
+            ? Lang.getEmbed('displayEmbeds.findWorkNeedsAccess', data.lang, {
+                LOGIN: githubLogin,
+                REPO: issue.repo,
+              })
+            : Lang.getEmbed('displayEmbeds.findWorkFailed', data.lang),
         ],
         components: [],
       })
@@ -329,7 +336,34 @@ export class FindWorkCommand implements Command {
     }
 
     const result = await issuesService.assign(issue.repo, issue.number, githubLogin)
-    if (result.status !== 'assigned') {
+    let assigned = result.status === 'assigned'
+    if (result.status === 'error') {
+      // A timeout or a lost response doesn't mean GitHub didn't apply the
+      // assignment. Look before releasing, or a member who is assigned would
+      // be left without a claim to be paid on.
+      const after = await issuesService.getIssueState(issue.repo, issue.number)
+      if (!after) {
+        // Can't tell either way, so keep the claim: if the assignment never
+        // landed, the payout job expires it once the grace period is over.
+        Logger.warn(
+          `/find-work: couldn't confirm whether ${githubLogin} was assigned to ${issue.repo}#${issue.number}; keeping the claim`,
+        )
+        await InteractionUtils.editReply(button, {
+          embeds: [
+            Lang.getEmbed('displayEmbeds.findWorkClaimUnconfirmed', data.lang, {
+              LOGIN: githubLogin,
+              REPO: issue.repo,
+              NUMBER: issue.number.toString(),
+              URL: issue.htmlUrl,
+            }),
+          ],
+          components: [],
+        })
+        return
+      }
+      assigned = after.assignees.includes(githubLogin.toLowerCase())
+    }
+    if (!assigned) {
       await release()
       await InteractionUtils.editReply(button, {
         embeds: [Lang.getEmbed('displayEmbeds.findWorkFailed', data.lang)],
@@ -351,7 +385,7 @@ export class FindWorkCommand implements Command {
           LOGIN: githubLogin,
           REWARD: rewardLine(
             'findWork.issueReward',
-            choice.wildcard ? FindWorkPoints.wildcardIssue : FindWorkPoints.issue,
+            choice.wildcard ? this.points.wildcardIssue : this.points.issue,
             data.lang,
           ),
         }),
@@ -435,7 +469,7 @@ export class FindWorkCommand implements Command {
           NUMBER: pr.number.toString(),
           TITLE: pr.title,
           URL: pr.htmlUrl,
-          REWARD: rewardLine('findWork.reviewReward', FindWorkPoints.review, data.lang),
+          REWARD: rewardLine('findWork.reviewReward', this.points.review, data.lang),
         }),
       ],
       components: [],

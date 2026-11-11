@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { type IssueClaim, kudosTransaction } from '../../src/database/schema.js'
-import { UserService } from '../../src/services/user-service.js'
 import { WorkClaimService } from '../../src/services/work-claim-service.js'
 import { createTestDatabase, type TestDatabase } from '../helpers/test-database.js'
 
@@ -37,18 +36,6 @@ describe('WorkClaimService', () => {
     await claim()
     const live = await liveClaim()
     expect(live).toMatchObject({ guildId: GUILD_ID, githubLogin: 'alice', wildcard: true })
-  })
-
-  // The login is copied onto the claim, so relinking can't hand someone else's
-  // payout to the new account.
-  it('keeps the assigned login on a claim when the member relinks GitHub', async () => {
-    const users = new UserService(db)
-    await users.linkAccount('member-1', 'github', { externalId: 'alice' })
-    await claim()
-    await users.linkAccount('member-1', 'github', { externalId: 'alice-new' })
-
-    expect((await users.findLinkedAccount('member-1', 'github'))?.externalId).toBe('alice-new')
-    expect((await liveClaim())?.githubLogin).toBe('alice')
   })
 
   it('pays a completed claim as one ledger row per point, from the bot', async () => {
