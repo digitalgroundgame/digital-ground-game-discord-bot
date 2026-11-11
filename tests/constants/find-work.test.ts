@@ -6,6 +6,7 @@ import {
   drawIssues,
   issueMatchesSkills,
   MATCHED_SLOTS,
+  parseFindWorkPoints,
   partitionBySkills,
   skillSlugsForRoleNames,
   toLabelSlug,
@@ -167,5 +168,24 @@ describe('drawIssues', () => {
 
   it('returns nothing for an empty pool', () => {
     expect(drawIssues([], skills, pickFirst)).toEqual([])
+  })
+})
+
+describe('parseFindWorkPoints', () => {
+  it('fills in defaults for missing keys', () => {
+    expect(parseFindWorkPoints(undefined)).toEqual({ issue: 1, wildcardIssue: 2, review: 1 })
+    expect(parseFindWorkPoints({ review: 3 })).toEqual({ issue: 1, wildcardIssue: 2, review: 3 })
+  })
+
+  it('accepts 0 to turn a payout off, and 10 as the ceiling', () => {
+    expect(parseFindWorkPoints({ issue: 0, wildcardIssue: 10, review: 0 })).toEqual({
+      issue: 0,
+      wildcardIssue: 10,
+      review: 0,
+    })
+  })
+
+  it.each([50, -1, 1.5, '1', null])('rejects %j, naming the bad key', (value) => {
+    expect(() => parseFindWorkPoints({ issue: value })).toThrow('config.findWork.points.issue')
   })
 })
