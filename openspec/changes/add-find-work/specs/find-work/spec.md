@@ -128,6 +128,25 @@ After recording a claim, the bot MUST re-read the issue on GitHub before assigni
 - **WHEN** the member presses a claim button and GitHub returns an error when the issue is re-read
 - **THEN** the bot withdraws the claim, says the claim failed, and does not assign it
 
+### Requirement: Telling a GitHub failure from a refusal
+
+When GitHub fails to answer whether the member can be assigned, the bot MUST withdraw the claim and say the claim failed, not that access is needed. When the assignment request fails, the bot MUST re-read the issue: if the member is assigned, the claim stands and is confirmed; if not, the claim is withdrawn; if the issue can't be read, the claim is kept and the member is told the assignment couldn't be confirmed.
+
+#### Scenario: GitHub down during the access check
+
+- **WHEN** the member presses a claim button and GitHub returns a server error when asked whether their account can be assigned
+- **THEN** the bot withdraws the claim and says the claim failed, without saying access is needed
+
+#### Scenario: Assignment landed but its answer was lost
+
+- **WHEN** the assignment request times out after GitHub applied it
+- **THEN** the bot sees the member assigned on re-reading the issue, keeps the claim, and confirms it
+
+#### Scenario: Assignment can't be confirmed
+
+- **WHEN** the assignment request fails and the issue then can't be read
+- **THEN** the claim is kept, the member is told the assignment couldn't be confirmed, and the payout job expires the claim if the member never ends up assigned
+
 ### Requirement: Answering button presses in time
 
 The bot MUST acknowledge a claim or review press before calling GitHub, then edit the reply once the outcome is known, so a slow GitHub can't make the interaction fail.

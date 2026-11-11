@@ -119,7 +119,7 @@ Settling a record MUST change its state and write its points award in one transa
 
 ### Requirement: Configurable point amounts
 
-Each payout amount SHALL be a whole number from 0 to 10, read from `config.findWork.points`. Zero MUST turn that kind of payout off, and the bot MUST NOT promise a reward for it in `/find-work` replies. Any other value MUST stop the bot at startup with an error naming the bad key.
+Each payout amount SHALL be a whole number from 0 to 10, read from `config.findWork.points`. Zero MUST turn that kind of payout off, and the bot MUST NOT promise a reward for it in `/find-work` replies. Any other value MUST stop the bot at startup with an error naming the bad key, and so MUST a `points` value that isn't an object or a key other than `issue`, `wildcardIssue` and `review`.
 
 #### Scenario: Payout turned off
 
@@ -130,3 +130,8 @@ Each payout amount SHALL be a whole number from 0 to 10, read from `config.findW
 
 - **WHEN** `config.findWork.points.issue` is 50
 - **THEN** the bot fails to start with an error naming `config.findWork.points.issue`
+
+#### Scenario: Misspelled key
+
+- **WHEN** `config.findWork.points` sets `wildcard` instead of `wildcardIssue`
+- **THEN** the bot fails to start with an error naming the unknown key `wildcard`, instead of paying the default wildcard rate

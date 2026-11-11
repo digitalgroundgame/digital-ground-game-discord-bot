@@ -31,5 +31,5 @@ None.
 - New code: `src/commands/chat/find-work-command.ts`, `src/constants/find-work.ts`, `src/constants/review-suggestions.ts`, `src/services/github-api.ts`, `src/services/github-issues-service.ts`, `src/services/github-pull-requests-service.ts`, `src/services/work-claim-service.ts`, `src/services/find-work-payout-service.ts`, and the `refresh-github-issues`, `refresh-github-pull-requests` and `pay-find-work` jobs.
 - Database: two new tables, `issue_claim` and `review_request`, applied with `pnpm run db:push`.
 - Discord: a new slash command, so `pnpm run commands:register` is needed on deploy; new strings in `lang/lang.en-US.json`.
-- GitHub: the bot's token needs to read public repos, issues, pull requests and commits in the org, and to assign issues and request reviews. Each live claim costs one or two GitHub reads per payout run, and each claim press costs one more to re-read the issue before assigning.
+- GitHub: the bot's token needs to read public repos, issues, pull requests and commits in the org, and to assign issues and request reviews. Each live claim costs one or two GitHub reads per payout run, and each claim press costs one more to re-read the issue before assigning, plus another if the assignment request fails.
 - Points are written to the existing Democracy Points ledger through `kudos-service`, with the bot as the giver.
