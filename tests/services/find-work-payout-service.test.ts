@@ -17,6 +17,7 @@ import {
   type GitHubPullRequestsService,
   type PullRequestStatus,
 } from '../../src/services/github-pull-requests-service.js'
+import { UserService } from '../../src/services/user-service.js'
 import { WorkClaimService } from '../../src/services/work-claim-service.js'
 import { createTestDatabase, type TestDatabase } from '../helpers/test-database.js'
 
@@ -256,6 +257,40 @@ describe('FindWorkPayoutService', () => {
     const run = new FindWorkPayoutService(flaky, pulls, claims, 'bot-1', POINTS)
     expect(await run.run()).toEqual({ paid: 1, expired: 0 })
     expect(calls).toBe(2)
+  })
+
+  // The claim keeps the login that was assigned, so a relink can neither
+  // redirect the payout nor cost the member one.
+  describe('after the member relinks GitHub', () => {
+    const closedBy = (login: string): IssueStatus =>
+      issue({
+        state: 'closed',
+        stateReason: 'completed',
+        assignees: [login],
+        closedByCode: true,
+        closerLogin: login,
+      })
+
+    beforeEach(async () => {
+      const users = new UserService(db)
+      await users.linkAccount('member-1', 'github', { externalId: 'alice' })
+      await users.linkAccount('member-1', 'github', { externalId: 'alice-new' })
+      expect((await users.findLinkedAccount('member-1', 'github'))?.externalId).toBe('alice-new')
+    })
+
+    it('pays the claim when the account it was made with finishes the work', async () => {
+      issueStatus = closedBy('alice')
+      expect(await service().run()).toEqual({ paid: 1, expired: 0 })
+      const rows = db.select().from(kudosTransaction).all()
+      expect(rows).toHaveLength(POINTS.wildcardIssue)
+      expect(rows.every((r) => r.receiverDiscordId === 'member-1')).toBe(true)
+    })
+
+    it('does not pay the claim for work done by the newly linked account', async () => {
+      issueStatus = closedBy('alice-new')
+      expect(await service().run()).toEqual({ paid: 0, expired: 1 })
+      expect(db.select().from(kudosTransaction).all()).toEqual([])
+    })
   })
 
   it('settles a completed claim without a ledger row when its payout is turned off', async () => {

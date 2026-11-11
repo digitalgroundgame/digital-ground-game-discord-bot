@@ -116,7 +116,7 @@ export class FindWorkPayoutService {
     private readonly claimService: WorkClaimService,
     /** The bot's user id, recorded as the giver of every payout. */
     private readonly botUserId: string,
-    private readonly points: FindWorkPointsConfig = FindWorkPoints,
+    private readonly points: Readonly<FindWorkPointsConfig> = FindWorkPoints,
   ) {}
 
   public async run(): Promise<PayoutSummary> {
