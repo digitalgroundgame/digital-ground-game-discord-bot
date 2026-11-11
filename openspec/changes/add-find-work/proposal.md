@@ -11,9 +11,9 @@ Members who want to contribute code to the organization have no easy way to find
 - Two issue slots are matched to the member's Discord role names against issue labels; the third is a wildcard from unmatched work, weighted toward the stalest issues.
 - Review suggestions are open pull requests that touch files the member has committed to, excluding their own pull requests and ones they already review.
 - Claiming an issue assigns the member's linked GitHub account; taking a review requests a review from them. Both are recorded in new `issue_claim` and `review_request` tables.
-- Add an hourly payout job that settles live claims: an issue closed as completed with the claimer still assigned pays `issue` points (or `wildcardIssue` for a wildcard draw), a submitted review pays `review` points, and everything that can no longer finish expires.
-- Add hourly refresh jobs for the issue pool and the pull request and file-history cache.
-- Add `config.findWork` (marker label, excluded repos, approver role keys, point amounts) and job schedules under `config.jobs`.
+- Add an hourly payout job that settles live claims: an issue closed as completed by the claimer's own merged pull request or commit, with the claimer still assigned, pays `issue` points (or `wildcardIssue` for a wildcard draw), a submitted review pays `review` points, and everything that can no longer finish expires. Issue claims also expire after 30 days and review requests after 14, so abandoned work stops costing GitHub reads.
+- Add hourly refresh jobs for the issue pool and the pull request and file-history cache, and load both caches when the bot starts.
+- Add `config.findWork` (marker label, excluded repos, point amounts) and job schedules under `config.jobs`.
 
 ## Capabilities
 
@@ -31,5 +31,5 @@ None.
 - New code: `src/commands/chat/find-work-command.ts`, `src/constants/find-work.ts`, `src/constants/review-suggestions.ts`, `src/services/github-api.ts`, `src/services/github-issues-service.ts`, `src/services/github-pull-requests-service.ts`, `src/services/work-claim-service.ts`, `src/services/find-work-payout-service.ts`, and the `refresh-github-issues`, `refresh-github-pull-requests` and `pay-find-work` jobs.
 - Database: two new tables, `issue_claim` and `review_request`, applied with `pnpm run db:push`.
 - Discord: a new slash command, so `pnpm run commands:register` is needed on deploy; new strings in `lang/lang.en-US.json`.
-- GitHub: the bot's token needs to read public repos, issues, pull requests and commits in the org, and to assign issues and request reviews. Each live claim costs one or two GitHub reads per payout run.
+- GitHub: the bot's token needs to read public repos, issues, pull requests and commits in the org, and to assign issues and request reviews. Each live claim costs one or two GitHub reads per payout run, and each claim press costs one more to re-read the issue before assigning.
 - Points are written to the existing Democracy Points ledger through `kudos-service`, with the bot as the giver.
