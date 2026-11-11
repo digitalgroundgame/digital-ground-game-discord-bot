@@ -67,8 +67,10 @@ export const FindWorkExcludedRepos: ReadonlySet<string> = new Set(
 /** Payouts above this are almost certainly a typo, and would swamp the leaderboard. */
 const MAX_POINTS_PER_PAYOUT = 10
 
-function readPoints(key: keyof FindWorkPointsConfig, fallback: number): number {
-  const raw = rawConfig.points?.[key]
+type RawPoints = FindWorkConfig['points'] | undefined
+
+function readPoints(points: RawPoints, key: keyof FindWorkPointsConfig, fallback: number): number {
+  const raw = points?.[key]
   if (raw === undefined) return fallback
   if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 0 || raw > MAX_POINTS_PER_PAYOUT) {
     throw new Error(
@@ -79,14 +81,23 @@ function readPoints(key: keyof FindWorkPointsConfig, fallback: number): number {
 }
 
 /**
+ * Read `config.findWork.points`, filling in defaults for missing keys and
+ * throwing on any value outside 0–10. Exported for tests; the bot reads it
+ * once, at import, so a bad value stops startup.
+ */
+export function parseFindWorkPoints(points: RawPoints): FindWorkPointsConfig {
+  return {
+    issue: readPoints(points, 'issue', 1),
+    wildcardIssue: readPoints(points, 'wildcardIssue', 2),
+    review: readPoints(points, 'review', 1),
+  }
+}
+
+/**
  * Democracy Points paid automatically by the payout job (see
  * `FindWorkPayoutService`). Zero turns that kind of payout off.
  */
-export const FindWorkPoints: FindWorkPointsConfig = {
-  issue: readPoints('issue', 1),
-  wildcardIssue: readPoints('wildcardIssue', 2),
-  review: readPoints('review', 1),
-}
+export const FindWorkPoints: FindWorkPointsConfig = parseFindWorkPoints(rawConfig.points)
 
 /**
  * Normalize a Discord role name or a GitHub label into a comparable slug:
