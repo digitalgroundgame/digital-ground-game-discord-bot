@@ -6,6 +6,7 @@ import {
   drawIssues,
   issueMatchesSkills,
   MATCHED_SLOTS,
+  parseFindWorkPoints,
   partitionBySkills,
   skillSlugsForRoleNames,
   toLabelSlug,
@@ -167,5 +168,49 @@ describe('drawIssues', () => {
 
   it('returns nothing for an empty pool', () => {
     expect(drawIssues([], skills, pickFirst)).toEqual([])
+  })
+})
+
+describe('parseFindWorkPoints', () => {
+  it('fills in defaults for missing keys', () => {
+    expect(parseFindWorkPoints(undefined)).toEqual({ issue: 1, wildcardIssue: 2, review: 1 })
+    expect(parseFindWorkPoints({ review: 3 })).toEqual({ issue: 1, wildcardIssue: 2, review: 3 })
+  })
+
+  it('accepts 0 to turn a payout off, and 10 as the ceiling', () => {
+    expect(parseFindWorkPoints({ issue: 0, wildcardIssue: 10, review: 0 })).toEqual({
+      issue: 0,
+      wildcardIssue: 10,
+      review: 0,
+    })
+  })
+
+  it.each([50, -1, 1.5, '1', null])('rejects %j, naming the bad key', (value) => {
+    expect(() => parseFindWorkPoints({ issue: value })).toThrow('config.findWork.points.issue')
+  })
+
+  // Otherwise the typo'd amount is silently ignored and the default is paid.
+  it('rejects a misspelled key, naming it', () => {
+    expect(() => parseFindWorkPoints({ wildcard: 5 })).toThrow(
+      'config.findWork.points has unknown key(s) wildcard',
+    )
+  })
+
+  it('ignores comment keys, as elsewhere in the config', () => {
+    expect(parseFindWorkPoints({ '// NOTE': 'paid per issue', issue: 3 })).toMatchObject({
+      issue: 3,
+    })
+  })
+
+  it.each([3, 'lots', [1, 2, 1]])('rejects a points value of %j that isn’t an object', (value) => {
+    expect(() => parseFindWorkPoints(value)).toThrow('config.findWork.points must be an object')
+  })
+
+  it('returns amounts nothing can change at runtime', () => {
+    const points = parseFindWorkPoints({}) as { issue: number }
+    expect(Object.isFrozen(points)).toBe(true)
+    expect(() => {
+      points.issue = 9
+    }).toThrow(TypeError)
   })
 })

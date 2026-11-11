@@ -20,21 +20,31 @@ Records SHALL start live (`claimed` or `requested`) and end as `completed` or `e
 
 ### Requirement: Scheduled settlement
 
-A job SHALL settle live claims and review requests on a schedule (hourly by default, configurable under `config.jobs.payFindWork`). When the bot can't read an issue or pull request from GitHub, it MUST leave that record live for the next run rather than expire it.
+A job SHALL settle live claims and review requests on a schedule (hourly by default, configurable under `config.jobs.payFindWork`). When the bot can't read an issue or pull request from GitHub, it MUST leave that record live for the next run rather than expire it. A failure settling one record MUST NOT stop the job from settling the rest.
 
 #### Scenario: GitHub unavailable
 
 - **WHEN** the payout job runs and GitHub returns an error for a claimed issue
 - **THEN** the claim stays live and is checked again on the next run
 
+#### Scenario: One record fails
+
+- **WHEN** settling one claim throws an error during a payout run
+- **THEN** the error is logged and the job goes on to settle the remaining claims and review requests
+
 ### Requirement: Issue claim payout
 
-A live issue claim SHALL pay when a merged pull request or a commit closed the issue as completed, or with no reason, and the claimer's GitHub login is still among its assignees. It SHALL expire when the claimer is no longer assigned, when the issue was closed by hand, or when it was closed as not planned or as a duplicate. Otherwise it SHALL stay live. Points MUST be paid into the guild where the claim was made, with the bot as the giver.
+A live issue claim SHALL pay when the issue was closed as completed, or with no reason, by a merged pull request the claimer authored or a commit the claimer wrote, and the claimer's GitHub login is still among its assignees. It SHALL expire when the claimer is no longer assigned, when the issue was closed by hand or by someone else's code, or when it was closed as not planned or as a duplicate. Otherwise it SHALL stay live, subject to the claim age limits.
 
 #### Scenario: Claimer finishes the issue
 
-- **WHEN** a merged pull request closes the issue as completed with the claimer still assigned
+- **WHEN** a merged pull request the claimer authored closes the issue as completed with the claimer still assigned
 - **THEN** the claim is marked completed and the claimer receives the issue points
+
+#### Scenario: Closed by someone else's code
+
+- **WHEN** a merged pull request authored by someone other than the claimer closes the issue, with the claimer still assigned
+- **THEN** the claim expires without payment
 
 #### Scenario: Closed by hand
 
@@ -53,12 +63,31 @@ A live issue claim SHALL pay when a merged pull request or a commit closed the i
 
 #### Scenario: Still in progress
 
-- **WHEN** the issue is open and the claimer is still assigned
+- **WHEN** the issue is open, the claimer is still assigned, and the claim is less than 30 days old
 - **THEN** the claim stays live
+
+### Requirement: Claim age limits
+
+A claim less than 10 minutes old whose claimer is not yet assigned SHALL stay live, since its GitHub assignment may still be landing. An issue claim still open 30 days after it was made SHALL expire without payment, and so SHALL a review request still unreviewed 14 days after it was made, so abandoned work stops costing the payout job GitHub reads.
+
+#### Scenario: Assignment still landing
+
+- **WHEN** the payout job runs a minute after a claim was recorded and the claimer is not yet among the issue's assignees
+- **THEN** the claim stays live
+
+#### Scenario: Claim left open too long
+
+- **WHEN** the issue is still open 30 days after the claim, with the claimer still assigned
+- **THEN** the claim expires without payment
+
+#### Scenario: Review never submitted
+
+- **WHEN** the pull request is still open 14 days after the request and the member has not submitted a counted review
+- **THEN** the request expires without payment
 
 ### Requirement: Issue payout amount
 
-A completed claim MUST pay `config.findWork.points.wildcardIssue` (default 2) when it came from the wildcard slot, and `config.findWork.points.issue` (default 1) otherwise.
+A completed claim MUST pay `config.findWork.points.wildcardIssue` (default 2) when it came from the wildcard slot, and `config.findWork.points.issue` (default 1) otherwise. Points MUST be paid into the guild where the claim was made, with the bot as the giver.
 
 #### Scenario: Wildcard bonus
 
@@ -90,7 +119,7 @@ Settling a record MUST change its state and write its points award in one transa
 
 ### Requirement: Configurable point amounts
 
-Each payout amount SHALL be a whole number from 0 to 10, read from `config.findWork.points`. Zero MUST turn that kind of payout off, and the bot MUST NOT promise a reward for it in `/find-work` replies. Any other value MUST stop the bot at startup with an error naming the bad key.
+Each payout amount SHALL be a whole number from 0 to 10, read from `config.findWork.points`. Zero MUST turn that kind of payout off, and the bot MUST NOT promise a reward for it in `/find-work` replies. Any other value MUST stop the bot at startup with an error naming the bad key, and so MUST a `points` value that isn't an object or a key other than `issue`, `wildcardIssue` and `review`.
 
 #### Scenario: Payout turned off
 
@@ -101,3 +130,8 @@ Each payout amount SHALL be a whole number from 0 to 10, read from `config.findW
 
 - **WHEN** `config.findWork.points.issue` is 50
 - **THEN** the bot fails to start with an error naming `config.findWork.points.issue`
+
+#### Scenario: Misspelled key
+
+- **WHEN** `config.findWork.points` sets `wildcard` instead of `wildcardIssue`
+- **THEN** the bot fails to start with an error naming the unknown key `wildcard`, instead of paying the default wildcard rate
