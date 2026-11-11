@@ -1,9 +1,9 @@
 ---
-name: "OPSX: Verify"
-description: "Verify implementation matches change artifacts before archiving"
+name: 'OPSX: Verify'
+description: 'Verify implementation matches change artifacts before archiving'
 allowed-tools: Bash(openspec:*)
-category: "Workflow"
-tags: ["workflow", "verify", "experimental"]
+category: 'Workflow'
+tags: ['workflow', 'verify', 'experimental']
 ---
 
 Verify that an implementation matches the change artifacts (specs, tasks, design).
@@ -39,9 +39,11 @@ In both branches, never create the root as a side effect: do not run `openspec i
    Always announce: "Using change: <name>" and how to override (e.g., `/opsx:verify <other>`).
 
 2. **Check status to understand the schema**
+
    ```bash
    openspec status --change "<name>" --json
    ```
+
    Parse the JSON to understand:
    - `schemaName`: The workflow being used (e.g., "spec-driven")
    - `planningHome`, `changeRoot`, `artifactPaths`, and `actionContext`: path and scope context
@@ -160,21 +162,22 @@ In both branches, never create the root as a side effect: do not run `openspec i
 8. **Generate Verification Report**
 
    **Summary Scorecard**:
+
    ```markdown
    ## Verification Report: <change-name>
 
    ### Summary
-   | Dimension    | Status           |
-   |--------------|------------------|
-   | Completeness | X/Y tasks, N reqs|
-   | Correctness  | M/N reqs covered |
-   | Coherence    | Followed/Issues  |
+
+   | Dimension    | Status            |
+   | ------------ | ----------------- |
+   | Completeness | X/Y tasks, N reqs |
+   | Correctness  | M/N reqs covered  |
+   | Coherence    | Followed/Issues   |
    ```
 
    In each Status cell, report the results of checks that ran and `Not verified (<reason>)` for every skipped check. If all checks in a dimension were skipped, start the cell with `Not verified`. Never score a skipped check as passing. Treat every not verified or partially verified check as skipped in the final assessment. Count only ADDED and MODIFIED requirements in N, and report REMOVED and RENAMED requirements separately (for example, "1 removal confirmed, 1 rename verified", or "1 removal not verified (baseline unavailable)"). For a change that only removes or renames requirements, the Correctness cell reads `Not applicable (no ADDED or MODIFIED requirements)`.
 
    **Issues by Priority**:
-
    1. **CRITICAL** (Must fix before archive):
       - Incomplete tasks
       - Missing requirement implementations
@@ -211,6 +214,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
 **Output Format**
 
 Use clear markdown with:
+
 - Table for summary scorecard
 - Grouped lists for issues (CRITICAL/WARNING/SUGGESTION)
 - Code references in format: `file.ts:123`

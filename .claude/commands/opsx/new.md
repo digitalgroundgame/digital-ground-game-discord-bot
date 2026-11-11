@@ -1,9 +1,9 @@
 ---
-name: "OPSX: New"
-description: "Start a new change using the experimental artifact workflow (OPSX)"
+name: 'OPSX: New'
+description: 'Start a new change using the experimental artifact workflow (OPSX)'
 allowed-tools: Bash(openspec:*)
-category: "Workflow"
-tags: ["workflow", "artifacts", "experimental"]
+category: 'Workflow'
+tags: ['workflow', 'artifacts', 'experimental']
 ---
 
 Start a new change using the experimental artifact-driven approach.
@@ -28,6 +28,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
 1. **If no input provided, ask what they want to build**
 
    Ask the user (open-ended, no preset options):
+
    > "What change do you want to work on? Describe what you want to build or fix."
 
    From their description, derive a kebab-case name (e.g., "add user authentication" → `add-user-auth`).
@@ -45,23 +46,29 @@ In both branches, never create the root as a side effect: do not run `openspec i
    **Otherwise**: Omit `--schema` to use the default.
 
 3. **Create the change directory**
+
    ```bash
    openspec new change "<name>"
    ```
+
    Add `--schema <name>` only if the user requested a specific workflow.
    This creates a scaffolded change in the planning home resolved by the CLI.
 
 4. **Show the artifact status**
+
    ```bash
    openspec status --change "<name>" --json
    ```
+
    Use the returned `planningHome`, `changeRoot`, `artifactPaths`, and `nextSteps` instead of assuming repo-local paths.
 
 5. **Get instructions for the first artifact**
    The first artifact depends on the schema. Check the status output to find the first artifact with status "ready".
+
    ```bash
    openspec instructions <first-artifact-id> --change "<name>"
    ```
+
    This outputs the template and context for creating the first artifact.
 
 6. **STOP and wait for user direction**
@@ -69,6 +76,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
 **Output**
 
 After completing the steps, summarize:
+
 - Change name and location
 - Schema/workflow being used and its artifact sequence
 - Current status (0/N artifacts complete)
@@ -76,6 +84,7 @@ After completing the steps, summarize:
 - Prompt: "Ready to create the first artifact? Run `/opsx:continue` or just describe what this change is about and I'll draft it."
 
 **Guardrails**
+
 - Do NOT create any artifacts yet - just show the instructions
 - Do NOT advance beyond showing the first artifact template
 - If the name is invalid (not kebab-case), ask for a valid name
