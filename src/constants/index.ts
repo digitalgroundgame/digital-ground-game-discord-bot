@@ -38,11 +38,9 @@ export {
   FindWorkMarkerLabel,
   FindWorkPoints,
   type FindWorkPointsConfig,
-  issueMatchesSkills,
+  issueInTeamRepos,
   MATCHED_SLOTS,
-  partitionBySkills,
-  skillSlugsForRoleNames,
-  toLabelSlug,
+  partitionByTeamRepos,
 } from './find-work.js'
 export {
   type FileAuthorIndex,

@@ -5,7 +5,7 @@ const Config = require('../../config/config.json')
 
 /** How many issues a single draw offers. */
 export const DRAW_SIZE = 3
-/** Of those, how many are matched to the member's skill roles. The rest are wildcards. */
+/** Of those, how many come from the member's team repositories. The rest are wildcards. */
 export const MATCHED_SLOTS = 2
 
 /** An open, claimable issue as `/find-work` sees it. */
@@ -123,59 +123,25 @@ export function parseFindWorkPoints(points: unknown): Readonly<FindWorkPointsCon
  */
 export const FindWorkPoints: Readonly<FindWorkPointsConfig> = parseFindWorkPoints(rawConfig.points)
 
-/**
- * Normalize a Discord role name or a GitHub label into a comparable slug:
- * lowercase, runs of non-alphanumerics collapsed to a hyphen. "Front End
- * Development" and the label `front-end-development` meet here.
- *
- * Same shape as `toGitHubTeamSlug`, kept separate because the two are matching
- * against different vocabularies and there is no reason they must stay
- * identical.
- */
-export function toLabelSlug(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, '-')
-    .replaceAll(/^-+|-+$/g, '')
+/** Whether an issue sits in one of the repositories the member's teams reach. */
+export function issueInTeamRepos(issue: CandidateIssue, teamRepos: ReadonlySet<string>): boolean {
+  return teamRepos.has(issue.repo.toLowerCase())
 }
 
 /**
- * Slugs derived from a member's Discord role names, minus the marker label
- * itself so a role coincidentally named "Available" cannot match everything.
- *
- * Aliases (a role whose name does not slug to any label in use) are out of
- * scope here — see the override file described in the issue.
+ * Split the pool into issues in the member's team repositories and those
+ * elsewhere. `teamRepos` holds lowercased `owner/name`, as
+ * `GitHubTeamsService.getMemberTeamRepos` returns them. The wildcard slot
+ * draws from the second half.
  */
-export function skillSlugsForRoleNames(roleNames: readonly string[]): Set<string> {
-  const slugs = new Set<string>()
-  for (const name of roleNames) {
-    const slug = toLabelSlug(name)
-    if (slug !== '' && slug !== FindWorkMarkerLabel) slugs.add(slug)
-  }
-  return slugs
-}
-
-/** Whether an issue carries at least one label matching the member's skill slugs. */
-export function issueMatchesSkills(
-  issue: CandidateIssue,
-  skillSlugs: ReadonlySet<string>,
-): boolean {
-  return issue.labels.some((label) => skillSlugs.has(toLabelSlug(label)))
-}
-
-/**
- * Split the pool into issues that match the member's skill roles and those
- * that don't. The wildcard slot draws from the second half.
- */
-export function partitionBySkills(
+export function partitionByTeamRepos(
   issues: readonly CandidateIssue[],
-  skillSlugs: ReadonlySet<string>,
+  teamRepos: ReadonlySet<string>,
 ): { matched: CandidateIssue[]; unmatched: CandidateIssue[] } {
   const matched: CandidateIssue[] = []
   const unmatched: CandidateIssue[] = []
   for (const issue of issues) {
-    if (issueMatchesSkills(issue, skillSlugs)) matched.push(issue)
+    if (issueInTeamRepos(issue, teamRepos)) matched.push(issue)
     else unmatched.push(issue)
   }
   return { matched, unmatched }
@@ -206,33 +172,32 @@ function sample(
  * Bias the wildcard toward whatever has been sitting longest, so the slot
  * points at neglected work rather than just unfamiliar work.
  *
- * Staleness is a stand-in for the real signal, which is how few members hold
- * the matching skill role. That needs a guild member count the selection layer
- * doesn't have; see the issue.
+ * Staleness is a stand-in for the real signal, which is how few members are
+ * on the teams that reach an issue's repository.
  */
 function stalestFirst(issues: readonly CandidateIssue[]): CandidateIssue[] {
   return [...issues].sort((a, b) => a.updatedAt.getTime() - b.updatedAt.getTime())
 }
 
 /**
- * Draw the issues a member is offered: `MATCHED_SLOTS` from issues matching
- * their skill roles, the remainder wildcards from everything else.
+ * Draw the issues a member is offered: `MATCHED_SLOTS` from issues in their
+ * team repositories, the remainder wildcards from everything else.
  *
  * Both slots degrade rather than returning short, but only the wildcard slot
  * is ever flagged as one, since the flag prices the payout. A member whose
- * skills match nothing gets one wildcard and the rest backfilled from the
- * pool at the ordinary rate; a member whose skills match everything gets
+ * teams reach none of the pool gets one wildcard and the rest backfilled from
+ * the pool at the ordinary rate; a member whose teams reach everything gets
  * matched issues in the wildcard slot, unflagged, because an unfilled third
  * card is worse than an unsurprising one. Callers that need to tell the
- * member their roles matched nothing should check `matched` themselves rather
+ * member their teams matched nothing should check `matched` themselves rather
  * than inferring it from the result.
  */
 export function drawIssues(
   issues: readonly CandidateIssue[],
-  skillSlugs: ReadonlySet<string>,
+  teamRepos: ReadonlySet<string>,
   random: () => number = Math.random,
 ): DrawnIssue[] {
-  const { matched, unmatched } = partitionBySkills(issues, skillSlugs)
+  const { matched, unmatched } = partitionByTeamRepos(issues, teamRepos)
 
   const matchedPicks = sample(matched, MATCHED_SLOTS, random)
   const pickedKeys = new Set(matchedPicks.map((issue) => `${issue.repo}#${issue.number}`))
@@ -249,7 +214,7 @@ export function drawIssues(
   ]
 
   // Backfill from whatever is left so a thin pool still returns a full draw.
-  // Backfilled cards are never wildcards: a member whose roles match nothing
+  // Backfilled cards are never wildcards: a member whose teams match nothing
   // would otherwise draw every card at the wildcard rate.
   if (drawn.length < DRAW_SIZE) {
     for (const picked of drawn) pickedKeys.add(`${picked.issue.repo}#${picked.issue.number}`)

@@ -6,7 +6,6 @@ import {
   type ChatInputCommandInteraction,
   ComponentType,
   type EmbedBuilder,
-  GuildMember,
   type Locale,
   type PermissionsString,
 } from 'discord.js'
@@ -17,9 +16,8 @@ import {
   drawIssues,
   FindWorkPoints,
   type FindWorkPointsConfig,
+  partitionByTeamRepos,
   type ReviewSuggestion,
-  skillSlugsForRoleNames,
-  partitionBySkills,
   suggestReviews,
 } from '../../constants/index.js'
 import { Language } from '../../models/enum-helpers/index.js'
@@ -27,6 +25,7 @@ import { type EventData } from '../../models/internal-models.js'
 import {
   type GitHubIssuesService,
   type GitHubPullRequestsService,
+  type GitHubTeamsService,
   Lang,
   Logger,
   type UserService,
@@ -37,6 +36,23 @@ import { type Command, CommandDeferType } from '../index.js'
 
 /** How long the claim buttons stay live before the draw goes stale. */
 const CLAIM_TIMEOUT_MS = 5 * 60 * 1000
+
+/** Discord's limit on a button label. */
+const BUTTON_LABEL_MAX = 80
+
+/**
+ * A button label naming the repository as well as the number, since two
+ * repositories can each have an issue #2 and the buttons would otherwise read
+ * the same. The org is the same for every repository, so only the name is
+ * shown, shortened if needed to fit Discord's limit.
+ */
+function buttonLabel(verb: string, repo: string, number: number): string {
+  const name = repo.split('/').pop() || repo
+  const suffix = ` #${number}`
+  const room = BUTTON_LABEL_MAX - verb.length - 1 - suffix.length
+  const shown = name.length > room ? `${name.slice(0, room - 1)}…` : name
+  return `${verb} ${shown}${suffix}`
+}
 
 /** Render one drawn issue as a line in the reply. */
 function describeIssue(drawn: DrawnIssue, index: number): string {
@@ -77,9 +93,10 @@ function describeReview(suggestion: ReviewSuggestion, index: number): string {
  * Offers a member three open issues they could pick up and assigns them to
  * whichever one they claim.
  *
- * Two of the three are matched against the skill roles the member holds in
- * Discord; the third is a wildcard drawn from work their roles don't cover,
- * weighted toward whatever has been sitting longest. Everything on offer comes
+ * Two of the three come from repositories the member's GitHub teams reach
+ * (see `GitHubTeamsService.getMemberTeamRepos`); the third is a wildcard drawn
+ * from every other repository, weighted toward whatever has been sitting
+ * longest. Everything on offer comes
  * from the cached pool (see `GitHubIssuesService`), which holds only open,
  * unassigned, marker-labelled issues in the org's *public* repositories.
  *
@@ -103,6 +120,8 @@ export class FindWorkCommand implements Command {
     private readonly userService?: UserService,
     private readonly claimService?: WorkClaimService,
     private readonly pullRequestsService?: GitHubPullRequestsService,
+    /** Reads the member's teams, whose repositories the matched slots draw from. */
+    private readonly teamsService?: GitHubTeamsService,
     /** The amounts promised in replies; the payout job pays the same config. */
     private readonly points: Readonly<FindWorkPointsConfig> = FindWorkPoints,
   ) {}
@@ -155,17 +174,25 @@ export class FindWorkCommand implements Command {
       return
     }
 
-    const roleNames =
-      intr.member instanceof GuildMember
-        ? intr.member.roles.cache.map((role) => role.name)
-        : ([] as string[])
-    const skillSlugs = skillSlugsForRoleNames(roleNames)
-    const drawn = pool.length > 0 ? drawIssues(pool, skillSlugs) : []
+    // The matched slots come from repositories the member's GitHub teams
+    // reach, which is the access `/grant-access` hands out. Without an answer
+    // the draw still goes ahead, entirely from the wider pool.
+    const teamRepos =
+      pool.length > 0 && this.teamsService?.isConfigured()
+        ? await this.teamsService.getMemberTeamRepos(githubLogin)
+        : null
+    const repos = teamRepos?.repos ?? new Set<string>()
+    const drawn = pool.length > 0 ? drawIssues(pool, repos) : []
 
-    // Say so rather than quietly serving three wildcards: a silent fallback is
-    // how a broken role-to-label mapping goes unnoticed.
-    const { matched } = partitionBySkills(pool, skillSlugs)
-    const unmatchedNotice = matched.length === 0
+    // Say so rather than quietly serving a draw from the wider pool: a silent
+    // fallback is how a missing team grant or a broken token goes unnoticed.
+    const { matched } = partitionByTeamRepos(pool, repos)
+    const notice =
+      teamRepos === null
+        ? 'findWork.teamsUnavailable'
+        : matched.length === 0
+          ? 'findWork.noTeamMatch'
+          : 'findWork.claimHint'
 
     const claimPrefix = `find-work-claim-${intr.id}-`
     const reviewPrefix = `find-work-review-${intr.id}-`
@@ -175,9 +202,7 @@ export class FindWorkCommand implements Command {
       embeds.push(
         Lang.getEmbed('displayEmbeds.findWorkDraw', data.lang, {
           ISSUES: drawn.map(describeIssue).join('\n\n'),
-          NOTICE: unmatchedNotice
-            ? Lang.getRef('findWork.noSkillMatch', data.lang)
-            : Lang.getRef('findWork.claimHint', data.lang),
+          NOTICE: Lang.getRef(notice, data.lang),
         }),
       )
       components.push(
@@ -185,7 +210,7 @@ export class FindWorkCommand implements Command {
           ...drawn.map((entry, index) =>
             new ButtonBuilder()
               .setCustomId(`${claimPrefix}${index}`)
-              .setLabel(`Claim #${entry.issue.number}`)
+              .setLabel(buttonLabel('Claim', entry.issue.repo, entry.issue.number))
               .setStyle(entry.wildcard ? ButtonStyle.Success : ButtonStyle.Primary),
           ),
         ),
@@ -203,7 +228,7 @@ export class FindWorkCommand implements Command {
           ...reviews.map((suggestion, index) =>
             new ButtonBuilder()
               .setCustomId(`${reviewPrefix}${index}`)
-              .setLabel(`Review #${suggestion.pr.number}`)
+              .setLabel(buttonLabel('Review', suggestion.pr.repo, suggestion.pr.number))
               .setStyle(ButtonStyle.Secondary),
           ),
         ),

@@ -1,10 +1,13 @@
 import fetch from 'node-fetch'
 
+import { githubGraphql } from './github-api.js'
 import { Logger } from './logger.js'
 import {
   DEFAULT_GITHUB_TEAM_ROLE,
+  GitHubExcludedTeamSlugs,
   type GitHubTeam,
   type GitHubTeamRole,
+  isExcludedGitHubTeam,
 } from '../constants/github-teams.js'
 
 const GITHUB_API_BASE = 'https://api.github.com'
@@ -22,6 +25,38 @@ const MAX_TEAM_PAGES = 10
  */
 const REFRESH_RETRY_COOLDOWN_MS = 60_000
 
+/**
+ * A member's teams in the org and the repositories each can reach. 100 of
+ * each is GitHub's page maximum and well past what one member holds; anything
+ * beyond it is dropped rather than paged, since this runs inside a command.
+ */
+const MEMBER_TEAM_REPOS_QUERY = `
+  query ($org: String!, $login: String!) {
+    organization(login: $org) {
+      teams(first: 100, userLogins: [$login]) {
+        nodes {
+          slug
+          parentTeam { slug }
+          repositories(first: 100) { nodes { nameWithOwner } }
+        }
+      }
+    }
+  }
+`
+
+/** The member's teams and the repositories they reach, as `/find-work` matches on them. */
+export interface MemberTeamRepos {
+  /** Team slugs, lowercased, minus excluded teams. */
+  teams: string[]
+  /** `owner/name` of every repository those teams reach, lowercased. */
+  repos: ReadonlySet<string>
+}
+
+interface MemberTeamNode {
+  slug?: unknown
+  parentTeam?: { slug?: unknown } | null
+  repositories?: { nodes?: ({ nameWithOwner?: unknown } | null)[] | null } | null
+}
 export type AddTeamMemberResult =
   | { status: 'active' }
   | { status: 'pending' }
@@ -172,6 +207,71 @@ export class GitHubTeamsService {
     this.teams = collected
     Logger.info(`GitHub Teams: cached ${collected.length} team(s) from ${org}`)
     return true
+  }
+
+  /**
+   * Read the org teams `login` belongs to and the repositories they reach.
+   * `/find-work` matches a member's issues on these: membership is what
+   * `/grant-access` hands out, so it is the org's own record of who works on
+   * what.
+   *
+   * Read live rather than from the hourly cache, so access granted a minute
+   * ago counts. Teams in `grantAccess.excludeTeams`, and their children, are
+   * left out: those are leadership or admin teams that tend to reach every
+   * repository, which would make every issue a match. Returns null when the
+   * service isn't configured or GitHub can't answer, so the caller can tell
+   * "no teams" apart from "couldn't tell".
+   */
+  public async getMemberTeamRepos(
+    login: string,
+    excluded: ReadonlySet<string> = GitHubExcludedTeamSlugs,
+  ): Promise<MemberTeamRepos | null> {
+    const token = this.token
+    const org = this.org
+    if (!token || !org) return null
+
+    let nodes: MemberTeamNode[]
+    try {
+      const data = (await githubGraphql(token, MEMBER_TEAM_REPOS_QUERY, { org, login })) as {
+        organization?: { teams?: { nodes?: (MemberTeamNode | null)[] | null } | null } | null
+      } | null
+      nodes = (data?.organization?.teams?.nodes ?? []).filter(
+        (node): node is MemberTeamNode => node !== null,
+      )
+    } catch (err: unknown) {
+      Logger.error(
+        `GitHub Teams: failed to read ${login}'s teams in ${org}: ${describeError(err)}`,
+        err,
+      )
+      return null
+    }
+
+    // The member's own teams carry their parents, which covers an excluded
+    // parent even while the cache is still cold.
+    const fetched: GitHubTeam[] = nodes.flatMap((node) =>
+      typeof node.slug === 'string'
+        ? [
+            {
+              name: node.slug,
+              slug: node.slug,
+              parentSlug: typeof node.parentTeam?.slug === 'string' ? node.parentTeam.slug : null,
+            },
+          ]
+        : [],
+    )
+    const lineage = [...this.teams, ...fetched]
+
+    const teams: string[] = []
+    const repos = new Set<string>()
+    for (const node of nodes) {
+      if (typeof node.slug !== 'string') continue
+      if (isExcludedGitHubTeam(node.slug, excluded, lineage)) continue
+      teams.push(node.slug.toLowerCase())
+      for (const repo of node.repositories?.nodes ?? []) {
+        if (typeof repo?.nameWithOwner === 'string') repos.add(repo.nameWithOwner.toLowerCase())
+      }
+    }
+    return { teams, repos }
   }
 
   /**

@@ -79,6 +79,20 @@ function pullRequestsService(
   }
 }
 
+/** A teams service answering with the member's team repositories, or null for a failed read. */
+function teamsService(repos: string[] | null = []): any {
+  return {
+    isConfigured: vi.fn().mockReturnValue(true),
+    getMemberTeamRepos: vi
+      .fn()
+      .mockResolvedValue(
+        repos === null
+          ? null
+          : { teams: ['website'], repos: new Set(repos.map((r) => r.toLowerCase())) },
+      ),
+  }
+}
+
 /** The button the member presses, or undefined to let the draw time out. */
 function button(customId: string): any {
   return {
@@ -132,8 +146,9 @@ describe('FindWorkCommand', () => {
     issues: any,
     pulls: any = pullRequestsService(),
     points: FindWorkPointsConfig = POINTS,
+    teams: any = teamsService(),
   ): FindWorkCommand {
-    return new FindWorkCommand(issues, users, claims, pulls, points)
+    return new FindWorkCommand(issues, users, claims, pulls, teams, points)
   }
 
   describe('before the draw', () => {
@@ -170,14 +185,54 @@ describe('FindWorkCommand', () => {
       expect(described(intr.followUp.mock.calls[0])).toContain('Nothing is up for grabs')
     })
 
-    it('tells the member when none of their roles matched an issue', async () => {
-      const intr = interaction(undefined, ['Front End'])
+    it("tells the member when none of their teams' repositories have an issue", async () => {
+      const intr = interaction(undefined)
+      const teams = teamsService(['digitalgroundgame/elsewhere'])
+      await command(
+        issuesService([issue({ number: 1 })]),
+        pullRequestsService(),
+        POINTS,
+        teams,
+      ).execute(intr, data)
+
+      expect(teams.getMemberTeamRepos).toHaveBeenCalledWith('alice')
+      expect(described(intr.followUp.mock.calls[0])).toContain('None of your GitHub teams')
+    })
+
+    it('ignores Discord roles, even ones named like a label on the issue', async () => {
+      const intr = interaction(undefined, ['Design'])
       await command(issuesService([issue({ number: 1, labels: ['available', 'design'] })])).execute(
         intr,
         data,
       )
 
-      expect(described(intr.followUp.mock.calls[0])).toContain('None of your skill roles matched')
+      expect(described(intr.followUp.mock.calls[0])).toContain('None of your GitHub teams')
+    })
+
+    it('still draws, and says so, when the member’s teams can’t be read', async () => {
+      const intr = interaction(undefined)
+      await command(
+        issuesService([issue({ number: 1 })]),
+        pullRequestsService(),
+        POINTS,
+        teamsService(null),
+      ).execute(intr, data)
+
+      const reply = described(intr.followUp.mock.calls[0])
+      expect(reply).toContain('Couldn’t read your GitHub teams')
+      expect(reply).toContain('#1')
+    })
+
+    it('shows the claim hint when a team repository has issues', async () => {
+      const intr = interaction(undefined)
+      await command(
+        issuesService([issue({ number: 1 })]),
+        pullRequestsService(),
+        POINTS,
+        teamsService([REPO]),
+      ).execute(intr, data)
+
+      expect(described(intr.followUp.mock.calls[0])).toContain('Pick one to have yourself assigned')
     })
 
     it('lets only the member who ran the command press its buttons', async () => {
@@ -189,6 +244,33 @@ describe('FindWorkCommand', () => {
       const { filter } = message.awaitMessageComponent.mock.calls[0][0]
       expect(filter({ user: { id: MEMBER_ID }, customId: pressed.customId })).toBe(true)
       expect(filter({ user: { id: 'someone-else' }, customId: pressed.customId })).toBe(false)
+    })
+
+    // Issue numbers repeat across repositories, so the number alone can't tell
+    // two buttons apart.
+    it('names the repository on each claim button', async () => {
+      const intr = interaction(undefined)
+      await command(
+        issuesService([
+          issue({ number: 2 }),
+          issue({ number: 2, repo: 'digitalgroundgame/discord-bot' }),
+        ]),
+      ).execute(intr, data)
+
+      const labels = intr.followUp.mock.calls[0]?.[0]?.components?.[0]?.components.map(
+        (b: any) => b.data.label,
+      )
+      expect([...labels].sort()).toEqual(['Claim discord-bot #2', 'Claim website #2'])
+    })
+
+    it('shortens a long repository name to fit Discord’s button label limit', async () => {
+      const intr = interaction(undefined)
+      const repo = `digitalgroundgame/${'a'.repeat(100)}`
+      await command(issuesService([issue({ number: 7, repo })])).execute(intr, data)
+
+      const label = intr.followUp.mock.calls[0]?.[0]?.components?.[0]?.components[0]?.data.label
+      expect(label).toHaveLength(80)
+      expect(label).toMatch(/^Claim a+… #7$/)
     })
 
     it('replaces the draw with an expiry notice when no button is pressed', async () => {
@@ -219,10 +301,13 @@ describe('FindWorkCommand', () => {
       expect(reply).toContain('**5 Democracy Points**')
     })
 
-    it('promises the ordinary rate for a skill-matched issue', async () => {
+    it('promises the ordinary rate for an issue in a team repository', async () => {
       const pressed = claimButton()
-      const issues = issuesService([issue({ number: 42, labels: ['available', 'back-end'] })])
-      await command(issues).execute(interaction(pressed, ['Back End']), data)
+      const issues = issuesService([issue({ number: 42 })])
+      await command(issues, pullRequestsService(), POINTS, teamsService([REPO])).execute(
+        interaction(pressed),
+        data,
+      )
 
       expect(await claims.listLiveClaims()).toMatchObject([{ issueNumber: 42, wildcard: false }])
       expect(described(pressed.editReply.mock.calls[0])).toContain('**3 Democracy Points**')

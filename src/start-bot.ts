@@ -228,6 +228,9 @@ async function start(): Promise<void> {
       userService,
       workClaimService,
       githubPullRequestsService,
+      // Read-only here: /find-work only lists the member's teams. Granting
+      // stays with /grant-access.
+      githubTeamsService,
     ),
     new KudosCommand(kudosService),
 
