@@ -24,6 +24,16 @@ export type AssignResult =
   | { status: 'not-configured' }
   | { status: 'error'; message: string }
 
+/**
+ * GitHub's answer to whether a user can be assigned on a repository. `error`
+ * means GitHub didn't answer (a fault, timeout or rate limit), which says
+ * nothing about the user's access.
+ */
+export type AssignableCheck = 'assignable' | 'not-assignable' | 'error'
+
+/** An issue's state and assignees, without what closed it. */
+export type IssueState = Pick<IssueStatus, 'state' | 'stateReason' | 'assignees'>
+
 /** What the payout job needs to know about a claimed issue. */
 export interface IssueStatus {
   state: 'open' | 'closed'
@@ -277,7 +287,34 @@ export class GitHubIssuesService {
     }
   }
 
-  /** The current state of one issue, or null if it couldn't be read. */
+  /**
+   * One issue's state and assignees, or null if it couldn't be read. One REST
+   * read; unlike `getIssueStatus` it doesn't look up what closed the issue, so
+   * use it when only whether the issue is open, and who holds it, matters.
+   */
+  public async getIssueState(repo: string, issueNumber: number): Promise<IssueState | null> {
+    if (!this.isConfigured()) return null
+    try {
+      const status = toIssueStatus(
+        await githubGet(this.token, `/repos/${repo}/issues/${issueNumber}`),
+      )
+      if (status === null) throw new Error('unexpected issue response')
+      const { state, stateReason, assignees } = status
+      return { state, stateReason, assignees }
+    } catch (err: unknown) {
+      Logger.error(
+        `GitHub Issues: failed to read ${repo}#${issueNumber}: ${describeError(err)}`,
+        err,
+      )
+      return null
+    }
+  }
+
+  /**
+   * The current state of one issue, including what closed it, or null if it
+   * couldn't be read. A closed issue costs a GraphQL read on top of the REST
+   * one, which only the payout job needs.
+   */
   public async getIssueStatus(repo: string, issueNumber: number): Promise<IssueStatus | null> {
     if (!this.isConfigured()) return null
     try {
@@ -303,12 +340,14 @@ export class GitHubIssuesService {
   }
 
   /**
-   * Whether GitHub will accept `username` as an assignee on `repo`. Returns
-   * false for a user without read access, which for a public org repo mostly
-   * means someone who has not accepted their organization invitation yet.
+   * Whether GitHub will accept `username` as an assignee on `repo`.
+   * `not-assignable` is a user without read access, which for a public org
+   * repo mostly means someone who has not accepted their organization
+   * invitation yet. `error` is GitHub failing to answer, kept apart so a
+   * GitHub outage isn't reported to the member as missing access.
    */
-  public async isAssignable(repo: string, username: string): Promise<boolean> {
-    if (!this.isConfigured()) return false
+  public async isAssignable(repo: string, username: string): Promise<AssignableCheck> {
+    if (!this.isConfigured()) return 'error'
     try {
       const res = await fetch(
         `${GITHUB_API_BASE}/repos/${repo}/assignees/${encodeURIComponent(username)}`,
@@ -319,16 +358,16 @@ export class GitHubIssuesService {
         },
       )
       // 204 assignable, 404 not. Anything else is a fault, not an answer.
-      if (res.status === 204) return true
-      if (res.status === 404) return false
+      if (res.status === 204) return 'assignable'
+      if (res.status === 404) return 'not-assignable'
       Logger.error(`GitHub Issues: unexpected ${res.status} checking ${username} on ${repo}`)
-      return false
+      return 'error'
     } catch (err: unknown) {
       Logger.error(
         `GitHub Issues: failed to check whether ${username} is assignable on ${repo}: ${describeError(err)}`,
         err,
       )
-      return false
+      return 'error'
     }
   }
 

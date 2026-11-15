@@ -21,7 +21,7 @@ The `/find-work` command SHALL be available to every guild member. It MUST reply
 
 ### Requirement: Claimable issue pool
 
-The bot SHALL offer only open, unassigned issues, not pull requests, that carry the configured marker label (default `available`) in the organization's public repositories. It MUST NOT enumerate private repositories, and MUST leave out repositories listed in `config.findWork.excludeRepos`. The pool SHALL be refreshed on a schedule (hourly by default).
+The bot SHALL offer only open, unassigned issues, not pull requests, that carry the configured marker label (default `available`) in the organization's public repositories. It MUST NOT enumerate private repositories, and MUST leave out repositories listed in `config.findWork.excludeRepos`. The pool SHALL be loaded when the bot starts and refreshed on a schedule (hourly by default).
 
 #### Scenario: Unlabelled issue
 
@@ -35,7 +35,7 @@ The bot SHALL offer only open, unassigned issues, not pull requests, that carry 
 
 ### Requirement: Skill-matched draw with a wildcard
 
-A draw SHALL offer up to three issues: two matched to the member's skills and one wildcard drawn at random from the stalest third, by last update, of issues that match none of them. When either side is short, the draw SHALL backfill from the rest of the pool so it offers three issues whenever three exist. An issue SHALL be marked as a wildcard exactly when it matches none of the member's skills.
+A draw SHALL offer up to three issues: two matched to the member's skills and one wildcard drawn at random from the stalest third, by last update, of issues that match none of them. When either side is short, the draw SHALL backfill from the rest of the pool so it offers three issues whenever three exist. Only an issue drawn into the wildcard slot SHALL be marked as a wildcard; a backfilled issue SHALL NOT be, so it pays the ordinary rate.
 
 #### Scenario: Member with matching roles
 
@@ -45,7 +45,7 @@ A draw SHALL offer up to three issues: two matched to the member's skills and on
 #### Scenario: Roles match nothing
 
 - **WHEN** none of the member's roles match any issue in the pool
-- **THEN** the draw is all wildcards and the reply says that their roles matched no issues
+- **THEN** one issue is the wildcard, the rest are backfilled from the pool at the ordinary rate, and the reply says that their roles matched no issues
 
 #### Scenario: Thin pool
 
@@ -68,7 +68,7 @@ A member's skills SHALL be the slugs of their Discord role names: lowercased, wi
 
 ### Requirement: Review suggestions
 
-Alongside the draw, the bot SHALL suggest up to two open pull requests in the organization's public repositories that change files the member has committed to on the default branch. It MUST leave out the member's own pull requests and pull requests on which they are already a requested or past reviewer, and MUST ignore lockfiles, build output and snapshots when matching. Suggestions SHALL be ordered by most matched files, then most commits across them, then longest waiting.
+Alongside the draw, the bot SHALL suggest up to two open pull requests in the organization's public repositories that change files the member has committed to on the default branch. It MUST leave out draft pull requests, the member's own pull requests and pull requests on which they are already a requested or past reviewer, and MUST ignore lockfiles, build output and snapshots when matching. Suggestions SHALL be ordered by most matched files, then most commits across them, then longest waiting.
 
 #### Scenario: Member's own pull request
 
@@ -114,9 +114,51 @@ Pressing an issue's claim button within five minutes SHALL assign the member's l
 - **WHEN** five minutes pass with no button pressed
 - **THEN** the reply is replaced with a notice that the draw has expired
 
+### Requirement: Re-reading the issue before assigning
+
+After recording a claim, the bot MUST re-read the issue on GitHub before assigning, since the pool can be up to an hour old. When the issue is no longer open and unassigned, the bot MUST withdraw the claim and say the issue was taken. When the issue can't be read, it MUST withdraw the claim and say the claim failed.
+
+#### Scenario: Taken on GitHub since the draw
+
+- **WHEN** the member presses a claim button for an issue that was assigned or closed on GitHub after the pool was last refreshed
+- **THEN** the bot withdraws the claim, says the issue is already claimed, and does not assign it
+
+#### Scenario: Issue can't be re-read
+
+- **WHEN** the member presses a claim button and GitHub returns an error when the issue is re-read
+- **THEN** the bot withdraws the claim, says the claim failed, and does not assign it
+
+### Requirement: Telling a GitHub failure from a refusal
+
+When GitHub fails to answer whether the member can be assigned, the bot MUST withdraw the claim and say the claim failed, not that access is needed. When the assignment request fails, the bot MUST re-read the issue: if the member is assigned, the claim stands and is confirmed; if not, the claim is withdrawn; if the issue can't be read, the claim is kept and the member is told the assignment couldn't be confirmed.
+
+#### Scenario: GitHub down during the access check
+
+- **WHEN** the member presses a claim button and GitHub returns a server error when asked whether their account can be assigned
+- **THEN** the bot withdraws the claim and says the claim failed, without saying access is needed
+
+#### Scenario: Assignment landed but its answer was lost
+
+- **WHEN** the assignment request times out after GitHub applied it
+- **THEN** the bot sees the member assigned on re-reading the issue, keeps the claim, and confirms it
+
+#### Scenario: Assignment can't be confirmed
+
+- **WHEN** the assignment request fails and the issue then can't be read
+- **THEN** the claim is kept, the member is told the assignment couldn't be confirmed, and the payout job expires the claim if the member never ends up assigned
+
+### Requirement: Answering button presses in time
+
+The bot MUST acknowledge a claim or review press before calling GitHub, then edit the reply once the outcome is known, so a slow GitHub can't make the interaction fail.
+
+#### Scenario: Slow GitHub
+
+- **WHEN** GitHub takes longer than Discord's three-second window to answer after a claim button is pressed
+- **THEN** the press is still acknowledged in time, and the reply shows the outcome once GitHub answers
+
 ### Requirement: Taking a review
 
-Pressing a review button SHALL request a review from the member's linked GitHub account on that pull request and record the request. Each member holds at most one live review request per pull request. The confirmation SHALL state the points the review will pay when that payout is enabled.
+Pressing a review button SHALL request a review from the member's linked GitHub account on that pull request and record the request. Each GitHub account holds at most one live review request per pull request. The confirmation SHALL state the points the review will pay when that payout is enabled.
 
 #### Scenario: Successful review request
 

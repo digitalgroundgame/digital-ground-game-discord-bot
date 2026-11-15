@@ -321,6 +321,10 @@
         "description": "Couldn’t claim that issue. It’s been logged — try again shortly.",
         "color": "{{COM:colors.warning}}"
       },
+      "findWorkClaimUnconfirmed": {
+        "description": "GitHub didn’t confirm whether **{{LOGIN}}** was assigned to [{{REPO}} #{{NUMBER}}]({{URL}}). If the issue shows you as assigned, it’s yours. If it doesn’t, it frees up for anyone again in an hour or so.",
+        "color": "{{COM:colors.warning}}"
+      },
       "findWorkNotConfigured": {
         "description": "`/find-work` isn’t configured on this bot.",
         "color": "{{COM:colors.warning}}"
