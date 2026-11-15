@@ -227,6 +227,11 @@ export class FindWorkCommand implements Command {
       return
     }
 
+    // Acknowledge the press before any GitHub call. Claiming and requesting a
+    // review each make up to three requests with a 10-second timeout apiece,
+    // well past Discord's 3-second window for answering a button.
+    await InteractionUtils.deferUpdate(button)
+
     const index = Number.parseInt(button.customId.split('-').pop() ?? '', 10)
     if (button.customId.startsWith(reviewPrefix)) {
       await this.requestReview(button, reviews[index], githubLogin, guildId, claimService, data)
@@ -234,7 +239,7 @@ export class FindWorkCommand implements Command {
     }
     const choice = drawn[index]
     if (!choice) {
-      await InteractionUtils.update(button, {
+      await InteractionUtils.editReply(button, {
         embeds: [Lang.getEmbed('displayEmbeds.findWorkFailed', data.lang)],
         components: [],
       })
@@ -257,14 +262,14 @@ export class FindWorkCommand implements Command {
       })
     } catch (err: unknown) {
       Logger.error(`/find-work: failed to record a claim on ${issue.repo}#${issue.number}`, err)
-      await InteractionUtils.update(button, {
+      await InteractionUtils.editReply(button, {
         embeds: [Lang.getEmbed('displayEmbeds.findWorkFailed', data.lang)],
         components: [],
       })
       return
     }
     if (claimId === undefined) {
-      await InteractionUtils.update(button, {
+      await InteractionUtils.editReply(button, {
         embeds: [
           Lang.getEmbed('displayEmbeds.findWorkAlreadyClaimed', data.lang, {
             REPO: issue.repo,
@@ -286,12 +291,32 @@ export class FindWorkCommand implements Command {
       }
     }
 
+    // The pool is refreshed hourly, so the issue may have been assigned or
+    // closed on GitHub since it was drawn. Check before assigning, or the
+    // member would land as a second assignee beside whoever took it.
+    const live = await issuesService.getIssueStatus(issue.repo, issue.number)
+    if (!live || live.state !== 'open' || live.assignees.length > 0) {
+      await release()
+      await InteractionUtils.editReply(button, {
+        embeds: [
+          live
+            ? Lang.getEmbed('displayEmbeds.findWorkAlreadyClaimed', data.lang, {
+                REPO: issue.repo,
+                NUMBER: issue.number.toString(),
+              })
+            : Lang.getEmbed('displayEmbeds.findWorkFailed', data.lang),
+        ],
+        components: [],
+      })
+      return
+    }
+
     if (!(await issuesService.isAssignable(issue.repo, githubLogin))) {
       // On a public repo this mostly means an unaccepted org invitation. A
       // lead has to grant access before the assignment can land; whether the
       // bot should raise that request itself is still open.
       await release()
-      await InteractionUtils.update(button, {
+      await InteractionUtils.editReply(button, {
         embeds: [
           Lang.getEmbed('displayEmbeds.findWorkNeedsAccess', data.lang, {
             LOGIN: githubLogin,
@@ -306,7 +331,7 @@ export class FindWorkCommand implements Command {
     const result = await issuesService.assign(issue.repo, issue.number, githubLogin)
     if (result.status !== 'assigned') {
       await release()
-      await InteractionUtils.update(button, {
+      await InteractionUtils.editReply(button, {
         embeds: [Lang.getEmbed('displayEmbeds.findWorkFailed', data.lang)],
         components: [],
       })
@@ -316,7 +341,7 @@ export class FindWorkCommand implements Command {
     Logger.info(
       `${intr.user.tag} claimed ${issue.repo}#${issue.number} as ${githubLogin}${choice.wildcard ? ' [wildcard]' : ''}`,
     )
-    await InteractionUtils.update(button, {
+    await InteractionUtils.editReply(button, {
       embeds: [
         Lang.getEmbed('displayEmbeds.findWorkClaimed', data.lang, {
           REPO: issue.repo,
@@ -345,7 +370,7 @@ export class FindWorkCommand implements Command {
   ): Promise<void> {
     const pullRequestsService = this.pullRequestsService
     if (!suggestion || !pullRequestsService) {
-      await InteractionUtils.update(button, {
+      await InteractionUtils.editReply(button, {
         embeds: [Lang.getEmbed('displayEmbeds.findWorkReviewFailed', data.lang)],
         components: [],
       })
@@ -355,7 +380,7 @@ export class FindWorkCommand implements Command {
 
     const result = await pullRequestsService.requestReview(pr.repo, pr.number, githubLogin)
     if (result.status === 'not-assignable') {
-      await InteractionUtils.update(button, {
+      await InteractionUtils.editReply(button, {
         embeds: [
           Lang.getEmbed('displayEmbeds.findWorkReviewNeedsAccess', data.lang, {
             LOGIN: githubLogin,
@@ -367,7 +392,7 @@ export class FindWorkCommand implements Command {
       return
     }
     if (result.status !== 'assigned') {
-      await InteractionUtils.update(button, {
+      await InteractionUtils.editReply(button, {
         embeds: [Lang.getEmbed('displayEmbeds.findWorkReviewFailed', data.lang)],
         components: [],
       })
@@ -388,7 +413,7 @@ export class FindWorkCommand implements Command {
         `/find-work: requested review of ${pr.repo}#${pr.number} from ${githubLogin} but failed to record it`,
         err,
       )
-      await InteractionUtils.update(button, {
+      await InteractionUtils.editReply(button, {
         embeds: [
           Lang.getEmbed('displayEmbeds.findWorkReviewNotRecorded', data.lang, {
             REPO: pr.repo,
@@ -402,7 +427,7 @@ export class FindWorkCommand implements Command {
     }
 
     Logger.info(`${button.user.tag} requested review of ${pr.repo}#${pr.number} as ${githubLogin}`)
-    await InteractionUtils.update(button, {
+    await InteractionUtils.editReply(button, {
       embeds: [
         Lang.getEmbed('displayEmbeds.findWorkReviewRequested', data.lang, {
           LOGIN: githubLogin,

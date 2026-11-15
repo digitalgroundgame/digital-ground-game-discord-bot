@@ -653,10 +653,10 @@
     },
     "findWork": {
       "claimHint": "Pick one to have yourself assigned on GitHub.",
-      "issueReward": "You’ll earn **{{POINTS}}** when a merged pull request closes it while you’re still assigned.",
+      "issueReward": "You’ll earn **{{POINTS}}** when your merged pull request closes it while you’re still assigned.",
       "reviewReward": "You’ll earn **{{POINTS}}** once you submit your review.",
       "reviewHint": "You’ve committed to files these change. Pick one to be requested as a reviewer.",
-      "noSkillMatch": "None of your skill roles matched a labelled issue, so these are all wildcards. If that looks wrong, the role name and the GitHub label probably don't line up — tell a lead."
+      "noSkillMatch": "None of your skill roles matched a labelled issue, so these are drawn from the whole pool. If that looks wrong, the role name and the GitHub label probably don't line up — tell a lead."
     }
   }
 }

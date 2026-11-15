@@ -5,6 +5,7 @@ import {
   DRAW_SIZE,
   drawIssues,
   issueMatchesSkills,
+  MATCHED_SLOTS,
   partitionBySkills,
   skillSlugsForRoleNames,
   toLabelSlug,
@@ -133,7 +134,9 @@ describe('drawIssues', () => {
     expect(wildcard?.issue.number).toBe(12)
   })
 
-  it('falls back to all wildcards when no skill role matches anything', () => {
+  // The wildcard flag prices the payout, so a member whose roles match
+  // nothing must not have every card paid at the wildcard rate.
+  it('flags only the wildcard slot when no skill role matches anything', () => {
     const pool = [
       issue({ number: 1, labels: ['available', 'back-end'] }),
       issue({ number: 2, labels: ['available', 'design'] }),
@@ -141,7 +144,7 @@ describe('drawIssues', () => {
     ]
     const drawn = drawIssues(pool, skills, pickFirst)
     expect(drawn).toHaveLength(DRAW_SIZE)
-    expect(drawn.every((d) => d.wildcard)).toBe(true)
+    expect(drawn.filter((d) => d.wildcard)).toHaveLength(DRAW_SIZE - MATCHED_SLOTS)
   })
 
   it('backfills from matched issues rather than returning a short draw', () => {

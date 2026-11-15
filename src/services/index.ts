@@ -18,7 +18,8 @@ export {
   type AssignResult,
   type IssueStatus,
   toCandidateIssue,
-  toClosedByCode,
+  toCloser,
+  type IssueCloser,
   toIssueStatus,
 } from './github-issues-service.js'
 export {

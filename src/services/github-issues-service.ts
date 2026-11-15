@@ -37,6 +37,13 @@ export interface IssueStatus {
    * and false for a close made by hand.
    */
   closedByCode: boolean
+  /**
+   * Login of whoever wrote the code that closed it, lowercased: the merged
+   * pull request's author, or the closing commit's author. Null while the
+   * issue is open, for a close by hand, and for a commit whose author has no
+   * GitHub account.
+   */
+  closerLogin: string | null
 }
 
 /** Read an issues-API entry into an `IssueStatus`, or null if it isn't one. Exported for tests. */
@@ -55,13 +62,14 @@ export function toIssueStatus(raw: unknown): IssueStatus | null {
     stateReason: typeof body.state_reason === 'string' ? body.state_reason : null,
     assignees,
     closedByCode: false,
+    closerLogin: null,
   }
 }
 
 /**
- * The latest close on an issue, and what did it. GitHub sets `closer` to the
- * pull request or commit that closed the issue through a closing keyword, and
- * leaves it null for a close made by hand.
+ * The latest close on an issue, what did it, and who wrote it. GitHub sets
+ * `closer` to the pull request or commit that closed the issue through a
+ * closing keyword, and leaves it null for a close made by hand.
  */
 const CLOSER_QUERY = `
   query ($owner: String!, $name: String!, $number: Int!) {
@@ -72,7 +80,8 @@ const CLOSER_QUERY = `
             ... on ClosedEvent {
               closer {
                 __typename
-                ... on PullRequest { merged }
+                ... on PullRequest { merged author { login } }
+                ... on Commit { author { user { login } } }
               }
             }
           }
@@ -82,11 +91,21 @@ const CLOSER_QUERY = `
   }
 `
 
+/** What closed an issue, as read from `CLOSER_QUERY`. */
+export interface IssueCloser {
+  closedByCode: boolean
+  closerLogin: string | null
+}
+
+function lowerLogin(login: unknown): string | null {
+  return typeof login === 'string' && login !== '' ? login.toLowerCase() : null
+}
+
 /**
- * Read `CLOSER_QUERY`'s answer into whether code closed the issue, or null if
- * the answer isn't one. Exported for tests.
+ * Read `CLOSER_QUERY`'s answer into whether code closed the issue and whose
+ * code it was, or null if the answer isn't one. Exported for tests.
  */
-export function toClosedByCode(data: unknown): boolean | null {
+export function toCloser(data: unknown): IssueCloser | null {
   const issue = (
     data as {
       repository?: {
@@ -97,11 +116,24 @@ export function toClosedByCode(data: unknown): boolean | null {
   const nodes = issue?.timelineItems?.nodes
   if (!Array.isArray(nodes)) return null
   const closer = (
-    nodes[nodes.length - 1] as { closer?: { __typename?: unknown; merged?: unknown } | null }
+    nodes[nodes.length - 1] as {
+      closer?: {
+        __typename?: unknown
+        merged?: unknown
+        author?: { login?: unknown; user?: { login?: unknown } | null } | null
+      } | null
+    }
   )?.closer
-  if (!closer) return false
-  if (closer.__typename === 'PullRequest') return closer.merged === true
-  return closer.__typename === 'Commit'
+  if (!closer) return { closedByCode: false, closerLogin: null }
+  if (closer.__typename === 'PullRequest') {
+    return closer.merged === true
+      ? { closedByCode: true, closerLogin: lowerLogin(closer.author?.login) }
+      : { closedByCode: false, closerLogin: null }
+  }
+  if (closer.__typename === 'Commit') {
+    return { closedByCode: true, closerLogin: lowerLogin(closer.author?.user?.login) }
+  }
+  return { closedByCode: false, closerLogin: null }
 }
 
 interface RawLabel {
@@ -256,11 +288,11 @@ export class GitHubIssuesService {
       // Paying for a close needs to know what closed it, so a closer that
       // can't be read leaves the claim for the next run like any other miss.
       const [owner, name] = repo.split('/')
-      const closedByCode = toClosedByCode(
+      const closer = toCloser(
         await githubGraphql(this.token, CLOSER_QUERY, { owner, name, number: issueNumber }),
       )
-      if (closedByCode === null) throw new Error('unexpected closer response')
-      return { ...status, closedByCode }
+      if (closer === null) throw new Error('unexpected closer response')
+      return { ...status, ...closer }
     } catch (err: unknown) {
       Logger.error(
         `GitHub Issues: failed to read ${repo}#${issueNumber}: ${describeError(err)}`,

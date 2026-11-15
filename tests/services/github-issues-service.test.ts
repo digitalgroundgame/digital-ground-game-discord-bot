@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   toCandidateIssue,
-  toClosedByCode,
+  toCloser,
   toIssueStatus,
 } from '../../src/services/github-issues-service.js'
 
@@ -81,6 +81,7 @@ describe('toIssueStatus', () => {
       stateReason: 'completed',
       assignees: ['alice', 'bob'],
       closedByCode: false,
+      closerLogin: null,
     })
   })
 
@@ -90,23 +91,37 @@ describe('toIssueStatus', () => {
   })
 })
 
-describe('toClosedByCode', () => {
+describe('toCloser', () => {
   function closedBy(closer: unknown): unknown {
     return { repository: { issue: { timelineItems: { nodes: [{ closer }] } } } }
   }
 
-  it('counts a merged pull request or a commit as code', () => {
-    expect(toClosedByCode(closedBy({ __typename: 'PullRequest', merged: true }))).toBe(true)
-    expect(toClosedByCode(closedBy({ __typename: 'Commit' }))).toBe(true)
+  it('counts a merged pull request or a commit as code, and names its author', () => {
+    expect(
+      toCloser(closedBy({ __typename: 'PullRequest', merged: true, author: { login: 'Alice' } })),
+    ).toEqual({ closedByCode: true, closerLogin: 'alice' })
+    expect(
+      toCloser(closedBy({ __typename: 'Commit', author: { user: { login: 'Bob' } } })),
+    ).toEqual({ closedByCode: true, closerLogin: 'bob' })
+  })
+
+  it('leaves the author null for a commit without a GitHub account', () => {
+    expect(toCloser(closedBy({ __typename: 'Commit', author: { user: null } }))).toEqual({
+      closedByCode: true,
+      closerLogin: null,
+    })
   })
 
   it('does not count a close by hand or an unmerged pull request', () => {
-    expect(toClosedByCode(closedBy(null))).toBe(false)
-    expect(toClosedByCode(closedBy({ __typename: 'PullRequest', merged: false }))).toBe(false)
+    const none = { closedByCode: false, closerLogin: null }
+    expect(toCloser(closedBy(null))).toEqual(none)
+    expect(
+      toCloser(closedBy({ __typename: 'PullRequest', merged: false, author: { login: 'alice' } })),
+    ).toEqual(none)
   })
 
   it('rejects an answer without a timeline', () => {
-    expect(toClosedByCode({ repository: { issue: null } })).toBeNull()
-    expect(toClosedByCode(null)).toBeNull()
+    expect(toCloser({ repository: { issue: null } })).toBeNull()
+    expect(toCloser(null)).toBeNull()
   })
 })

@@ -1,7 +1,5 @@
 import { createRequire } from 'node:module'
 
-import { type RoleKey, validateAllowedRoleKeys } from './server-roles.js'
-
 const require = createRequire(import.meta.url)
 const Config = require('../../config/config.json')
 
@@ -32,7 +30,6 @@ export interface DrawnIssue {
 interface FindWorkConfig {
   markerLabel: string
   excludeRepos: string[]
-  allowedRoleKeys: string[]
   points: Partial<Record<keyof FindWorkPointsConfig, unknown>>
 }
 
@@ -65,17 +62,6 @@ export const FindWorkExcludedRepos: ReadonlySet<string> = new Set(
     .filter((repo): repo is string => typeof repo === 'string')
     .map((repo) => repo.trim().toLowerCase())
     .filter((repo) => repo !== ''),
-)
-
-/**
- * Role config keys (see `config.roles`) allowed to approve an access request
- * raised by a claim. This does *not* gate running `/find-work` — the command
- * is open to every member.
- */
-export const FindWorkApproverRoleKeys: RoleKey[] = validateAllowedRoleKeys(
-  rawConfig.allowedRoleKeys,
-  'config.findWork.allowedRoleKeys',
-  '/find-work',
 )
 
 /** Payouts above this are almost certainly a typo, and would swamp the leaderboard. */
@@ -197,10 +183,12 @@ function stalestFirst(issues: readonly CandidateIssue[]): CandidateIssue[] {
  * Draw the issues a member is offered: `MATCHED_SLOTS` from issues matching
  * their skill roles, the remainder wildcards from everything else.
  *
- * Both slots degrade rather than returning short. A member whose skills match
- * nothing gets all wildcards; a member whose skills match everything gets
- * matched issues in the wildcard slot, flagged as such, because an unfilled
- * third card is worse than an unsurprising one. Callers that need to tell the
+ * Both slots degrade rather than returning short, but only the wildcard slot
+ * is ever flagged as one, since the flag prices the payout. A member whose
+ * skills match nothing gets one wildcard and the rest backfilled from the
+ * pool at the ordinary rate; a member whose skills match everything gets
+ * matched issues in the wildcard slot, unflagged, because an unfilled third
+ * card is worse than an unsurprising one. Callers that need to tell the
  * member their roles matched nothing should check `matched` themselves rather
  * than inferring it from the result.
  */
@@ -218,7 +206,7 @@ export function drawIssues(
   // inside it, so the slot is still a draw and not a fixed leaderboard.
   const wildcardPool = stalestFirst(unmatched)
   const stalest = wildcardPool.slice(0, Math.max(1, Math.ceil(wildcardPool.length / 3)))
-  const wildcardPicks = sample(stalest, DRAW_SIZE - matchedPicks.length, random)
+  const wildcardPicks = sample(stalest, DRAW_SIZE - MATCHED_SLOTS, random)
 
   const drawn: DrawnIssue[] = [
     ...matchedPicks.map((issue) => ({ issue, wildcard: false })),
@@ -226,11 +214,13 @@ export function drawIssues(
   ]
 
   // Backfill from whatever is left so a thin pool still returns a full draw.
+  // Backfilled cards are never wildcards: a member whose roles match nothing
+  // would otherwise draw every card at the wildcard rate.
   if (drawn.length < DRAW_SIZE) {
     for (const picked of drawn) pickedKeys.add(`${picked.issue.repo}#${picked.issue.number}`)
     const remaining = issues.filter((issue) => !pickedKeys.has(`${issue.repo}#${issue.number}`))
     for (const issue of sample(remaining, DRAW_SIZE - drawn.length, random)) {
-      drawn.push({ issue, wildcard: !issueMatchesSkills(issue, skillSlugs) })
+      drawn.push({ issue, wildcard: false })
     }
   }
 

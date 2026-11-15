@@ -104,17 +104,6 @@ export class WorkClaimService {
       .run()
   }
 
-  /** The live claim on an issue, if someone already holds one. */
-  public async findLiveClaim(repo: string, issueNumber: number): Promise<IssueClaim | undefined> {
-    return this.db.query.issueClaim.findFirst({
-      where: and(
-        eq(issueClaim.repo, repo),
-        eq(issueClaim.issueNumber, issueNumber),
-        eq(issueClaim.state, 'claimed'),
-      ),
-    })
-  }
-
   /** Every unresolved issue claim, oldest first — the payout job's read path. */
   public async listLiveClaims(): Promise<IssueClaim[]> {
     return this.db.query.issueClaim.findMany({

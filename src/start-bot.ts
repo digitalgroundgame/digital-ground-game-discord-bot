@@ -317,13 +317,21 @@ async function start(): Promise<void> {
     guildScheduledEventHandler,
     new JobService(jobs),
     voiceStateUpdateHandler,
-    // onBotReady callback: warm the GitHub team cache and run an immediate
+    // onBotReady callback: warm the GitHub caches and run an immediate
     // Google Calendar sync once after bot is ready
     async () => {
+      // None of these are awaited, so the calendar sync isn't held up; failures
+      // are logged by each service and leave the hourly jobs to retry.
       if (githubTeamsService.isConfigured()) {
-        // Not awaited so the calendar sync isn't held up; failures are logged
-        // by the service and leave the hourly job to retry.
         void githubTeamsService.refreshTeams()
+      }
+      // Without this, /find-work offers nothing until the first hourly refresh
+      // after every restart.
+      if (githubIssuesService.isConfigured()) {
+        void githubIssuesService.refreshIssues()
+      }
+      if (githubPullRequestsService.isConfigured()) {
+        void githubPullRequestsService.refresh()
       }
 
       try {
