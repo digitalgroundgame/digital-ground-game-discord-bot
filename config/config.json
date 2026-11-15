@@ -72,6 +72,24 @@
       "log": false,
       "runOnce": false,
       "initialDelaySecs": 0
+    },
+    "refreshGitHubIssues": {
+      "schedule": "0 0 * * * *",
+      "log": false,
+      "runOnce": false,
+      "initialDelaySecs": 0
+    },
+    "refreshGitHubPullRequests": {
+      "schedule": "0 30 * * * *",
+      "log": false,
+      "runOnce": false,
+      "initialDelaySecs": 0
+    },
+    "payFindWork": {
+      "schedule": "0 45 * * * *",
+      "log": false,
+      "runOnce": false,
+      "initialDelaySecs": 0
     }
   },
   "rateLimiting": {
@@ -130,6 +148,16 @@
     },
     "// NOTE: excludeTeams": "Team slugs /grant-access must never offer or grant, e.g. leadership or admin teams. Their child teams are excluded too. Every other team in the org is grantable. Must list at least one team, or GitHub grants stay disabled.",
     "excludeTeams": []
+  },
+  "findWork": {
+    "// NOTE": "Settings for /find-work. The pool is open, unassigned issues carrying markerLabel in the org's PUBLIC repositories — private repos are never enumerated.",
+    "markerLabel": "available",
+    "// NOTE: excludeRepos": "Repositories never drawn from, as owner/name. Every other public repo in the org is in scope.",
+    "excludeRepos": [],
+    "// NOTE: allowedRoleKeys": "Who can approve an access request raised by a claim. Running /find-work is open to every member.",
+    "allowedRoleKeys": ["DIRECTOR", "COORDINATOR"],
+    "// NOTE: points": "Democracy Points paid automatically: per issue closed as completed by a merged pull request or commit while the claimer is still assigned (wildcardIssue for one drawn from the wildcard slot), and per requested review the member submits. 0 turns that payout off.",
+    "points": { "issue": 1, "wildcardIssue": 2, "review": 1 }
   },
   "managedContent": {
     "// NOTE": "Role config keys (see roles below) allowed to run /content.",

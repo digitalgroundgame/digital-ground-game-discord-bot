@@ -69,6 +69,91 @@ export const contentOverride = sqliteTable(
   (t) => [uniqueIndex('content_override_key_field_uq').on(t.key, t.field)],
 )
 
+/** Where an issue claim made through `/find-work` has got to. */
+export const ISSUE_CLAIM_STATES = ['claimed', 'completed', 'expired'] as const
+export type IssueClaimState = (typeof ISSUE_CLAIM_STATES)[number]
+
+/**
+ * An issue a member claimed through `/find-work`, recorded at the moment the
+ * bot assigned them on GitHub.
+ *
+ * This is the record that makes a later kudos payout attributable: GitHub
+ * knows who is assigned, but only this table knows which Discord member asked
+ * for it and which draw it came from. `githubLogin` is denormalized from
+ * `linked_account` on purpose — a member may relink a different username
+ * later, and the claim should still name the account that was actually
+ * assigned.
+ */
+export const issueClaim = sqliteTable(
+  'issue_claim',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    /** The guild the claim was made in, which is where its Democracy Points are paid. */
+    guildId: text('guild_id').notNull(),
+    discordUserId: text('discord_user_id')
+      .notNull()
+      .references(() => user.discordUserId, { onDelete: 'cascade' }),
+    githubLogin: text('github_login').notNull(),
+    /** `owner/name`, as GitHub spells it. */
+    repo: text('repo').notNull(),
+    issueNumber: integer('issue_number').notNull(),
+    /** True when this issue came from the wildcard slot, which prices the bounty. */
+    wildcard: integer('wildcard', { mode: 'boolean' }).notNull().default(false),
+    state: text('state', { enum: ISSUE_CLAIM_STATES }).notNull().default('claimed'),
+    claimedAt: integer('claimed_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    /** Set when the payout job settles the claim, either paid or expired. */
+    resolvedAt: integer('resolved_at', { mode: 'timestamp' }),
+  },
+  (t) => [
+    // One live claim per issue. Partial, so settled rows don't count: an issue
+    // can be claimed, dropped and re-claimed any number of times.
+    uniqueIndex('issue_claim_live_uq')
+      .on(t.repo, t.issueNumber)
+      .where(sql`${t.state} = 'claimed'`),
+    // The payout job's read path: every unresolved claim, oldest first.
+    index('issue_claim_state_claimed_at_idx').on(t.state, t.claimedAt),
+  ],
+)
+
+/** Where a review requested through `/find-work` has got to. */
+export const REVIEW_REQUEST_STATES = ['requested', 'completed', 'expired'] as const
+export type ReviewRequestState = (typeof REVIEW_REQUEST_STATES)[number]
+
+/**
+ * A pull request review a member took on through `/find-work`, recorded when
+ * the bot requested it on GitHub. Like `issue_claim`, it is what makes the
+ * Democracy Points payout attributable once the review is submitted.
+ */
+export const reviewRequest = sqliteTable(
+  'review_request',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    guildId: text('guild_id').notNull(),
+    discordUserId: text('discord_user_id')
+      .notNull()
+      .references(() => user.discordUserId, { onDelete: 'cascade' }),
+    githubLogin: text('github_login').notNull(),
+    /** `owner/name`, as GitHub spells it. */
+    repo: text('repo').notNull(),
+    pullNumber: integer('pull_number').notNull(),
+    state: text('state', { enum: REVIEW_REQUEST_STATES }).notNull().default('requested'),
+    requestedAt: integer('requested_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    resolvedAt: integer('resolved_at', { mode: 'timestamp' }),
+  },
+  (t) => [
+    // Several members can review one pull request, but each holds at most one
+    // live request on it.
+    uniqueIndex('review_request_live_uq')
+      .on(t.repo, t.pullNumber, t.githubLogin)
+      .where(sql`${t.state} = 'requested'`),
+    index('review_request_state_requested_at_idx').on(t.state, t.requestedAt),
+  ],
+)
+
 /**
  * A single kudos "give" from one member to another. Kept as an append-only
  * ledger (rather than a running total column) so totals, weekly/monthly
@@ -114,5 +199,9 @@ export type NewUser = typeof user.$inferInsert
 export type LinkedAccount = typeof linkedAccount.$inferSelect
 export type NewLinkedAccount = typeof linkedAccount.$inferInsert
 export type ContentOverride = typeof contentOverride.$inferSelect
+export type IssueClaim = typeof issueClaim.$inferSelect
+export type NewIssueClaim = typeof issueClaim.$inferInsert
+export type ReviewRequest = typeof reviewRequest.$inferSelect
+export type NewReviewRequest = typeof reviewRequest.$inferInsert
 export type KudosTransaction = typeof kudosTransaction.$inferSelect
 export type NewKudosTransaction = typeof kudosTransaction.$inferInsert
