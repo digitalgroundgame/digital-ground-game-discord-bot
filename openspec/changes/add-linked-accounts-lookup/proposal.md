@@ -7,7 +7,7 @@ Coordinators sometimes need to see which Google email a member linked, for examp
 ## What Changes
 
 - Add the `/linked-accounts [user]` slash command, which replies ephemerally with every account linked to a member: the Google email and the GitHub username, each with when it was linked, or a notice that nothing is linked.
-- Looking up another member requires one of the coordinator roles (`grantAccess.allowedRoleKeys`), the same roles that can link an account on someone's behalf. Any member may look up their own links. The command is hidden in the picker from members without Manage Roles (`default_member_permissions`), and is unavailable in DMs.
+- Looking up another member requires one of the coordinator roles (`grantAccess.allowedRoleKeys`), the same roles that can link an account on someone's behalf. Any member may look up their own links, so the command is visible to everyone (no `default_member_permissions`, like `/grant-access` and `/link-account`, since a Discord permission gate could hide it from coordinators who lack that permission). It is unavailable in DMs.
 - Log each lookup with who looked up whom, without the identifiers.
 - Move the coordinator role IDs into one shared constant, `CoordinatorRoleIds`, used by `/grant-access`, `/link-account` and `/linked-accounts`.
 - Add `UserService.listLinkedAccounts(discordUserId)`.

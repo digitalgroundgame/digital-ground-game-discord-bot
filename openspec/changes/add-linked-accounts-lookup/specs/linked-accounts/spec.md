@@ -2,7 +2,7 @@
 
 ### Requirement: Private, coordinator-gated lookup
 
-The `/linked-accounts` command SHALL reply ephemerally and MUST NOT be available in DMs. Looking up another member MUST require one of the coordinator roles configured in `grantAccess.allowedRoleKeys`, checked when the command runs. A member MAY look up their own links without the role. The command's registration SHALL set `default_member_permissions` so it is hidden from regular members in the command picker.
+The `/linked-accounts` command SHALL reply ephemerally and MUST NOT be available in DMs. Looking up another member MUST require one of the coordinator roles configured in `grantAccess.allowedRoleKeys`, checked when the command runs. A member MAY look up their own links without the role. The command's registration MUST NOT set `default_member_permissions`, so every member can reach the self-lookup and no coordinator is hidden from it by a Discord permission they lack.
 
 #### Scenario: Coordinator looks up a member
 

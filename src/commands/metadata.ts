@@ -228,12 +228,11 @@ export const ChatCommandMetadata: {
     description: Lang.getRef('commandDescs.linkedAccounts', Language.Default),
     description_localizations: Lang.getRefLocalizationMap('commandDescs.linkedAccounts'),
     dm_permission: false,
-    // Linked emails are private: hide the command from regular members in the
-    // picker. The command still checks for a coordinator role at runtime, and
-    // server admins can change who sees it in Integrations settings.
-    default_member_permissions: PermissionsBitField.resolve([
-      PermissionFlagsBits.ManageRoles,
-    ]).toString(),
+    // Visible to everyone so members can look up their own links. Looking up
+    // another member is gated at runtime on the coordinator roles, as for
+    // /grant-access and /link-account (a Discord permission gate could lock
+    // out coordinators who lack that permission).
+    default_member_permissions: undefined,
     options: [
       {
         ...Args.LINKED_ACCOUNTS_USER,

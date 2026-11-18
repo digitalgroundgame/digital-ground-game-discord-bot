@@ -71,10 +71,10 @@ describe('LinkedAccountsCommand', () => {
     expect(command.deferType).toBe(CommandDeferType.HIDDEN)
   })
 
-  it('is hidden from regular members and unavailable in DMs', () => {
+  it('is unavailable in DMs and visible to every member, so they can see their own links', () => {
     const metadata = ChatCommandMetadata.LINKED_ACCOUNTS
     expect(metadata?.dm_permission).toBe(false)
-    expect(metadata?.default_member_permissions).toBeTruthy()
+    expect(metadata?.default_member_permissions).toBeUndefined()
   })
 
   it('shows a coordinator every account the member linked, Google first', async () => {
