@@ -27,6 +27,7 @@ import {
   UserCommandMetadata,
   type Command,
 } from './commands/index.js'
+import { getClientId, validateEnv } from './config/environment.js'
 import { ONBOARDING_CONFIGS, SendOnboarding } from './commands/user/index.js'
 import { GitHubExcludedTeamSlugs, KudosGiveAllowedRoleKeys } from './constants/index.js'
 import { createDatabase, type Database } from './database/index.js'
@@ -92,6 +93,7 @@ async function flushLogsAndExit(): Promise<never> {
 
 async function start(): Promise<void> {
   if (process.argv[2] === 'calendar' && process.argv[3] === 'sync') {
+    validateEnv('calendar')
     try {
       await runCalendarSyncCli()
     } catch (error) {
@@ -103,6 +105,7 @@ async function start(): Promise<void> {
 
   // Register
   if (process.argv[2] == 'commands') {
+    validateEnv('commands')
     try {
       const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN)
       const commandRegistrationService = new CommandRegistrationService(rest)
@@ -119,10 +122,15 @@ async function start(): Promise<void> {
     await flushLogsAndExit()
   }
 
+  validateEnv('bot')
+
   // Services
   const eventDataService = new EventDataService()
   const attendanceService = new AttendanceService()
-  const crmService = new CrmService()
+  const crmService = Config.crm.enabled ? new CrmService() : undefined
+  if (!crmService) {
+    Logger.warn('CRM integration disabled via config — attendance will not be recorded in the CRM.')
+  }
 
   // Client
   const client = new CustomClient({
@@ -303,7 +311,7 @@ async function start(): Promise<void> {
           githubIssuesService,
           githubPullRequestsService,
           workClaimService,
-          process.env.DISCORD_CLIENT_ID,
+          getClientId(),
         ),
       ),
     )
