@@ -27,7 +27,7 @@ import {
   UserCommandMetadata,
   type Command,
 } from './commands/index.js'
-import { validateEnv } from './config/environment.js'
+import { getClientId, validateEnv } from './config/environment.js'
 import { ONBOARDING_CONFIGS, SendOnboarding } from './commands/user/index.js'
 import { GitHubExcludedTeamSlugs, KudosGiveAllowedRoleKeys } from './constants/index.js'
 import { createDatabase, type Database } from './database/index.js'
@@ -311,7 +311,7 @@ async function start(): Promise<void> {
           githubIssuesService,
           githubPullRequestsService,
           workClaimService,
-          process.env.DISCORD_CLIENT_ID,
+          getClientId(),
         ),
       ),
     )

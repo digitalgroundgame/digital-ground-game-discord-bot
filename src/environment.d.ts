@@ -5,7 +5,7 @@ declare global {
       // entry point.
       DISCORD_BOT_TOKEN: string
       // Required per mode/capability — see src/config/environment.ts.
-      DISCORD_CLIENT_ID?: string // commands CLI
+      DISCORD_CLIENT_ID?: string // bot (the application id doubles as the bot's user id), commands CLI
       DISCORD_BOT_API_SECRET?: string // manager
       DISCORD_BOT_MASTER_API_TOKEN?: string // manager, when clustering is enabled
       DISCORD_BOT_DEVELOPER_IDS?: string // bot; comma-separated list of Discord user IDs

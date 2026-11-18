@@ -15,7 +15,7 @@ const Config = require('../../config/config.json')
 export type RuntimeMode = 'bot' | 'manager' | 'commands' | 'calendar'
 
 const modeEnvVars: Record<RuntimeMode, string[]> = {
-  bot: ['DISCORD_BOT_TOKEN', 'DISCORD_BOT_DEVELOPER_IDS'],
+  bot: ['DISCORD_BOT_TOKEN', 'DISCORD_CLIENT_ID', 'DISCORD_BOT_DEVELOPER_IDS'],
   manager: ['DISCORD_BOT_TOKEN', 'DISCORD_BOT_API_SECRET'],
   commands: ['DISCORD_BOT_TOKEN', 'DISCORD_CLIENT_ID'],
   calendar: ['DISCORD_BOT_TOKEN'],
@@ -26,6 +26,19 @@ export function getDeveloperIds(): string[] {
     .split(',')
     .map((id) => id.trim())
     .filter(Boolean)
+}
+
+/**
+ * The Discord application id, which is also the bot's own user id. Required
+ * in bot mode, so validateEnv('bot') guarantees it is set by the time bot code
+ * calls this.
+ */
+export function getClientId(): string {
+  const clientId = process.env.DISCORD_CLIENT_ID
+  if (!clientId) {
+    throw new Error('DISCORD_CLIENT_ID is not set')
+  }
+  return clientId
 }
 
 export function validateEnv(mode: RuntimeMode): void {

@@ -29,6 +29,7 @@ describe('validateEnv', () => {
     it('passes with the bot variables set', () => {
       stubEnv({
         DISCORD_BOT_TOKEN: 'token',
+        DISCORD_CLIENT_ID: 'client-id',
         DISCORD_BOT_DEVELOPER_IDS: VALID_ID,
         CRM_API_URL: 'http://localhost:8080',
         CRM_API_TOKEN: 'crm-token',
@@ -37,7 +38,7 @@ describe('validateEnv', () => {
       expect(() => validateEnv('bot')).not.toThrow()
     })
 
-    it('does not require manager or commands variables', () => {
+    it('requires the client ID used as the /find-work payout giver', () => {
       stubEnv({
         DISCORD_BOT_TOKEN: 'token',
         DISCORD_BOT_DEVELOPER_IDS: VALID_ID,
@@ -45,14 +46,27 @@ describe('validateEnv', () => {
         CRM_API_TOKEN: 'crm-token',
       })
 
-      // DISCORD_CLIENT_ID, DISCORD_BOT_API_SECRET, and
-      // DISCORD_BOT_MASTER_API_TOKEN are unset above.
+      expect(() => validateEnv('bot')).toThrow(/DISCORD_CLIENT_ID/)
+    })
+
+    it('does not require manager or commands variables', () => {
+      stubEnv({
+        DISCORD_BOT_TOKEN: 'token',
+        DISCORD_CLIENT_ID: 'client-id',
+        DISCORD_BOT_DEVELOPER_IDS: VALID_ID,
+        CRM_API_URL: 'http://localhost:8080',
+        CRM_API_TOKEN: 'crm-token',
+      })
+
+      // DISCORD_BOT_API_SECRET and DISCORD_BOT_MASTER_API_TOKEN are unset
+      // above.
       expect(() => validateEnv('bot')).not.toThrow()
     })
 
     it('requires the CRM variables while crm is enabled in config', () => {
       stubEnv({
         DISCORD_BOT_TOKEN: 'token',
+        DISCORD_CLIENT_ID: 'client-id',
         DISCORD_BOT_DEVELOPER_IDS: VALID_ID,
       })
 
@@ -62,6 +76,7 @@ describe('validateEnv', () => {
     it('rejects an empty developer ID list', () => {
       stubEnv({
         DISCORD_BOT_TOKEN: 'token',
+        DISCORD_CLIENT_ID: 'client-id',
         DISCORD_BOT_DEVELOPER_IDS: ' , ',
         CRM_API_URL: 'http://localhost:8080',
         CRM_API_TOKEN: 'crm-token',
@@ -73,6 +88,7 @@ describe('validateEnv', () => {
     it('rejects developer IDs that are not snowflakes', () => {
       stubEnv({
         DISCORD_BOT_TOKEN: 'token',
+        DISCORD_CLIENT_ID: 'client-id',
         DISCORD_BOT_DEVELOPER_IDS: `${VALID_ID},not-a-snowflake`,
         CRM_API_URL: 'http://localhost:8080',
         CRM_API_TOKEN: 'crm-token',
