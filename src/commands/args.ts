@@ -127,6 +127,13 @@ export class Args {
     description_localizations: Lang.getRefLocalizationMap('argDescs.linkAccountUser'),
     type: ApplicationCommandOptionType.User,
   }
+  public static readonly LINKED_ACCOUNTS_USER: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.user', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.user'),
+    description: Lang.getRef('argDescs.linkedAccountsUser', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.linkedAccountsUser'),
+    type: ApplicationCommandOptionType.User,
+  }
   public static readonly CONTENT_KEY: APIApplicationCommandBasicOption = {
     name: Lang.getRef('arguments.contentKey', Language.Default),
     name_localizations: Lang.getRefLocalizationMap('arguments.contentKey'),

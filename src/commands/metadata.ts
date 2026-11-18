@@ -221,6 +221,26 @@ export const ChatCommandMetadata: {
       },
     ],
   },
+  LINKED_ACCOUNTS: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.linkedAccounts', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.linkedAccounts'),
+    description: Lang.getRef('commandDescs.linkedAccounts', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.linkedAccounts'),
+    dm_permission: false,
+    // Linked emails are private: hide the command from regular members in the
+    // picker. The command still checks for a coordinator role at runtime, and
+    // server admins can change who sees it in Integrations settings.
+    default_member_permissions: PermissionsBitField.resolve([
+      PermissionFlagsBits.ManageRoles,
+    ]).toString(),
+    options: [
+      {
+        ...Args.LINKED_ACCOUNTS_USER,
+        required: false,
+      },
+    ],
+  },
   KUDOS: {
     type: ApplicationCommandType.ChatInput,
     name: Lang.getRef('chatCommands.kudos', Language.Default),
