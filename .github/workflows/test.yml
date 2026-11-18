@@ -21,11 +21,20 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
+      - name: Enable Corepack
+        run: corepack enable
       - name: Install
-        run: npm ci
+        run: pnpm install --frozen-lockfile
+      - name: Verify native dependencies
+        run: |
+          node -e "require('better-sqlite3'); require('canvas'); console.log('native dependencies ok')"
+          test -n "$(find node_modules/.pnpm -path '*/node_modules/better-sqlite3/build' -type d -print -quit)"
+          test -n "$(find node_modules/.pnpm -path '*/node_modules/canvas/build' -type d -print -quit)"
+          test -n "$(find node_modules/.pnpm -path '*/node_modules/esbuild/bin/esbuild' -type f -print -quit)"
       - name: Copy example config
-        run: npm run copyconfig
+        run: pnpm run copyconfig
       - name: Test
-        run: npm test
+        run: pnpm test
       - name: Build
-        run: npm run build
+        run: pnpm run build

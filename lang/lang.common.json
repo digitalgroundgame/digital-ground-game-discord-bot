@@ -1,4 +1,8 @@
 {
+  "pointsName": {
+    "one": "Democracy Point",
+    "other": "Democracy Points"
+  },
   "bot": {
     "name": "My Bot",
     "author": "My Name"

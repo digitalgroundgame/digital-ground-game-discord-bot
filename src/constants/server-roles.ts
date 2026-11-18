@@ -31,11 +31,14 @@ export function getRoleNameById(roleId: string): string {
  * permission boundary. Fails CLOSED: an empty, missing, or typo'd list
  * refuses to start the bot rather than silently leaving the command
  * unrestricted (an empty `requireRoles` skips the role check entirely).
+ * Pass `allowEmpty` only for features where an empty list deliberately means
+ * "open to everyone"; unknown keys are still rejected.
  */
 export function validateAllowedRoleKeys(
   raw: unknown,
   configPath: string,
   commandName: string,
+  options: { allowEmpty?: boolean } = {},
 ): RoleKey[] {
   const keys = Array.isArray(raw) ? raw.filter((key): key is string => typeof key === 'string') : []
   const validKeys = Object.keys(ServerRoles)
@@ -46,7 +49,7 @@ export function validateAllowedRoleKeys(
       `${configPath} contains unknown role keys: ${unknown.join(', ')} (valid: ${validKeys.join(', ')})`,
     )
   }
-  if (keys.length === 0) {
+  if (keys.length === 0 && !options.allowEmpty) {
     throw new Error(
       `${configPath} must list at least one role key; an empty list would leave ${commandName} open to everyone`,
     )

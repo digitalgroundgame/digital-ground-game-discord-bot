@@ -1,0 +1,344 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { Collection } from 'discord.js'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { ServerRoles } from '../../src/constants/index.js'
+import { Language } from '../../src/models/enum-helpers/index.js'
+import { EventData } from '../../src/models/internal-models.js'
+import { KudosReaction } from '../../src/reactions/kudos-reaction.js'
+import { KudosService } from '../../src/services/kudos-service.js'
+import { Logger } from '../../src/services/logger.js'
+import { createMockGuildMember, createMockUser } from '../helpers/discord-mocks.js'
+import { createTestDatabase } from '../helpers/test-database.js'
+
+const GUILD_ID = '111222333444555666'
+const CHANNEL_ID = '555666777888999000'
+const GIVER_ID = '333444555666777888'
+const AUTHOR_ID = '222333444555666777'
+const BOT_ID = '999888777666555444'
+const PILER_ID = '444555666777888999'
+const data = new EventData(Language.Default, Language.Default)
+
+interface ContextOptions {
+  reactorId?: string
+  authorId?: string
+  messageId?: string
+  authorBot?: boolean
+  sentByClient?: boolean
+  webhookId?: string | null
+  system?: boolean
+  reactorRoleIds?: string[]
+  memberFetchFails?: boolean
+  removeFails?: boolean
+}
+
+function createContext(options: ContextOptions = {}): {
+  msgReaction: any
+  msg: any
+  reactor: any
+  author: any
+  guild: any
+} {
+  const reactorId = options.reactorId ?? GIVER_ID
+  const authorId = options.authorId ?? AUTHOR_ID
+
+  const reactor = createMockUser({ id: reactorId, tag: `reactor-${reactorId}` })
+  const author = createMockUser({
+    id: options.sentByClient ? BOT_ID : authorId,
+    tag: `author-${authorId}`,
+    bot: options.sentByClient ? true : (options.authorBot ?? false),
+    toString: vi.fn().mockReturnValue(`<@${authorId}>`),
+  })
+
+  const guild: any = {
+    id: GUILD_ID,
+    name: 'Test Guild',
+    roles: { cache: new Collection() },
+    members: { fetch: vi.fn() },
+  }
+  const member = createMockGuildMember({ id: reactorId, user: reactor, guild })
+  for (const roleId of options.reactorRoleIds ?? []) {
+    member.roles.cache.set(roleId, { id: roleId })
+  }
+  guild.members.fetch = options.memberFetchFails
+    ? vi.fn().mockRejectedValue(new Error('Unknown Member'))
+    : vi.fn().mockResolvedValue(member)
+
+  const msgReaction = {
+    emoji: { name: '🪙' },
+    users: {
+      remove: options.removeFails
+        ? vi.fn().mockRejectedValue(new Error('Missing Permissions'))
+        : vi.fn().mockResolvedValue(undefined),
+    },
+  }
+
+  const msg = {
+    id: options.messageId ?? '666777888999000111',
+    channelId: CHANNEL_ID,
+    guild,
+    author,
+    client: { user: { id: BOT_ID } },
+    // An interaction follow-up is sent through the app's webhook.
+    webhookId: options.sentByClient ? BOT_ID : (options.webhookId ?? null),
+    system: options.system ?? false,
+  }
+
+  return { msgReaction, msg, reactor, author, guild }
+}
+
+describe('KudosReaction', () => {
+  let service: KudosService
+  let reaction: KudosReaction
+
+  beforeEach(() => {
+    service = new KudosService(createTestDatabase())
+    reaction = new KudosReaction(service, { allowedRoleIds: [] })
+  })
+
+  it('listens for the coin emoji in guilds only, without the generic rate limit', () => {
+    expect(reaction.emoji).toBe('🪙')
+    expect(reaction.requireGuild).toBe(true)
+    expect(reaction.requireSentByClient).toBe(false)
+    expect(reaction.requireEmbedAuthorTag).toBe(false)
+    // The per-pair cooldown is the real limit; the generic one would leave
+    // coins on messages without recording kudos.
+    expect(reaction.rateLimited).toBe(false)
+  })
+
+  it('gives the message author kudos and keeps the reaction without messaging anyone', async () => {
+    const { msgReaction, msg, reactor, author } = createContext()
+
+    await reaction.execute(msgReaction, msg, reactor, data)
+
+    expect(await service.getTotal(GUILD_ID, AUTHOR_ID)).toBe(1)
+    expect(msgReaction.users.remove).not.toHaveBeenCalled()
+    expect(author.send).not.toHaveBeenCalled()
+  })
+
+  it('removes the reaction without recording kudos while the giver is on cooldown', async () => {
+    const first = createContext({ messageId: 'message-1' })
+    await reaction.execute(first.msgReaction, first.msg, first.reactor, data)
+
+    const second = createContext({ messageId: 'message-2' })
+    await reaction.execute(second.msgReaction, second.msg, second.reactor, data)
+
+    expect(await service.getTotal(GUILD_ID, AUTHOR_ID)).toBe(1)
+    expect(second.msgReaction.users.remove).toHaveBeenCalledWith(GIVER_ID)
+    expect(second.author.send).not.toHaveBeenCalled()
+  })
+
+  it('removes the reaction when the giver already used /democracy-points give on the author this week', async () => {
+    await service.giveKudos(GUILD_ID, GIVER_ID, AUTHOR_ID, 'from the command')
+    const { msgReaction, msg, reactor } = createContext()
+
+    await reaction.execute(msgReaction, msg, reactor, data)
+
+    expect(await service.getTotal(GUILD_ID, AUTHOR_ID)).toBe(1)
+    expect(msgReaction.users.remove).toHaveBeenCalledWith(GIVER_ID)
+  })
+
+  it('keeps a re-added reaction on the same message without recording another kudos', async () => {
+    const first = createContext()
+    await reaction.execute(first.msgReaction, first.msg, first.reactor, data)
+
+    const again = createContext()
+    await reaction.execute(again.msgReaction, again.msg, again.reactor, data)
+
+    expect(await service.getTotal(GUILD_ID, AUTHOR_ID)).toBe(1)
+    expect(again.msgReaction.users.remove).not.toHaveBeenCalled()
+    expect(again.author.send).not.toHaveBeenCalled()
+  })
+
+  it('removes a reaction on the reactor’s own message', async () => {
+    const { msgReaction, msg, reactor } = createContext({ authorId: GIVER_ID })
+
+    await reaction.execute(msgReaction, msg, reactor, data)
+
+    expect(await service.getTotal(GUILD_ID, GIVER_ID)).toBe(0)
+    expect(msgReaction.users.remove).toHaveBeenCalledWith(GIVER_ID)
+  })
+
+  it.each([
+    ['a bot', { authorBot: true }],
+    ['a webhook', { webhookId: '777888999000111222' }],
+    ['a system message', { system: true }],
+  ])('removes the reaction on %s without recording kudos', async (_label, options) => {
+    const giveSpy = vi.spyOn(service, 'giveKudos')
+    const { msgReaction, msg, reactor } = createContext(options)
+
+    await reaction.execute(msgReaction, msg, reactor, data)
+
+    expect(giveSpy).not.toHaveBeenCalled()
+    expect(msgReaction.users.remove).toHaveBeenCalledWith(GIVER_ID)
+  })
+
+  describe('on a /democracy-points give announcement', () => {
+    const ANNOUNCEMENT_ID = '888999000111222333'
+
+    beforeEach(async () => {
+      const given = await service.giveKudos(GUILD_ID, GIVER_ID, AUTHOR_ID, 'great work')
+      if (given.status !== 'given') throw new Error('setup give failed')
+      await service.setSource(GUILD_ID, given.transactionId, {
+        channelId: CHANNEL_ID,
+        messageId: ANNOUNCEMENT_ID,
+      })
+    })
+
+    it('gives the announced receiver a point from each member who piles on', async () => {
+      const giveSpy = vi.spyOn(service, 'giveKudos')
+      const pileOn = createContext({
+        reactorId: PILER_ID,
+        sentByClient: true,
+        messageId: ANNOUNCEMENT_ID,
+      })
+
+      await reaction.execute(pileOn.msgReaction, pileOn.msg, pileOn.reactor, data)
+
+      expect(await service.getTotal(GUILD_ID, AUTHOR_ID)).toBe(2)
+      expect(await service.getTotal(GUILD_ID, BOT_ID)).toBe(0)
+      expect(pileOn.msgReaction.users.remove).not.toHaveBeenCalled()
+      // The pile-on carries the announced reason, marked as a pile-on.
+      expect(giveSpy).toHaveBeenCalledWith(GUILD_ID, PILER_ID, AUTHOR_ID, 'pile on: great work', {
+        channelId: CHANNEL_ID,
+        messageId: ANNOUNCEMENT_ID,
+      })
+    })
+
+    it('records a bare pile-on reason when the announcement had none', async () => {
+      const given = await service.giveKudos(GUILD_ID, PILER_ID, GIVER_ID)
+      if (given.status !== 'given') throw new Error('setup give failed')
+      await service.setSource(GUILD_ID, given.transactionId, {
+        channelId: CHANNEL_ID,
+        messageId: 'reasonless-announcement',
+      })
+      const giveSpy = vi.spyOn(service, 'giveKudos')
+      const pileOn = createContext({
+        reactorId: AUTHOR_ID,
+        sentByClient: true,
+        messageId: 'reasonless-announcement',
+      })
+
+      await reaction.execute(pileOn.msgReaction, pileOn.msg, pileOn.reactor, data)
+
+      expect(await service.getTotal(GUILD_ID, GIVER_ID)).toBe(2)
+      expect(giveSpy).toHaveBeenCalledWith(GUILD_ID, AUTHOR_ID, GIVER_ID, 'pile on', {
+        channelId: CHANNEL_ID,
+        messageId: 'reasonless-announcement',
+      })
+    })
+
+    it('keeps the original giver’s coin without recording a second point', async () => {
+      const { msgReaction, msg, reactor } = createContext({
+        sentByClient: true,
+        messageId: ANNOUNCEMENT_ID,
+      })
+
+      await reaction.execute(msgReaction, msg, reactor, data)
+
+      expect(await service.getTotal(GUILD_ID, AUTHOR_ID)).toBe(1)
+      expect(msgReaction.users.remove).not.toHaveBeenCalled()
+    })
+
+    it('removes the receiver’s own coin on their announcement', async () => {
+      const { msgReaction, msg, reactor } = createContext({
+        reactorId: AUTHOR_ID,
+        sentByClient: true,
+        messageId: ANNOUNCEMENT_ID,
+      })
+
+      await reaction.execute(msgReaction, msg, reactor, data)
+
+      expect(await service.getTotal(GUILD_ID, AUTHOR_ID)).toBe(1)
+      expect(msgReaction.users.remove).toHaveBeenCalledWith(AUTHOR_ID)
+    })
+
+    it('removes a coin on any other bot message', async () => {
+      const giveSpy = vi.spyOn(service, 'giveKudos')
+      const { msgReaction, msg, reactor } = createContext({
+        reactorId: PILER_ID,
+        sentByClient: true,
+        messageId: 'not-an-announcement',
+      })
+
+      await reaction.execute(msgReaction, msg, reactor, data)
+
+      expect(giveSpy).not.toHaveBeenCalled()
+      expect(msgReaction.users.remove).toHaveBeenCalledWith(PILER_ID)
+    })
+  })
+
+  it('lets any member give kudos without looking them up when no roles are configured', async () => {
+    const { msgReaction, msg, reactor, guild } = createContext()
+
+    await reaction.execute(msgReaction, msg, reactor, data)
+
+    expect(guild.members.fetch).not.toHaveBeenCalled()
+    expect(await service.getTotal(GUILD_ID, AUTHOR_ID)).toBe(1)
+  })
+
+  describe('with giver roles configured', () => {
+    beforeEach(() => {
+      reaction = new KudosReaction(service, { allowedRoleIds: [ServerRoles.ADMIN.id] })
+    })
+
+    it('gives kudos when the reactor has an allowed role', async () => {
+      const { msgReaction, msg, reactor } = createContext({
+        reactorRoleIds: [ServerRoles.ADMIN.id],
+      })
+
+      await reaction.execute(msgReaction, msg, reactor, data)
+
+      expect(await service.getTotal(GUILD_ID, AUTHOR_ID)).toBe(1)
+      expect(msgReaction.users.remove).not.toHaveBeenCalled()
+    })
+
+    it('removes the reaction when the reactor lacks an allowed role', async () => {
+      const { msgReaction, msg, reactor } = createContext()
+
+      await reaction.execute(msgReaction, msg, reactor, data)
+
+      expect(await service.getTotal(GUILD_ID, AUTHOR_ID)).toBe(0)
+      expect(msgReaction.users.remove).toHaveBeenCalledWith(GIVER_ID)
+    })
+
+    it('removes the reaction when the reactor cannot be fetched as a member', async () => {
+      const { msgReaction, msg, reactor } = createContext({ memberFetchFails: true })
+
+      await reaction.execute(msgReaction, msg, reactor, data)
+
+      expect(await service.getTotal(GUILD_ID, AUTHOR_ID)).toBe(0)
+      expect(msgReaction.users.remove).toHaveBeenCalledWith(GIVER_ID)
+    })
+  })
+
+  it('removes the coin without any lookup once a member passes their attempt limit', async () => {
+    reaction = new KudosReaction(service, {
+      allowedRoleIds: [ServerRoles.ADMIN.id],
+      attemptLimit: { amount: 2, intervalMs: 60_000 },
+    })
+    const giveSpy = vi.spyOn(service, 'giveKudos')
+
+    for (let i = 0; i < 2; i++) {
+      const { msgReaction, msg, reactor } = createContext({ authorId: GIVER_ID })
+      await reaction.execute(msgReaction, msg, reactor, data)
+    }
+    const limited = createContext({ reactorRoleIds: [ServerRoles.ADMIN.id] })
+    await reaction.execute(limited.msgReaction, limited.msg, limited.reactor, data)
+
+    expect(limited.guild.members.fetch).not.toHaveBeenCalled()
+    expect(giveSpy).not.toHaveBeenCalled()
+    expect(limited.msgReaction.users.remove).toHaveBeenCalledWith(GIVER_ID)
+  })
+
+  it('logs a warning instead of throwing when the reaction cannot be removed', async () => {
+    const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => {})
+    const { msgReaction, msg, reactor } = createContext({ authorId: GIVER_ID, removeFails: true })
+
+    await expect(reaction.execute(msgReaction, msg, reactor, data)).resolves.toBeUndefined()
+
+    expect(msgReaction.users.remove).toHaveBeenCalledWith(GIVER_ID)
+    expect(warn).toHaveBeenCalledOnce()
+    warn.mockRestore()
+  })
+})

@@ -29,5 +29,8 @@ export const GrantAccessAllowedRoleKeys: string[] = Array.isArray(rawConfig.allo
 
 /** Resolve a team shortname to its Google Group address, or null if unknown. */
 export function getGoogleGroupAddress(shortname: string): string | null {
+  // The autocompleted `team` option accepts free text (see `resolveGitHubTeamSlug`),
+  // so an inherited key like `toString` must not resolve to a group address.
+  if (!Object.prototype.hasOwnProperty.call(GoogleGroups, shortname)) return null
   return GoogleGroups[shortname] ?? null
 }

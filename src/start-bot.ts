@@ -9,9 +9,11 @@ import {
   CensusCommand,
   ContentCommand,
   DevCommand,
+  FindWorkCommand,
   GrantAccessCommand,
   HelpCommand,
   InfoCommand,
+  KudosCommand,
   LinkAccountCommand,
   PingSkillRoleCommand,
   PragPapersCommand,
@@ -27,6 +29,7 @@ import {
 } from './commands/index.js'
 import { validateEnv } from './config/environment.js'
 import { ONBOARDING_CONFIGS, SendOnboarding } from './commands/user/index.js'
+import { GitHubExcludedTeamSlugs, KudosGiveAllowedRoleKeys } from './constants/index.js'
 import { createDatabase, type Database } from './database/index.js'
 import {
   ButtonHandler,
@@ -42,9 +45,17 @@ import {
   VoiceStateUpdateHandler,
 } from './events/index.js'
 import { CustomClient } from './extensions/index.js'
-import { AutoCloseWelcomeThreadsJob, SyncDggpGoogleCalendarJob, type Job } from './jobs/index.js'
+import {
+  AutoCloseWelcomeThreadsJob,
+  PayFindWorkJob,
+  RefreshGitHubIssuesJob,
+  RefreshGitHubPullRequestsJob,
+  RefreshGitHubTeamsJob,
+  SyncDggpGoogleCalendarJob,
+  type Job,
+} from './jobs/index.js'
 import { Bot } from './models/bot.js'
-import { type Reaction } from './reactions/index.js'
+import { KudosReaction, type Reaction } from './reactions/index.js'
 import { syncDggpScheduledEventsToGoogle } from './services/sync-dggp-google-calendar.js'
 import {
   AttendanceService,
@@ -52,11 +63,17 @@ import {
   ContentService,
   CrmService,
   EventDataService,
+  FindWorkPayoutService,
+  GitHubIssuesService,
+  GitHubPullRequestsService,
+  GitHubTeamsService,
   GoogleCalendarService,
   GoogleGroupsService,
   JobService,
+  KudosService,
   Logger,
   UserService,
+  WorkClaimService,
 } from './services/index.js'
 import { CTAPostTrigger } from './triggers/cta-post.js'
 import { type Trigger } from './triggers/index.js'
@@ -135,9 +152,47 @@ async function start(): Promise<void> {
   )
   if (!googleGroupsService.isConfigured()) {
     Logger.warn(
-      '/grant-access: disabled — set GOOGLE_APPLICATION_CREDENTIALS (or GOOGLE_CALENDAR_CREDENTIALS) and GOOGLE_WORKSPACE_ADMIN_SUBJECT (or GOOGLE_CALENDAR_IMPERSONATION_SUBJECT) — the Workspace admin email the service account impersonates. /link-account remains available.',
+      '/grant-access: disabled for service:google — set GOOGLE_APPLICATION_CREDENTIALS (or GOOGLE_CALENDAR_CREDENTIALS) and GOOGLE_WORKSPACE_ADMIN_SUBJECT (or GOOGLE_CALENDAR_IMPERSONATION_SUBJECT) — the Workspace admin email the service account impersonates. /link-account remains available.',
     )
   }
+
+  // Token and org used by /grant-access to discover GitHub teams and manage
+  // their membership. Fails closed: every team not excluded is grantable, so
+  // the token is withheld until at least one team is excluded.
+  const githubExclusionsSet = GitHubExcludedTeamSlugs.size > 0
+  const githubTeamsService = new GitHubTeamsService(
+    githubExclusionsSet ? process.env.GITHUB_TEAMS_TOKEN : undefined,
+    process.env.GITHUB_TEAMS_ORG,
+  )
+  if (!githubExclusionsSet && process.env.GITHUB_TEAMS_TOKEN?.trim()) {
+    Logger.warn(
+      '/grant-access: disabled for service:github — grantAccess.excludeTeams in config.json is empty, which would make every org team grantable. List at least one team slug (e.g. an admin or leadership team) to enable it.',
+    )
+  } else if (!githubTeamsService.isConfigured()) {
+    Logger.warn(
+      '/grant-access: disabled for service:github — set GITHUB_TEAMS_TOKEN (a token from an org owner or team maintainer with the Members org permission / admin:org scope) and GITHUB_TEAMS_ORG (the organization its teams are read from). /link-account remains available.',
+    )
+  }
+
+  // A separate token from GITHUB_TEAMS_TOKEN on purpose: /find-work is open
+  // to every member, and the credential it reaches should not also be able to
+  // change organization membership.
+  const githubIssuesService = new GitHubIssuesService(
+    process.env.GITHUB_ISSUES_TOKEN,
+    process.env.GITHUB_TEAMS_ORG,
+  )
+  if (!githubIssuesService.isConfigured()) {
+    Logger.warn(
+      '/find-work: disabled — set GITHUB_ISSUES_TOKEN (repository Issues and Pull requests read & write, plus Metadata) and GITHUB_TEAMS_ORG (the organization its public repositories are read from).',
+    )
+  }
+
+  // Review suggestions ride on the same token and org as the issue pool.
+  const githubPullRequestsService = new GitHubPullRequestsService(
+    process.env.GITHUB_ISSUES_TOKEN,
+    process.env.GITHUB_TEAMS_ORG,
+  )
+
   let database: Database | undefined
   if (process.env.SQLITE_PATH) {
     try {
@@ -152,6 +207,15 @@ async function start(): Promise<void> {
   // Stores the external accounts members link via /link-account, and is read
   // by /grant-access to resolve a member's Google email.
   const userService = database ? new UserService(database) : undefined
+  const workClaimService = database ? new WorkClaimService(database) : undefined
+  // Backs /democracy-points and the kudos reaction. Without a database, the command reports
+  // itself as unconfigured and the reaction isn't registered.
+  const kudosService = database ? new KudosService(database) : undefined
+  if (KudosGiveAllowedRoleKeys.length === 0) {
+    Logger.info(
+      'Democracy Points giving is open to all members (config.kudos.allowedRoleKeys is empty)',
+    )
+  }
   // Resolves runtime-editable content. Always available — without a database
   // it serves the registry defaults and rejects edits.
   const contentService = new ContentService(database)
@@ -170,10 +234,17 @@ async function start(): Promise<void> {
     new CensusCommand(),
     new AttendanceTrackCommand(attendanceService, crmService),
     new StopAttendanceTrackCommand(attendanceService, voiceStateUpdateHandler),
-    new GrantAccessCommand(googleGroupsService, userService),
+    new GrantAccessCommand(googleGroupsService, userService, githubTeamsService),
     new LinkAccountCommand(userService),
     new ContentCommand(contentService),
     new PingSkillRoleCommand(),
+    new FindWorkCommand(
+      githubIssuesService,
+      userService,
+      workClaimService,
+      githubPullRequestsService,
+    ),
+    new KudosCommand(kudosService),
 
     // User Context Commands
     ...ONBOARDING_CONFIGS.map((config) => new SendOnboarding(config, contentService)),
@@ -187,6 +258,7 @@ async function start(): Promise<void> {
   // Reactions
   const reactions: Reaction[] = [
     // TODO: Add new reactions here
+    ...(kudosService ? [new KudosReaction(kudosService)] : []),
   ]
 
   // Triggers
@@ -218,6 +290,32 @@ async function start(): Promise<void> {
     new AutoCloseWelcomeThreadsJob(client),
     new SyncDggpGoogleCalendarJob(client, googleCalendarService),
   ]
+  // Keeps the /grant-access GitHub team list current. Pointless without a
+  // token and org, and the service would no-op anyway.
+  if (githubTeamsService.isConfigured()) {
+    jobs.push(new RefreshGitHubTeamsJob(githubTeamsService))
+  }
+  // Keeps the /find-work pool current. Same reasoning as above.
+  if (githubIssuesService.isConfigured()) {
+    jobs.push(new RefreshGitHubIssuesJob(githubIssuesService))
+  }
+  if (githubPullRequestsService.isConfigured()) {
+    jobs.push(new RefreshGitHubPullRequestsJob(githubPullRequestsService))
+  }
+  // Pays Democracy Points for finished /find-work claims. The bot's
+  // application id is its user id, and is recorded as the giver.
+  if (githubIssuesService.isConfigured() && workClaimService) {
+    jobs.push(
+      new PayFindWorkJob(
+        new FindWorkPayoutService(
+          githubIssuesService,
+          githubPullRequestsService,
+          workClaimService,
+          process.env.DISCORD_CLIENT_ID,
+        ),
+      ),
+    )
+  }
 
   // Bot
   const bot = new Bot(
@@ -234,8 +332,23 @@ async function start(): Promise<void> {
     guildScheduledEventHandler,
     new JobService(jobs),
     voiceStateUpdateHandler,
-    // onBotReady callback: run immediate Google Calendar sync once after bot is ready
+    // onBotReady callback: warm the GitHub caches and run an immediate
+    // Google Calendar sync once after bot is ready
     async () => {
+      // None of these are awaited, so the calendar sync isn't held up; failures
+      // are logged by each service and leave the hourly jobs to retry.
+      if (githubTeamsService.isConfigured()) {
+        void githubTeamsService.refreshTeams()
+      }
+      // Without this, /find-work offers nothing until the first hourly refresh
+      // after every restart.
+      if (githubIssuesService.isConfigured()) {
+        void githubIssuesService.refreshIssues()
+      }
+      if (githubPullRequestsService.isConfigured()) {
+        void githubPullRequestsService.refresh()
+      }
+
       try {
         await syncDggpScheduledEventsToGoogle(client, googleCalendarService)
       } catch (error) {

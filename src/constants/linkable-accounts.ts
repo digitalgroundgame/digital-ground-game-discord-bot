@@ -38,6 +38,23 @@ export const LinkableAccounts: LinkableAccount[] = [
       return { externalId: email, email }
     },
   },
+  {
+    provider: 'github',
+    label: 'GitHub',
+    description: 'Link your GitHub account by username',
+    identifierLabel: 'GitHub username',
+    identifierPlaceholder: 'your-username',
+    // GitHub usernames: alphanumeric or hyphens, no leading/trailing/consecutive hyphens, 1-39 chars.
+    validate: (identifier: string): boolean =>
+      /^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$/.test(identifier.trim()),
+    normalize: (identifier: string): { externalId: string; email?: string } => {
+      // Lowercased because GitHub usernames are case-insensitive but the
+      // (provider, external_id) unique index is not — without this, `octocat`
+      // and `OctoCat` are two rows for one GitHub account.
+      const externalId = identifier.trim().toLowerCase()
+      return { externalId, email: undefined }
+    },
+  },
 ]
 
 /** Resolve a provider key to its linkable-account config, or undefined if unknown. */

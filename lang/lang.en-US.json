@@ -162,17 +162,23 @@
         "description": "Tracking **{{CHANNEL_NAME}}**. ⚠️ CRM attendance recording is disabled on this bot, so attendance won't be synced. Leave the channel or run `/stop-attendance-track` to get the list."
       },
       "grantAccessAdded": {
-        "description": "{{USER}} was added to the **{{TEAM_LABEL}}** Google Group."
+        "description": "{{USER}} was added to the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}}."
+      },
+      "grantAccessAddedRole": {
+        "description": "{{USER}} was added to the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}} as **{{ROLE_LABEL}}**."
+      },
+      "grantAccessPendingRole": {
+        "description": "{{USER}} was invited to the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}} as `{{IDENTIFIER}}` (**{{ROLE_LABEL}}**). They'll be added once they accept the invite."
       },
       "grantAccessAlreadyMember": {
-        "description": "{{USER}} is already a member of the **{{TEAM_LABEL}}** Google Group."
+        "description": "{{USER}} is already a member of the **{{TEAM_LABEL}}** {{RESOURCE_LABEL}}."
       },
       "grantAccessFailed": {
         "description": "Couldn't add {{USER}} to the **{{TEAM_LABEL}}** team. Please try again or contact an administrator.",
         "color": "{{COM:colors.warning}}"
       },
       "grantAccessNotLinked": {
-        "description": "{{USER}} hasn't linked a Google account yet. Have them run `/link-account`, or run `/link-account` with their `user` to link it for them.",
+        "description": "{{USER}} hasn't linked a {{ACCOUNT_LABEL}} account yet. Have them run `/link-account`, or run `/link-account` with their `user` to link it for them.",
         "color": "{{COM:colors.warning}}"
       },
       "grantAccessUnknownService": {
@@ -180,11 +186,11 @@
         "color": "{{COM:colors.warning}}"
       },
       "grantAccessUnknownTeam": {
-        "description": "Unknown team `{{TEAM}}`. No matching Google Group is configured.",
+        "description": "Unknown team `{{TEAM}}`. No matching {{RESOURCE_LABEL}} is configured.",
         "color": "{{COM:colors.warning}}"
       },
       "grantAccessNotConfigured": {
-        "description": "Google group management isn't configured on this bot. The service account credentials and database connection must be set.",
+        "description": "{{RESOURCE_LABEL}} management isn't configured on this bot. {{REQUIREMENT}}",
         "color": "{{COM:colors.warning}}"
       },
       "linkAccountSuccess": {
@@ -266,6 +272,94 @@
       },
       "pingSkillRoleNoneOnline": {
         "description": "No other members of **{{SKILL}}** are online right now, so nobody was pinged.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "findWorkDraw": {
+        "title": "Three issues you could pick up",
+        "description": "{{ISSUES}}\n\n{{NOTICE}}"
+      },
+      "findWorkClaimed": {
+        "description": "Assigned **{{LOGIN}}** to [{{REPO}} #{{NUMBER}}]({{URL}}) — {{TITLE}}.\n\nIt’s yours. If you don’t get to it, say so and a lead can hand it back.\n\n{{REWARD}}"
+      },
+      "findWorkAlreadyClaimed": {
+        "description": "Someone claimed **{{REPO}} #{{NUMBER}}** just before you did. Run the command again for a fresh draw.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "findWorkNeedsAccess": {
+        "description": "GitHub won’t let **{{LOGIN}}** be assigned to **{{REPO}}** yet. That usually means an organization invitation is still unaccepted — check your email, then ask a lead about `/grant-access` if it persists.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "findWorkReviews": {
+        "title": "Pull requests you know your way around",
+        "description": "{{PULLS}}\n\n{{HINT}}"
+      },
+      "findWorkReviewRequested": {
+        "description": "Requested a review from **{{LOGIN}}** on [{{REPO}} #{{NUMBER}}]({{URL}}) — {{TITLE}}.\n\n{{REWARD}}"
+      },
+      "findWorkReviewNotRecorded": {
+        "description": "You’ve been requested as a reviewer on [{{REPO}} #{{NUMBER}}]({{URL}}), but it wasn’t recorded, so it won’t earn {{COM:pointsName.other}}. Let a lead know.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "findWorkReviewNeedsAccess": {
+        "description": "GitHub won’t request a review from **{{LOGIN}}** on **{{REPO}}** yet. That usually means an organization invitation is still unaccepted — check your email, then ask a lead about `/grant-access` if it persists.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "findWorkReviewFailed": {
+        "description": "Couldn’t request that review. It’s been logged — try again shortly.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "findWorkNoneAvailable": {
+        "description": "Nothing is up for grabs right now. Issues appear here once a lead labels them.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "findWorkNotLinked": {
+        "description": "Link your GitHub account first with `/link-account service:github identifier:<username>`, so claiming an issue can assign you.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "findWorkTimedOut": {
+        "description": "That draw expired. Run the command again for a fresh one.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "findWorkFailed": {
+        "description": "Couldn’t claim that issue. It’s been logged — try again shortly.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "findWorkClaimUnconfirmed": {
+        "description": "GitHub didn’t confirm whether **{{LOGIN}}** was assigned to [{{REPO}} #{{NUMBER}}]({{URL}}). If the issue shows you as assigned, it’s yours. If it doesn’t, it frees up for anyone again in an hour or so.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "findWorkNotConfigured": {
+        "description": "`/find-work` isn’t configured on this bot.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "kudosGiven": {
+        "description": "You gave {{USER}} a {{COM:pointsName.one}}! They now have **{{TOTAL}}** {{POINTS}}.",
+        "color": "{{COM:colors.success}}"
+      },
+      "kudosSelf": {
+        "description": "You can't give yourself {{COM:pointsName.other}}.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "kudosBotTarget": {
+        "description": "You can't give a bot {{COM:pointsName.other}}.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "kudosCooldown": {
+        "description": "You already gave {{USER}} a {{COM:pointsName.one}} recently. You can give them another one <t:{{RETRY_TIMESTAMP}}:R>.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "kudosView": {
+        "description": "{{USER}} has **{{TOTAL}}** {{POINTS}}."
+      },
+      "kudosLeaderboard": {
+        "title": "🏆 {{PERIOD_LABEL}} {{COM:pointsName.other}} Leaderboard",
+        "description": ["{{ENTRIES}}"]
+      },
+      "kudosLeaderboardEmpty": {
+        "description": "No {{COM:pointsName.other}} have been given yet this {{PERIOD}}."
+      },
+      "kudosNotConfigured": {
+        "description": "{{COM:pointsName.other}} aren't configured on this bot. The database connection must be set.",
         "color": "{{COM:colors.warning}}"
       }
     },
@@ -359,7 +453,9 @@
       "stopAttendanceTrack": "stop-attendance-track",
       "grantAccess": "grant-access",
       "linkAccount": "link-account",
-      "pingSkillRole": "ping-skill-role"
+      "pingSkillRole": "ping-skill-role",
+      "findWork": "find-work",
+      "kudos": "democracy-points"
     },
     "userCommands": {
       "sendDevOnboarding": "Send Dev Onboarding",
@@ -369,6 +465,14 @@
       "sendWelcomeOnboarding": "Send Welcome Onboarding"
     },
     "messageCommands": {},
+    "githubTeamRoles": {
+      "member": "Member",
+      "maintainer": "Maintainer (can add and remove this team's members on GitHub)"
+    },
+    "githubTeamRoleLabels": {
+      "member": "Member",
+      "maintainer": "Maintainer"
+    },
     "arguments": {
       "command": "command",
       "contentKey": "key",
@@ -377,10 +481,13 @@
       "attendanceEventName": "name",
       "service": "service",
       "team": "team",
+      "role": "role",
       "user": "user",
       "identifier": "identifier",
       "skill": "skill",
-      "note": "note"
+      "note": "note",
+      "reason": "reason",
+      "period": "period"
     },
     "commandDescs": {
       "content": "View or edit bot-managed content (welcome, onboarding, rules text).",
@@ -395,9 +502,14 @@
       "census": "Gives a link to the Census form.",
       "attendanceTrack": "Tracks voice-channel attendance until you leave or stop tracking.",
       "stopAttendanceTrack": "Stops your active attendance tracker and sends the results immediately.",
-      "grantAccess": "Grant a member access to a team's service (e.g. a Google Group).",
-      "linkAccount": "Link an external account (e.g. your Google email) to a Discord profile.",
-      "pingSkillRole": "Ping the online members of a skill role (works in forum posts)."
+      "grantAccess": "Grant a member access to a team's service (e.g. a Google Group or GitHub team).",
+      "linkAccount": "Link an external account (e.g. your Google email or GitHub username) to a Discord profile.",
+      "pingSkillRole": "Ping the online members of a skill role (works in forum posts).",
+      "findWork": "Find an open issue to pick up, or a pull request you could review.",
+      "kudos": "Give {{COM:pointsName.other}}, view a member's total, or check the leaderboard.",
+      "kudosGive": "Give a member a {{COM:pointsName.one}} for something they did well.",
+      "kudosView": "View a member's total {{COM:pointsName.other}}.",
+      "kudosLeaderboard": "View the weekly or monthly {{COM:pointsName.other}} leaderboard."
     },
     "argDescs": {
       "contentKey": "The content entry to manage.",
@@ -409,11 +521,16 @@
       "grantAccessService": "The service to grant access to.",
       "grantAccessTeam": "The team whose service the member should be added to.",
       "grantAccessUser": "The member to grant access to.",
+      "grantAccessRole": "GitHub only: the team role to grant. Defaults to member.",
       "linkAccountService": "The service to link an account for.",
       "linkAccountIdentifier": "The account identifier (e.g. a Google email address).",
       "linkAccountUser": "Coordinators only: the member to link an account for (defaults to you).",
       "pingSkillRoleSkill": "The skill role whose online members should be pinged.",
-      "pingSkillRoleNote": "An optional note to include with the ping."
+      "pingSkillRoleNote": "An optional note to include with the ping.",
+      "kudosGiveUser": "The member to give a {{COM:pointsName.one}} to.",
+      "kudosGiveReason": "What you're giving the {{COM:pointsName.one}} for. Shown in the announcement.",
+      "kudosViewUser": "The member to view {{COM:pointsName.other}} for (defaults to you).",
+      "kudosLeaderboardPeriod": "Weekly or monthly leaderboard."
     },
     "fields": {
       "commands": "Commands",
@@ -506,6 +623,28 @@
       "header": "📣 Paging online **{{SKILL}}** members (requested by {{USER}})",
       "headerWithNote": "📣 Paging online **{{SKILL}}** members (requested by {{USER}}): {{NOTE}}"
     },
+    "kudosPeriods": {
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "week": "week",
+      "month": "month"
+    },
+    "kudosUnits": {
+      "one": "{{COM:pointsName.one}}",
+      "other": "{{COM:pointsName.other}}"
+    },
+    "grantAccessResources": {
+      "google": "Google Group",
+      "github": "GitHub team"
+    },
+    "grantAccessRequirements": {
+      "google": "The service account credentials and database connection must be set.",
+      "github": "A GitHub API token, an organization, a list of excluded teams, and a database connection must be set."
+    },
+    "kudosAnnouncement": {
+      "given": "{{EMOJI}} {{GIVER}} gave {{RECEIVER}} a {{COM:pointsName.one}}!",
+      "givenWithReason": "{{EMOJI}} {{GIVER}} gave {{RECEIVER}} a {{COM:pointsName.one}}: {{REASON}}"
+    },
     "links": {
       "authorEmbed": "[{{COM:bot.author}}]({{COM:links.author}})",
       "docsEmbed": "[View Documentation]({{COM:links.docs}})",
@@ -518,6 +657,13 @@
       "voteEmbed": "[Vote for {{COM:bot.name}}!]({{COM:links.vote}})",
       "pragPapersEmbed": "[Read the Pragmatic Papers here: ({{COM:links.pragPapers}})]",
       "censusEmbed": "[Fill out the Census here: ({{COM:links.census}})]"
+    },
+    "findWork": {
+      "claimHint": "Pick one to have yourself assigned on GitHub.",
+      "issueReward": "You’ll earn **{{POINTS}}** when your merged pull request closes it while you’re still assigned.",
+      "reviewReward": "You’ll earn **{{POINTS}}** once you submit your review.",
+      "reviewHint": "You’ve committed to files these change. Pick one to be requested as a reviewer.",
+      "noSkillMatch": "None of your skill roles matched a labelled issue, so these are drawn from the whole pool. If that looks wrong, the role name and the GitHub label probably don't line up — tell a lead."
     }
   }
 }

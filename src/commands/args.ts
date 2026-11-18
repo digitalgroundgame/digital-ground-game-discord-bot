@@ -2,9 +2,9 @@ import { type APIApplicationCommandBasicOption, ApplicationCommandOptionType } f
 
 import { DevCommandName, HelpOption, InfoOption } from '../enums/index.js'
 import { Language } from '../models/enum-helpers/index.js'
-import { Lang } from '../services/index.js'
+import { type KudosLeaderboardPeriod, Lang } from '../services/index.js'
 import { Rules } from '../constants/rules.js'
-import { GoogleGroups, LinkableAccounts } from '../constants/index.js'
+import { GITHUB_TEAM_ROLES, LinkableAccounts } from '../constants/index.js'
 
 export class Args {
   public static readonly DEV_COMMAND: APIApplicationCommandBasicOption = {
@@ -76,9 +76,23 @@ export class Args {
     description: Lang.getRef('argDescs.grantAccessTeam', Language.Default),
     description_localizations: Lang.getRefLocalizationMap('argDescs.grantAccessTeam'),
     type: ApplicationCommandOptionType.String,
-    choices: Object.keys(GoogleGroups).map((shortname) => ({
-      name: shortname,
-      value: shortname,
+    // Autocomplete rather than static choices: Discord caps an option at 25
+    // choices, and the team list grows with `grantAccess` config. It also lets
+    // the suggestions narrow to the teams the picked service actually has.
+    autocomplete: true,
+  }
+  public static readonly GRANT_ACCESS_ROLE: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.role', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.role'),
+    description: Lang.getRef('argDescs.grantAccessRole', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.grantAccessRole'),
+    type: ApplicationCommandOptionType.String,
+    // Static choices rather than autocomplete: GitHub accepts exactly two, and
+    // a free-text role would be a silent no-op if it were misspelled.
+    choices: GITHUB_TEAM_ROLES.map((role) => ({
+      name: Lang.getRef(`githubTeamRoles.${role}`, Language.Default),
+      name_localizations: Lang.getRefLocalizationMap(`githubTeamRoles.${role}`),
+      value: role,
     })),
   }
   public static readonly GRANT_ACCESS_USER: APIApplicationCommandBasicOption = {
@@ -145,6 +159,47 @@ export class Args {
     description_localizations: Lang.getRefLocalizationMap('argDescs.pingSkillRoleNote'),
     type: ApplicationCommandOptionType.String,
     max_length: 500,
+  }
+  public static readonly KUDOS_GIVE_USER: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.user', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.user'),
+    description: Lang.getRef('argDescs.kudosGiveUser', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.kudosGiveUser'),
+    type: ApplicationCommandOptionType.User,
+  }
+  public static readonly KUDOS_GIVE_REASON: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.reason', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.reason'),
+    description: Lang.getRef('argDescs.kudosGiveReason', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.kudosGiveReason'),
+    type: ApplicationCommandOptionType.String,
+    max_length: 200,
+  }
+  public static readonly KUDOS_VIEW_USER: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.user', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.user'),
+    description: Lang.getRef('argDescs.kudosViewUser', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.kudosViewUser'),
+    type: ApplicationCommandOptionType.User,
+  }
+  public static readonly KUDOS_LEADERBOARD_PERIOD: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.period', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.period'),
+    description: Lang.getRef('argDescs.kudosLeaderboardPeriod', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.kudosLeaderboardPeriod'),
+    type: ApplicationCommandOptionType.String,
+    choices: [
+      {
+        name: Lang.getRef('kudosPeriods.weekly', Language.Default),
+        name_localizations: Lang.getRefLocalizationMap('kudosPeriods.weekly'),
+        value: 'weekly' satisfies KudosLeaderboardPeriod,
+      },
+      {
+        name: Lang.getRef('kudosPeriods.monthly', Language.Default),
+        name_localizations: Lang.getRefLocalizationMap('kudosPeriods.monthly'),
+        value: 'monthly' satisfies KudosLeaderboardPeriod,
+      },
+    ],
   }
   public static readonly ATTENDANCE_TRACK_NAME: APIApplicationCommandBasicOption = {
     name: Lang.getRef('arguments.attendanceEventName', Language.Default),
