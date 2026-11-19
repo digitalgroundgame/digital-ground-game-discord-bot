@@ -14,8 +14,8 @@ The work already exists on the `give-issue-pr-review` branch, with the fixes fro
 
 **Non-Goals:**
 
-- Role aliases for Discord roles whose names don't slug to any label in use.
-- Weighting the wildcard by how few members hold a matching role (staleness stands in for now).
+- Matching on Discord roles or skill labels. An earlier draft slugged every Discord role name against issue labels, which let unrelated roles such as a city or a squad match and needed labels kept in sync with role names.
+- Weighting the wildcard by how few members are on the teams that reach a repository (staleness stands in for now).
 - Raising GitHub access requests automatically when a member can't be assigned.
 - Enumerating private repositories.
 
@@ -23,8 +23,8 @@ The work already exists on the `give-issue-pr-review` branch, with the fixes fro
 
 - **Curation by label on GitHub.** An issue is offered only while it carries the marker label, so maintainers advertise or withdraw work on GitHub without touching bot config. The alternative, a list in config, would drift.
 - **Cached pools refreshed by jobs.** The command reads from in-memory caches loaded at startup and refreshed hourly, so a draw costs no GitHub calls and stays fast. Because the cache can be up to an hour old, a claim re-reads the issue on GitHub before assigning, so a member never lands as a second assignee beside someone who took the issue in the meantime.
-- **Only the wildcard slot is a wildcard.** The flag sets the payout rate, so only the card drawn into the wildcard slot carries it. Backfilled cards pay the ordinary rate even when they match none of the member's roles; otherwise a member whose roles match nothing would earn the wildcard rate on every claim.
-- **Role names matched to labels by slug.** "Front End Development" and `front-end-development` both slug to the same value, so no mapping file is needed for the common case. A role that slugs to the marker label is ignored so it can't match everything.
+- **Only the wildcard slot is a wildcard.** The flag sets the payout rate, so only the card drawn into the wildcard slot carries it. Backfilled cards pay the ordinary rate even when they're outside the member's team repositories; otherwise a member whose teams match nothing would earn the wildcard rate on every claim.
+- **Matched by GitHub team repositories.** A member's matched issues are those in repositories their GitHub teams reach. Team membership is what `/grant-access` hands out, and the org's teams map closely onto its repositories, so this needs no labels beyond the marker and no mapping between Discord roles and GitHub. Teams are read live with one GraphQL query per `/find-work` through the teams token, since a fine-grained token needs the Members permission to list them and that token already has it. Excluded `/grant-access` teams are ignored because admin teams tend to reach every repository. If the read fails, the draw goes ahead from the whole pool and says so.
 - **Claims recorded locally, not inferred from GitHub.** GitHub knows who is assigned but not which Discord member asked or whether it came from the wildcard slot. The GitHub login is denormalized onto the claim so a later relink doesn't reattribute it.
 - **Settlement is one transaction guarded on the live state.** The state change and the points award commit together, and the update only matches a row still `claimed` or `requested`, so reruns can't double-pay.
 - **Pay only a claimer still assigned at close.** This stops paying someone who dropped the issue and stops paying the original claimer when someone else took it over.

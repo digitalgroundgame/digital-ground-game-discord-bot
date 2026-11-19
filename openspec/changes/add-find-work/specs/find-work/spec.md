@@ -33,38 +33,43 @@ The bot SHALL offer only open, unassigned issues, not pull requests, that carry 
 - **WHEN** a repository is listed in `config.findWork.excludeRepos`
 - **THEN** none of its issues are offered, even ones carrying the marker label
 
-### Requirement: Skill-matched draw with a wildcard
+### Requirement: Team-matched draw with a wildcard
 
-A draw SHALL offer up to three issues: two matched to the member's skills and one wildcard drawn at random from the stalest third, by last update, of issues that match none of them. When either side is short, the draw SHALL backfill from the rest of the pool so it offers three issues whenever three exist. Only an issue drawn into the wildcard slot SHALL be marked as a wildcard; a backfilled issue SHALL NOT be, so it pays the ordinary rate.
+A draw SHALL offer up to three issues: two from repositories the member's GitHub teams reach, and one wildcard drawn at random from the stalest third, by last update, of issues in every other repository. When either side is short, the draw SHALL backfill from the rest of the pool so it offers three issues whenever three exist. Only an issue drawn into the wildcard slot SHALL be marked as a wildcard; a backfilled issue SHALL NOT be, so it pays the ordinary rate.
 
-#### Scenario: Member with matching roles
+#### Scenario: Member on a team
 
-- **WHEN** a member holding the role "Front End Development" runs `/find-work` and issues labelled `front-end-development` exist
-- **THEN** two of the offered issues carry that label and the third is a wildcard
+- **WHEN** a member whose linked GitHub account is on a team with access to `org/website` runs `/find-work` and `org/website` has issues in the pool
+- **THEN** two of the offered issues are in `org/website` and the third is a wildcard from another repository
 
-#### Scenario: Roles match nothing
+#### Scenario: Teams match nothing
 
-- **WHEN** none of the member's roles match any issue in the pool
-- **THEN** one issue is the wildcard, the rest are backfilled from the pool at the ordinary rate, and the reply says that their roles matched no issues
+- **WHEN** none of the member's teams reach a repository with issues in the pool, or the member is on no team
+- **THEN** one issue is the wildcard, the rest are backfilled from the pool at the ordinary rate, and the reply says that their teams matched no issues
+
+#### Scenario: Teams can't be read
+
+- **WHEN** GitHub can't answer which teams the member is on, or team access isn't configured
+- **THEN** the draw still goes ahead from the whole pool as if the teams matched nothing, and the reply says their teams couldn't be read
 
 #### Scenario: Thin pool
 
 - **WHEN** the pool holds fewer than three issues
 - **THEN** the draw offers every issue in the pool
 
-### Requirement: Skills from Discord roles
+### Requirement: Matching from GitHub team membership
 
-A member's skills SHALL be the slugs of their Discord role names: lowercased, with runs of non-alphanumeric characters collapsed to a hyphen and leading or trailing hyphens removed. A role whose slug equals the marker label MUST be ignored. An issue matches a member when any of its label slugs equals one of their skills.
+A member's matched repositories SHALL be every repository reached by an organization team their linked GitHub account belongs to, read from GitHub when they run `/find-work` so access granted moments earlier counts. Teams listed in `config.grantAccess.excludeTeams`, and their child teams, MUST be ignored. An issue matches a member when its repository is one of their matched repositories. Discord roles and issue labels other than the marker label MUST NOT affect matching.
 
-#### Scenario: Role name and label spelled differently
+#### Scenario: Team granted through /grant-access
 
-- **WHEN** a member holds the role "Front End Development" and an issue carries the label `front-end-development`
-- **THEN** the issue matches the member
+- **WHEN** a lead grants a member's GitHub account the `discord-bot` team, which has access to `org/digital-ground-game-discord-bot`, and the member runs `/find-work`
+- **THEN** issues in `org/digital-ground-game-discord-bot` are matched
 
-#### Scenario: Role named like the marker label
+#### Scenario: Excluded team
 
-- **WHEN** a member holds a role named "Available" and the marker label is `available`
-- **THEN** that role matches no issues
+- **WHEN** a member is on an excluded admin team that reaches every repository
+- **THEN** that team matches nothing, so the member's draw is not all matched issues
 
 ### Requirement: Review suggestions
 

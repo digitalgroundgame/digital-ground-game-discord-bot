@@ -12,7 +12,11 @@ export {
 } from './find-work-payout-service.js'
 export { GoogleCalendarService } from './google-calendar-service.js'
 export { GoogleGroupsService, type AddMemberResult } from './google-groups-service.js'
-export { GitHubTeamsService, type AddTeamMemberResult } from './github-teams-service.js'
+export {
+  GitHubTeamsService,
+  type AddTeamMemberResult,
+  type MemberTeamRepos,
+} from './github-teams-service.js'
 export {
   GitHubIssuesService,
   type AssignResult,

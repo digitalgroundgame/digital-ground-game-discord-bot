@@ -2,13 +2,13 @@
 
 ## Why
 
-Members who want to contribute code to the organization have no easy way to find work that fits them, and maintainers have no lever to steer people toward issues that need an owner or pull requests that need a reviewer. Contribution also goes unrecognized unless someone remembers to hand out Democracy Points by hand. `/find-work` closes that loop: it offers a member work matched to their Discord skill roles, assigns it on GitHub when they take it, and pays Democracy Points automatically once the work is finished.
+Members who want to contribute code to the organization have no easy way to find work that fits them, and maintainers have no lever to steer people toward issues that need an owner or pull requests that need a reviewer. Contribution also goes unrecognized unless someone remembers to hand out Democracy Points by hand. `/find-work` closes that loop: it offers a member work in the repositories their GitHub teams reach, assigns it on GitHub when they take it, and pays Democracy Points automatically once the work is finished.
 
 ## What Changes
 
 - Add the `/find-work` slash command, open to every member, which shows an ephemeral draw of up to three open issues to claim and up to two open pull requests to review.
 - Issues come from a cached pool of open, unassigned issues carrying an opt-in marker label (`available` by default) in the organization's public repositories. Private repositories are never enumerated, and repositories listed in `config.findWork.excludeRepos` are left out.
-- Two issue slots are matched to the member's Discord role names against issue labels; the third is a wildcard from unmatched work, weighted toward the stalest issues.
+- Two issue slots come from repositories the member's GitHub teams reach, the teams `/grant-access` hands out; the third is a wildcard from every other repository, weighted toward the stalest issues.
 - Review suggestions are open pull requests that touch files the member has committed to, excluding their own pull requests and ones they already review.
 - Claiming an issue assigns the member's linked GitHub account; taking a review requests a review from them. Both are recorded in new `issue_claim` and `review_request` tables.
 - Add an hourly payout job that settles live claims: an issue closed as completed by the claimer's own merged pull request or commit, with the claimer still assigned, pays `issue` points (or `wildcardIssue` for a wildcard draw), a submitted review pays `review` points, and everything that can no longer finish expires. Issue claims also expire after 30 days and review requests after 14, so abandoned work stops costing GitHub reads.

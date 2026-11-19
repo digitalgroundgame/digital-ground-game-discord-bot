@@ -16,8 +16,9 @@ The implementation already exists on the `give-issue-pr-review` branch, with rev
 
 ## 3. Selection
 
-- [x] 3.1 Slug role names and labels, and draw two skill-matched issues plus a staleness-weighted wildcard with backfill, flagging only the wildcard slot, and verify with `tests/constants/find-work.test.ts`
+- [x] 3.1 Draw two issues from the member's team repositories plus a staleness-weighted wildcard with backfill, flagging only the wildcard slot, and verify with `tests/constants/find-work.test.ts`
 - [x] 3.2 Rank review suggestions by matched files, commits and wait time, excluding drafts, own PRs, existing reviewers and lockfiles or build output, and verify with `tests/constants/review-suggestions.test.ts`
+- [x] 3.3 Read the member's GitHub teams and the repositories they reach, ignoring excluded `/grant-access` teams, and verify with `tests/services/github-teams-service.test.ts`
 
 ## 4. The `/find-work` command
 
@@ -36,7 +37,7 @@ The implementation already exists on the `give-issue-pr-review` branch, with rev
 
 - [ ] 6.1 Merge the implementation into `dev` and verify the full `pnpm test` suite passes in CI
 - [ ] 6.2 Run `pnpm run db:push` and `pnpm run commands:register` against the deployed bot, and verify `/find-work` appears in the guild
-- [ ] 6.3 In a test guild, run `/find-work` without and with a linked GitHub account, and verify the not-linked notice, then the draw and review suggestions, appear
+- [ ] 6.3 In a test guild, run `/find-work` without and with a linked GitHub account, then again after joining a team with access to a repository that has `available` issues, and verify the not-linked notice, the no-team-match notice, then a draw with two issues from that repository and review suggestions, appear
 - [ ] 6.4 Label at least one issue `available` in a public repo, claim it, close it with a merged pull request you authored, and verify Democracy Points arrive after the next payout run
 
 ## Workflow follow-up
