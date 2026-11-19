@@ -49,8 +49,13 @@ A draw SHALL offer up to three issues: two from repositories the member's GitHub
 
 #### Scenario: Teams can't be read
 
-- **WHEN** GitHub can't answer which teams the member is on, or team access isn't configured
+- **WHEN** GitHub can't answer which teams the member is on
 - **THEN** the draw still goes ahead from the whole pool as if the teams matched nothing, and the reply says their teams couldn't be read
+
+#### Scenario: Team matching not configured
+
+- **WHEN** the bot has no GitHub teams token or organization configured
+- **THEN** the draw still goes ahead from the whole pool as if the teams matched nothing, and the reply says team matching isn't set up rather than that the read failed
 
 #### Scenario: Thin pool
 
@@ -59,7 +64,7 @@ A draw SHALL offer up to three issues: two from repositories the member's GitHub
 
 ### Requirement: Matching from GitHub team membership
 
-A member's matched repositories SHALL be every repository reached by an organization team their linked GitHub account belongs to, read from GitHub when they run `/find-work` so access granted moments earlier counts. Teams listed in `config.grantAccess.excludeTeams`, and their child teams, MUST be ignored. An issue matches a member when its repository is one of their matched repositories. Discord roles and issue labels other than the marker label MUST NOT affect matching.
+A member's matched repositories SHALL be every repository reached by an organization team their linked GitHub account belongs to, read from GitHub when they run `/find-work` so access granted moments earlier counts. Teams listed in `config.grantAccess.excludeTeams`, and teams nested beneath them at any depth, MUST be ignored. An issue matches a member when its repository is one of their matched repositories. Discord roles and issue labels other than the marker label MUST NOT affect matching.
 
 #### Scenario: Team granted through /grant-access
 
@@ -70,6 +75,11 @@ A member's matched repositories SHALL be every repository reached by an organiza
 
 - **WHEN** a member is on an excluded admin team that reaches every repository
 - **THEN** that team matches nothing, so the member's draw is not all matched issues
+
+#### Scenario: Team nested under an excluded team
+
+- **WHEN** a member is on a team two or more levels beneath an excluded team, including before the bot has cached the org's team list
+- **THEN** that team matches nothing either
 
 ### Requirement: Review suggestions
 
@@ -91,7 +101,7 @@ Pressing an issue's claim button within five minutes SHALL assign the member's l
 
 #### Scenario: Successful claim
 
-- **WHEN** the member presses "Claim #42" and the issue has no live claim
+- **WHEN** the member presses "Claim website #42" and the issue has no live claim
 - **THEN** the bot records the claim, assigns their GitHub account to the issue, and confirms with the points it will pay when that payout is enabled
 
 #### Scenario: Someone claimed it first
@@ -167,7 +177,7 @@ Pressing a review button SHALL request a review from the member's linked GitHub 
 
 #### Scenario: Successful review request
 
-- **WHEN** the member presses "Review #17"
+- **WHEN** the member presses "Review website #17"
 - **THEN** the bot requests their review on GitHub, records the request, and confirms with the points it will pay
 
 #### Scenario: Reviewer not assignable

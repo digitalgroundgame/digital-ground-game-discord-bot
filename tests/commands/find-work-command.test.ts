@@ -223,6 +223,35 @@ describe('FindWorkCommand', () => {
       expect(reply).toContain('#1')
     })
 
+    it('says team matching isn’t set up when the teams service isn’t configured', async () => {
+      const intr = interaction(undefined)
+      const teams = { ...teamsService([REPO]), isConfigured: vi.fn().mockReturnValue(false) }
+      await command(
+        issuesService([issue({ number: 1 })]),
+        pullRequestsService(),
+        POINTS,
+        teams,
+      ).execute(intr, data)
+
+      const reply = described(intr.followUp.mock.calls[0])
+      expect(reply).toContain('Team matching isn’t set up')
+      expect(reply).not.toContain('Couldn’t read your GitHub teams')
+      expect(reply).toContain('#1')
+      expect(teams.getMemberTeamRepos).not.toHaveBeenCalled()
+    })
+
+    it('says team matching isn’t set up when there is no teams service at all', async () => {
+      const intr = interaction(undefined)
+      await new FindWorkCommand(
+        issuesService([issue({ number: 1 })]),
+        users,
+        claims,
+        pullRequestsService(),
+      ).execute(intr, data)
+
+      expect(described(intr.followUp.mock.calls[0])).toContain('Team matching isn’t set up')
+    })
+
     it('shows the claim hint when a team repository has issues', async () => {
       const intr = interaction(undefined)
       await command(

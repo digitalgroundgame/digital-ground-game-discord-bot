@@ -8,6 +8,7 @@ vi.mock('../../src/services/logger.js', () => ({
 }))
 
 import { GitHubTeamsService } from '../../src/services/github-teams-service.js'
+import { Logger } from '../../src/services/logger.js'
 
 /** A successful membership upsert, which GitHub answers with the new state. */
 function membershipResponse(state: string): unknown {
@@ -368,8 +369,10 @@ describe('GitHubTeamsService', () => {
   })
 
   describe('getMemberTeamRepos', () => {
-    function graphqlResponse(teams: unknown[]): unknown {
-      const body = { data: { organization: { teams: { nodes: teams } } } }
+    function graphqlResponse(teams: unknown[], hasNextPage = false): unknown {
+      const body = {
+        data: { organization: { teams: { pageInfo: { hasNextPage }, nodes: teams } } },
+      }
       return {
         ok: true,
         status: 200,
@@ -378,11 +381,20 @@ describe('GitHubTeamsService', () => {
       }
     }
 
-    function team(slug: string, repos: string[], parent: string | null = null): unknown {
+    /** A team node; `ancestors` runs from the immediate parent upwards. */
+    function team(
+      slug: string,
+      repos: string[],
+      ancestors: string[] = [],
+      moreRepos = false,
+    ): unknown {
       return {
         slug,
-        parentTeam: parent ? { slug: parent } : null,
-        repositories: { nodes: repos.map((nameWithOwner) => ({ nameWithOwner })) },
+        ancestors: { nodes: ancestors.map((ancestor) => ({ slug: ancestor })) },
+        repositories: {
+          pageInfo: { hasNextPage: moreRepos },
+          nodes: repos.map((nameWithOwner) => ({ nameWithOwner })),
+        },
       }
     }
 
@@ -409,7 +421,7 @@ describe('GitHubTeamsService', () => {
       fetchMock.mockResolvedValueOnce(
         graphqlResponse([
           team('admins', ['dgg/everything']),
-          team('admins-child', ['dgg/secret-ish'], 'admins'),
+          team('admins-child', ['dgg/secret-ish'], ['admins']),
           team('discord-bot', ['dgg/discord-bot']),
         ]),
       )
@@ -420,6 +432,59 @@ describe('GitHubTeamsService', () => {
 
       expect(result?.teams).toEqual(['discord-bot'])
       expect([...(result?.repos ?? [])]).toEqual(['dgg/discord-bot'])
+    })
+
+    it('leaves out teams nested several levels under an excluded team, with a cold cache', async () => {
+      fetchMock.mockResolvedValueOnce(
+        graphqlResponse([
+          team('leads-sub', ['dgg/everything'], ['leads', 'admins']),
+          team('discord-bot', ['dgg/discord-bot']),
+        ]),
+      )
+      const service = new GitHubTeamsService('t', 'dgg')
+      expect(service.getTeams()).toEqual([])
+      const result = await service.getMemberTeamRepos('alice', new Set(['admins']))
+
+      expect(result?.teams).toEqual(['discord-bot'])
+      expect([...(result?.repos ?? [])]).toEqual(['dgg/discord-bot'])
+    })
+
+    it('matches excluded slugs regardless of case', async () => {
+      fetchMock.mockResolvedValueOnce(graphqlResponse([team('Child', ['dgg/x'], ['Admins'])]))
+      const result = await new GitHubTeamsService('t', 'dgg').getMemberTeamRepos(
+        'alice',
+        new Set(['admins']),
+      )
+
+      expect(result?.teams).toEqual([])
+    })
+
+    it('warns when a team reaches more repositories than one page holds', async () => {
+      const warn = vi.mocked(Logger.warn)
+      warn.mockClear()
+      fetchMock.mockResolvedValueOnce(graphqlResponse([team('big', ['dgg/a'], [], true)]))
+      const result = await new GitHubTeamsService('t', 'dgg').getMemberTeamRepos('alice', new Set())
+
+      expect([...(result?.repos ?? [])]).toEqual(['dgg/a'])
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('dgg/big reaches more than 100'))
+    })
+
+    it('warns when the member is on more teams than one page holds', async () => {
+      const warn = vi.mocked(Logger.warn)
+      warn.mockClear()
+      fetchMock.mockResolvedValueOnce(graphqlResponse([team('a', ['dgg/a'])], true))
+      await new GitHubTeamsService('t', 'dgg').getMemberTeamRepos('alice', new Set())
+
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('alice is on more than 1 teams'))
+    })
+
+    it('stays quiet when nothing was cut off', async () => {
+      const warn = vi.mocked(Logger.warn)
+      warn.mockClear()
+      fetchMock.mockResolvedValueOnce(graphqlResponse([team('a', ['dgg/a'])]))
+      await new GitHubTeamsService('t', 'dgg').getMemberTeamRepos('alice', new Set())
+
+      expect(warn).not.toHaveBeenCalled()
     })
 
     it('answers with no teams for a member on none', async () => {

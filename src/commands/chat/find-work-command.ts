@@ -177,18 +177,23 @@ export class FindWorkCommand implements Command {
     // The matched slots come from repositories the member's GitHub teams
     // reach, which is the access `/grant-access` hands out. Without an answer
     // the draw still goes ahead, entirely from the wider pool.
+    const teamsService = this.teamsService
+    const teamsConfigured = teamsService?.isConfigured() === true
     const teamRepos =
-      pool.length > 0 && this.teamsService?.isConfigured()
-        ? await this.teamsService.getMemberTeamRepos(githubLogin)
+      pool.length > 0 && teamsConfigured && teamsService
+        ? await teamsService.getMemberTeamRepos(githubLogin)
         : null
     const repos = teamRepos?.repos ?? new Set<string>()
     const drawn = pool.length > 0 ? drawIssues(pool, repos) : []
 
     // Say so rather than quietly serving a draw from the wider pool: a silent
     // fallback is how a missing team grant or a broken token goes unnoticed.
+    // A bot with no teams token is told apart from a read that just failed,
+    // since only the second is worth retrying.
     const { matched } = partitionByTeamRepos(pool, repos)
-    const notice =
-      teamRepos === null
+    const notice = !teamsConfigured
+      ? 'findWork.teamsNotConfigured'
+      : teamRepos === null
         ? 'findWork.teamsUnavailable'
         : matched.length === 0
           ? 'findWork.noTeamMatch'
