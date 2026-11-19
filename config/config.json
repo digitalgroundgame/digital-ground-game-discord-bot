@@ -150,7 +150,7 @@
       "West Squad": "west-squad@digitalgroundgame.org"
     },
     "// NOTE: excludeTeams": "Team slugs /grant-access must never offer or grant, e.g. leadership or admin teams. Their child teams are excluded too. Every other team in the org is grantable. Must list at least one team, or GitHub grants stay disabled.",
-    "excludeTeams": []
+    "excludeTeams": ["dgg-organization-admins", "sso-hub"]
   },
   "findWork": {
     "// NOTE": "Settings for /find-work. The pool is open, unassigned issues carrying markerLabel in the org's PUBLIC repositories — private repos are never enumerated.",
