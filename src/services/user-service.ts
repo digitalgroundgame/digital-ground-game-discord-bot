@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, asc, eq } from 'drizzle-orm'
 
 import { type Database } from '../database/index.js'
 import {
@@ -77,6 +77,14 @@ export class UserService {
         eq(linkedAccount.discordUserId, discordUserId),
         eq(linkedAccount.provider, provider),
       ),
+    })
+  }
+
+  /** Every account a Discord user has linked, one per provider, ordered by provider. */
+  public async listLinkedAccounts(discordUserId: string): Promise<LinkedAccount[]> {
+    return this.db.query.linkedAccount.findMany({
+      where: eq(linkedAccount.discordUserId, discordUserId),
+      orderBy: [asc(linkedAccount.provider)],
     })
   }
 }

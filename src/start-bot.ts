@@ -15,6 +15,7 @@ import {
   InfoCommand,
   KudosCommand,
   LinkAccountCommand,
+  LinkedAccountsCommand,
   PingSkillRoleCommand,
   PragPapersCommand,
   RulesCommand,
@@ -236,6 +237,7 @@ async function start(): Promise<void> {
     new StopAttendanceTrackCommand(attendanceService, voiceStateUpdateHandler),
     new GrantAccessCommand(googleGroupsService, userService, githubTeamsService),
     new LinkAccountCommand(userService),
+    new LinkedAccountsCommand(userService),
     new ContentCommand(contentService),
     new PingSkillRoleCommand(),
     new FindWorkCommand(

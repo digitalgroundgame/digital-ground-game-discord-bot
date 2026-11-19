@@ -12,18 +12,16 @@ import {
 import { RateLimiter } from 'discord.js-rate-limiter'
 
 import {
+  CoordinatorRoleIds,
   DiscordLimits,
   findGitHubTeam,
   type GitHubTeam,
   type GitHubTeamRole,
   getGoogleGroupAddress,
   GoogleGroups,
-  GrantAccessAllowedRoleKeys,
   resolveGitHubTeamSlug,
   selectableGitHubTeams,
-  type ServerRole,
   toGitHubTeamRole,
-  ServerRoles,
 } from '../../constants/index.js'
 import { type LinkedAccount } from '../../database/schema.js'
 import { Language } from '../../models/enum-helpers/index.js'
@@ -78,9 +76,7 @@ export class GrantAccessCommand implements Command {
   public cooldown = new RateLimiter(3, 10000)
   public deferType = CommandDeferType.PUBLIC
   public requireClientPerms: PermissionsString[] = []
-  public requireRoles = GrantAccessAllowedRoleKeys.map(
-    (key) => (ServerRoles as Record<string, ServerRole | undefined>)[key]?.id,
-  ).filter((id): id is string => typeof id === 'string')
+  public requireRoles = CoordinatorRoleIds
 
   constructor(
     private readonly groupsService?: GoogleGroupsService,

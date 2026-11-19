@@ -111,7 +111,7 @@ The bot lists Google Calendar events in a fixed time window and compares them to
 
 ### Optional: SQLite-backed commands
 
-`/link-account`, `/grant-access`, and runtime content edits use SQLite when
+`/link-account`, `/linked-accounts`, `/grant-access`, and runtime content edits use SQLite when
 `SQLITE_PATH` is set. In Docker/Coolify, prefer an absolute path:
 
 ```bash
