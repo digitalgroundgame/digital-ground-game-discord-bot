@@ -43,7 +43,7 @@ interface RawPull {
   html_url?: unknown
   updated_at?: unknown
   draft?: unknown
-  user?: { login?: unknown } | null
+  user?: { login?: unknown; type?: unknown } | null
   requested_reviewers?: unknown
 }
 
@@ -98,6 +98,10 @@ export function toSubmittedReviews(raw: unknown): SubmittedReview[] {
 export function toOpenPullRequest(repo: string, raw: RawPull): OpenPullRequest | null {
   // Drafts are not asking for review yet.
   if (raw.draft === true) return null
+  // Dependency bumps and automated releases come from bot accounts. They'd
+  // match everyone who ever touched the files they change, and reviewing them
+  // isn't the work `/find-work` pays for.
+  if (raw.user?.type === 'Bot') return null
   if (typeof raw.number !== 'number' || typeof raw.title !== 'string') return null
   if (typeof raw.html_url !== 'string' || typeof raw.updated_at !== 'string') return null
   const author = lowerLogin(raw.user)
