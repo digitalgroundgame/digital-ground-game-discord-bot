@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 
 import { type Database } from '../database/index.js'
 import {
@@ -78,5 +78,15 @@ export class UserService {
         eq(linkedAccount.provider, provider),
       ),
     })
+  }
+
+  /** Discord user IDs of the members whose linked GitHub username is in `logins`. */
+  public async findDiscordUserIdsByGithubLogins(logins: string[]): Promise<string[]> {
+    if (logins.length === 0) return []
+    const rows = await this.db
+      .select({ discordUserId: linkedAccount.discordUserId })
+      .from(linkedAccount)
+      .where(and(eq(linkedAccount.provider, 'github'), inArray(linkedAccount.externalId, logins)))
+    return [...new Set(rows.map((row) => row.discordUserId))]
   }
 }

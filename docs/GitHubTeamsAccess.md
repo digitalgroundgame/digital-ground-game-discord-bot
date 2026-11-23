@@ -1,6 +1,6 @@
-# Configuring `/link-account` and `/grant-access` for GitHub
+# Configuring `/link-account`, `/grant-access` and `/ping-team` for GitHub
 
-These two commands work together to let team leads add Discord members to
+These commands work together to let team leads add Discord members to
 GitHub org teams:
 
 - **`/link-account`** — a member runs this with `service:github` to record
@@ -9,14 +9,16 @@ GitHub org teams:
 - **`/grant-access`** — a role-gated command that, with `service:github`,
   looks up the target user's linked GitHub username and calls the REST API
   to add them to a team's GitHub team.
+- **`/ping-team`** — a role-gated command that mentions the Discord members
+  of a GitHub team. See [Pinging a team](#pinging-a-team).
 
 ## What needs to be configured
 
 | Piece | Required by |
 | --- | --- |
-| SQLite database (`SQLITE_PATH`) | `/link-account`, `/grant-access` |
-| `GITHUB_TEAMS_TOKEN` | `/grant-access service:github` |
-| `GITHUB_TEAMS_ORG` | `/grant-access service:github` |
+| SQLite database (`SQLITE_PATH`) | `/link-account`, `/grant-access`, `/ping-team` |
+| `GITHUB_TEAMS_TOKEN` | `/grant-access service:github`, `/ping-team` |
+| `GITHUB_TEAMS_ORG` | `/grant-access service:github`, `/ping-team` |
 
 Teams themselves are **not** configured. They are discovered from the org, so
 creating a team on GitHub is all it takes to make it grantable — see
@@ -228,3 +230,31 @@ actor is recorded only in the bot's own logs:
 ```
 
 Answering "who added this person" needs both logs together.
+
+## Pinging a team
+
+`/ping-team team:<name>` mentions the Discord members of a GitHub team who
+linked their GitHub username with `/link-account`. It reads the team's members
+from GitHub, matches the logins against the linked accounts, and posts one
+header followed by the mentions, at most 100 per message.
+
+- It uses the same `GITHUB_TEAMS_TOKEN`, `GITHUB_TEAMS_ORG` and database as
+  `/grant-access service:github`. The token setups in step 1 already cover
+  reading team members.
+- Who may run it is set by `pingTeam.allowedRoleKeys` in `config/config.json`,
+  separately from `grantAccess.allowedRoleKeys`. It must list at least one
+  role. An existing install needs the `pingTeam` entry in its deployed
+  `config/config.json` before this build, or the bot refuses to start.
+- Pinging a parent team also pings its child teams, because GitHub returns
+  their members with the parent's and they inherit its access.
+- Any team in the org can be pinged, including one excluded from
+  `/grant-access`. `excludeTeams` limits granting, not pinging.
+- `team` autocompletes from the org's cached team list. A team created since
+  the last hourly refresh still resolves, a little more slowly.
+- Members who have not linked a GitHub account are not pinged.
+
+The bot logs each use:
+
+```
+<discord-tag> pinged <count> linked member(s) of GitHub team '<slug>'
+```

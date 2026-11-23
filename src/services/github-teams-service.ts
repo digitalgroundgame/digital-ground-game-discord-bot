@@ -28,6 +28,11 @@ export type AddTeamMemberResult =
   | { status: 'not-configured' }
   | { status: 'error'; message: string }
 
+export type ListTeamMembersResult =
+  | { status: 'ok'; logins: string[] }
+  | { status: 'not-configured' }
+  | { status: 'error'; message: string }
+
 function isGitHubTeam(value: unknown): value is GitHubTeam {
   if (typeof value !== 'object' || value === null) return false
   const team = value as Partial<GitHubTeam>
@@ -226,5 +231,53 @@ export class GitHubTeamsService {
       )
       return { status: 'error', message }
     }
+  }
+
+  /** Logins of the `team` slug's members in the configured org. */
+  public async listTeamMembers(team: string): Promise<ListTeamMembersResult> {
+    const token = this.token
+    const org = this.org
+    if (!token || !org) return { status: 'not-configured' }
+
+    const logins: string[] = []
+    try {
+      for (let page = 1; page <= MAX_TEAM_PAGES; page++) {
+        const url = `${GITHUB_API_BASE}/orgs/${encodeURIComponent(org)}/teams/${encodeURIComponent(team)}/members?per_page=${TEAMS_PAGE_SIZE}&page=${page}`
+        const res = await fetch(url, {
+          method: 'get',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': GITHUB_API_VERSION,
+          },
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        })
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => '')
+          const message = `${res.status} ${text}`.trim()
+          Logger.error(`GitHub Teams: failed to list members of ${org}/${team}: ${message}`)
+          return { status: 'error', message }
+        }
+
+        const body: unknown = await res.json()
+        if (!Array.isArray(body)) {
+          Logger.error(`GitHub Teams: expected an array of members for ${org}/${team}`)
+          return { status: 'error', message: 'expected an array of members' }
+        }
+
+        for (const entry of body) {
+          const login = (entry as { login?: unknown }).login
+          if (typeof login === 'string') logins.push(login)
+        }
+        if (body.length < TEAMS_PAGE_SIZE) break
+      }
+    } catch (err: unknown) {
+      const message = describeError(err)
+      Logger.error(`GitHub Teams: failed to list members of ${org}/${team}: ${message}`, err)
+      return { status: 'error', message }
+    }
+
+    return { status: 'ok', logins }
   }
 }

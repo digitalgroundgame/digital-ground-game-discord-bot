@@ -198,6 +198,21 @@ export const ChatCommandMetadata: {
       },
     ],
   },
+  PING_TEAM: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.pingTeam', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.pingTeam'),
+    description: Lang.getRef('commandDescs.pingTeam', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.pingTeam'),
+    dm_permission: false,
+    default_member_permissions: undefined,
+    options: [
+      {
+        ...Args.PING_TEAM_TEAM,
+        required: true,
+      },
+    ],
+  },
   LINK_ACCOUNT: {
     type: ApplicationCommandType.ChatInput,
     name: Lang.getRef('chatCommands.linkAccount', Language.Default),
