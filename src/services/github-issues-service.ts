@@ -15,7 +15,7 @@ import { Logger } from './logger.js'
 import {
   type CandidateIssue,
   FindWorkExcludedRepos,
-  FindWorkMarkerLabel,
+  FindWorkMarkerLabels,
 } from '../constants/find-work.js'
 
 export type AssignResult =
@@ -184,9 +184,9 @@ export function toCandidateIssue(repo: string, raw: RawIssue): CandidateIssue | 
   if (Number.isNaN(updatedAt.getTime())) return null
 
   const labels = labelNames(raw.labels)
-  // Belt and braces: the request already filters on the marker label, but a
+  // Belt and braces: the request already filters on an opt-in label, but a
   // dropped query parameter must not silently widen the pool.
-  if (!labels.includes(FindWorkMarkerLabel)) return null
+  if (!labels.some((label) => FindWorkMarkerLabels.includes(label))) return null
 
   return { repo, number: raw.number, title: raw.title, htmlUrl: raw.html_url, labels, updatedAt }
 }
@@ -199,7 +199,7 @@ export function toCandidateIssue(repo: string, raw: RawIssue): CandidateIssue | 
  * served from memory so it lands well inside Discord's interaction deadline,
  * and a failed refresh leaves the previous pool in place rather than emptying
  * it. Unlike the team cache, the pool here is also a privacy boundary — only
- * *public* repositories are enumerated, and only issues carrying the marker
+ * *public* repositories are enumerated, and only issues carrying an opt-in
  * label survive `toCandidateIssue`. Both checks are applied independently so
  * that losing one does not expose anything.
  *
@@ -241,10 +241,26 @@ export class GitHubIssuesService {
     return this.refreshPromise
   }
 
+  /**
+   * The repository's claimable issues across every opt-in label. GitHub ANDs
+   * a comma-separated `labels` filter, so asking for any of several labels
+   * takes one query each; an issue carrying two of them comes back from both
+   * and is kept once.
+   */
   private async listClaimableIssues(repo: string): Promise<CandidateIssue[]> {
+    const found = new Map<number, CandidateIssue>()
+    for (const label of FindWorkMarkerLabels) {
+      for (const candidate of await this.listIssuesLabelled(repo, label)) {
+        if (!found.has(candidate.number)) found.set(candidate.number, candidate)
+      }
+    }
+    return [...found.values()]
+  }
+
+  private async listIssuesLabelled(repo: string, marker: string): Promise<CandidateIssue[]> {
     const found: CandidateIssue[] = []
+    const label = encodeURIComponent(marker)
     for (let page = 1; page <= MAX_PAGES; page++) {
-      const label = encodeURIComponent(FindWorkMarkerLabel)
       const body = await githubGet(
         this.token,
         `/repos/${repo}/issues?state=open&assignee=none&labels=${label}&per_page=${PAGE_SIZE}&page=${page}`,
@@ -427,6 +443,7 @@ export class GitHubIssuesService {
       return { status: 'error', message }
     }
   }
+
   /**
    * Remove `username` from an issue's assignees. True once GitHub's answer no
    * longer lists them; false, and logged, when the request fails or they are

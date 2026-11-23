@@ -28,7 +28,9 @@ export interface DrawnIssue {
 }
 
 interface FindWorkConfig {
-  markerLabel: string
+  markerLabels: unknown
+  /** Retired in favour of `markerLabels`; rejected at startup if still present. */
+  markerLabel: unknown
   excludeRepos: string[]
   points: unknown
 }
@@ -43,14 +45,68 @@ export interface FindWorkPointsConfig {
 const rawConfig = (Config.findWork ?? {}) as Partial<FindWorkConfig>
 
 /**
- * The opt-in label an issue must carry to be offered. Curation lives on
- * GitHub rather than in this file — adding the label to an issue is what
- * advertises it, and removing the label withdraws it.
+ * Opt-in labels used when `config.findWork.markerLabels` is absent: the
+ * bot's own `available`, plus GitHub's standard labels for work that wants an
+ * owner, which repositories already apply.
  */
-export const FindWorkMarkerLabel: string =
-  typeof rawConfig.markerLabel === 'string' && rawConfig.markerLabel.trim() !== ''
-    ? rawConfig.markerLabel.trim().toLowerCase()
-    : 'available'
+export const DEFAULT_MARKER_LABELS: readonly string[] = Object.freeze([
+  'available',
+  'good first issue',
+  'help wanted',
+])
+
+/**
+ * Read the opt-in labels from `config.findWork`: lowercased, trimmed and
+ * deduplicated, or `DEFAULT_MARKER_LABELS` when `markerLabels` is absent.
+ *
+ * Throws on a `markerLabels` that isn't a list, an empty list (the pool could
+ * never fill), and a name that is blank or contains a comma, since GitHub's
+ * `labels` filter splits on commas. Also throws when the retired
+ * `markerLabel` key is still present: ignoring it would quietly swap a custom
+ * label for the defaults. Exported for tests; the bot reads it once, at
+ * import, so a bad value stops startup.
+ */
+export function parseMarkerLabels(
+  config: Readonly<{ markerLabels?: unknown; markerLabel?: unknown }>,
+): readonly string[] {
+  if (config.markerLabel !== undefined) {
+    throw new Error(
+      `config.findWork.markerLabel has been replaced by markerLabels, a list of label names; move ${JSON.stringify(config.markerLabel)} into that list`,
+    )
+  }
+  const raw = config.markerLabels
+  if (raw === undefined) return DEFAULT_MARKER_LABELS
+  if (!Array.isArray(raw)) {
+    throw new Error(
+      `config.findWork.markerLabels must be a list of label names (got: ${JSON.stringify(raw)})`,
+    )
+  }
+
+  const labels: string[] = []
+  for (const entry of raw as unknown[]) {
+    if (typeof entry !== 'string' || entry.trim() === '' || entry.includes(',')) {
+      throw new Error(
+        `config.findWork.markerLabels entries must be label names that aren't blank and contain no comma (got: ${JSON.stringify(entry)})`,
+      )
+    }
+    const label = entry.trim().toLowerCase()
+    if (!labels.includes(label)) labels.push(label)
+  }
+  if (labels.length === 0) {
+    throw new Error(
+      'config.findWork.markerLabels must name at least one label; an empty list leaves /find-work with nothing to offer',
+    )
+  }
+  return Object.freeze(labels)
+}
+
+/**
+ * The opt-in labels, lowercased. An issue carrying any one of them is
+ * offered. Curation lives on GitHub rather than in this file — adding one of
+ * the labels to an issue is what advertises it, and removing them all
+ * withdraws it.
+ */
+export const FindWorkMarkerLabels: readonly string[] = parseMarkerLabels(rawConfig)
 
 /**
  * Repositories never drawn from, as `owner/name`. The pool is public repos in

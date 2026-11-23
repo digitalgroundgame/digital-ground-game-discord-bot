@@ -35,7 +35,7 @@ export {
   type DrawnIssue,
   drawIssues,
   FindWorkExcludedRepos,
-  FindWorkMarkerLabel,
+  FindWorkMarkerLabels,
   FindWorkPoints,
   type FindWorkPointsConfig,
   issueInTeamRepos,

@@ -5,8 +5,11 @@ import {
   DRAW_SIZE,
   drawIssues,
   issueInTeamRepos,
+  DEFAULT_MARKER_LABELS,
+  FindWorkMarkerLabels,
   MATCHED_SLOTS,
   parseFindWorkPoints,
+  parseMarkerLabels,
   partitionByTeamRepos,
 } from '../../src/constants/find-work.js'
 
@@ -183,5 +186,56 @@ describe('parseFindWorkPoints', () => {
     expect(() => {
       points.issue = 9
     }).toThrow(TypeError)
+  })
+})
+
+describe('parseMarkerLabels', () => {
+  it('defaults to available, good first issue and help wanted', () => {
+    expect(parseMarkerLabels({})).toEqual(['available', 'good first issue', 'help wanted'])
+    expect(DEFAULT_MARKER_LABELS).toEqual(['available', 'good first issue', 'help wanted'])
+  })
+
+  it('lowercases, trims and deduplicates the configured labels', () => {
+    expect(parseMarkerLabels({ markerLabels: [' Help Wanted ', 'help wanted', 'Ready'] })).toEqual([
+      'help wanted',
+      'ready',
+    ])
+  })
+
+  // Ignoring it would quietly swap a custom label for the defaults.
+  it('rejects the retired markerLabel key, naming its replacement', () => {
+    expect(() => parseMarkerLabels({ markerLabel: 'available' })).toThrow(
+      'config.findWork.markerLabel has been replaced by markerLabels',
+    )
+    expect(() =>
+      parseMarkerLabels({ markerLabel: 'available', markerLabels: ['available'] }),
+    ).toThrow('markerLabels')
+  })
+
+  it('rejects an empty list, which could never fill the pool', () => {
+    expect(() => parseMarkerLabels({ markerLabels: [] })).toThrow('at least one label')
+  })
+
+  it.each(['available', null, { name: 'available' }])(
+    'rejects a markerLabels of %j that isn’t a list',
+    (value) => {
+      expect(() => parseMarkerLabels({ markerLabels: value })).toThrow('must be a list')
+    },
+  )
+
+  // GitHub's `labels` filter splits on commas, so `a,b` would mean "a and b".
+  it.each(['', '   ', 'bug,help wanted', 3, null])('rejects a label of %j', (value) => {
+    expect(() => parseMarkerLabels({ markerLabels: ['available', value] })).toThrow(
+      'config.findWork.markerLabels entries',
+    )
+  })
+
+  it('returns a list nothing can change at runtime', () => {
+    expect(Object.isFrozen(parseMarkerLabels({ markerLabels: ['available'] }))).toBe(true)
+    expect(Object.isFrozen(DEFAULT_MARKER_LABELS)).toBe(true)
+  })
+
+  it('reads the committed config', () => {
+    expect(FindWorkMarkerLabels).toEqual(['available', 'good first issue', 'help wanted'])
   })
 })

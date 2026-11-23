@@ -27,6 +27,71 @@ describe('GitHubIssuesService', () => {
     fetchMock.mockReset()
   })
 
+  describe('refreshIssues', () => {
+    function issue(number: number, labels: string[]): unknown {
+      return {
+        number,
+        title: `Issue ${number}`,
+        html_url: `https://github.com/${REPO}/issues/${number}`,
+        updated_at: '2026-11-01T00:00:00Z',
+        labels: labels.map((name) => ({ name })),
+      }
+    }
+
+    /** Answers the repo listing, then each label's query by its `labels` parameter. */
+    function answerPool(byLabel: Record<string, unknown[]>): void {
+      fetchMock.mockImplementation(async (url: unknown) => {
+        const parsed = new URL(String(url))
+        if (parsed.pathname.endsWith('/repos') && parsed.pathname.startsWith('/orgs/')) {
+          return response(200, [{ full_name: REPO, private: false, archived: false }])
+        }
+        return response(200, byLabel[parsed.searchParams.get('labels') ?? ''] ?? [])
+      })
+    }
+
+    // GitHub ANDs a comma-separated `labels` filter, so "any of" takes one query each.
+    it('asks for each opt-in label separately and keeps an issue labelled twice once', async () => {
+      answerPool({
+        available: [issue(1, ['available']), issue(2, ['available', 'good first issue'])],
+        'good first issue': [issue(2, ['available', 'good first issue'])],
+        'help wanted': [issue(3, ['help wanted'])],
+      })
+
+      expect(await service.refreshIssues()).toBe(true)
+      expect(service.getIssues().map((entry) => entry.number)).toEqual([1, 2, 3])
+
+      const labelQueries = fetchMock.mock.calls
+        .map(([url]) => new URL(String(url)))
+        .filter((url) => url.pathname === `/repos/${REPO}/issues`)
+      expect(labelQueries.map((url) => url.searchParams.get('labels'))).toEqual([
+        'available',
+        'good first issue',
+        'help wanted',
+      ])
+      for (const url of labelQueries) {
+        expect(url.searchParams.get('state')).toBe('open')
+        expect(url.searchParams.get('assignee')).toBe('none')
+      }
+    })
+
+    it('keeps the previous pool when one label’s query fails', async () => {
+      answerPool({ available: [issue(1, ['available'])] })
+      await service.refreshIssues()
+
+      fetchMock.mockImplementation(async (url: unknown) => {
+        const parsed = new URL(String(url))
+        if (parsed.pathname.startsWith('/orgs/')) {
+          return response(200, [{ full_name: REPO, private: false, archived: false }])
+        }
+        return parsed.searchParams.get('labels') === 'help wanted'
+          ? response(502)
+          : response(200, [])
+      })
+      expect(await service.refreshIssues()).toBe(false)
+      expect(service.getIssues().map((entry) => entry.number)).toEqual([1])
+    })
+  })
+
   describe('isAssignable', () => {
     it('reads 204 as assignable and 404 as not', async () => {
       fetchMock.mockResolvedValueOnce(response(204))

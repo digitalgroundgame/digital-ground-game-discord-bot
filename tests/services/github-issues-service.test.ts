@@ -50,11 +50,19 @@ describe('toCandidateIssue', () => {
 
   // The request already filters on the label. This is the second check, and
   // the one that holds if the query parameter is ever dropped.
-  it('rejects an issue without the marker label', () => {
+  it('rejects an issue without an opt-in label', () => {
     expect(toCandidateIssue('r/x', raw({ labels: [{ name: 'front-end' }] }))).toBeNull()
     expect(toCandidateIssue('r/x', raw({ labels: [] }))).toBeNull()
     expect(toCandidateIssue('r/x', raw({ labels: undefined }))).toBeNull()
   })
+
+  it.each(['good first issue', 'help wanted', 'Help Wanted', 'AVAILABLE'])(
+    'keeps an issue whose only opt-in label is %j',
+    (name) => {
+      const candidate = toCandidateIssue('r/x', raw({ labels: [{ name }, { name: 'bug' }] }))
+      expect(candidate?.labels).toEqual([name.toLowerCase(), 'bug'])
+    },
+  )
 
   it('rejects an entry missing the fields the reply renders', () => {
     expect(toCandidateIssue('r/x', raw({ number: undefined }))).toBeNull()
