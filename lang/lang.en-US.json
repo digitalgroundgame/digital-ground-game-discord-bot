@@ -274,6 +274,22 @@
         "description": "No other members of **{{SKILL}}** are online right now, so nobody was pinged.",
         "color": "{{COM:colors.warning}}"
       },
+      "pingTeamNotConfigured": {
+        "description": "Pinging GitHub teams isn't configured on this bot. A GitHub API token, an organization, and a database connection must be set.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "pingTeamUnknownTeam": {
+        "description": "Unknown team `{{TEAM}}`. No matching GitHub team was found.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "pingTeamFailed": {
+        "description": "Couldn't read the members of **{{TEAM}}**. Please try again or contact an administrator.",
+        "color": "{{COM:colors.warning}}"
+      },
+      "pingTeamNoneLinked": {
+        "description": "No other members of **{{TEAM}}** have linked a GitHub account, so nobody was pinged.",
+        "color": "{{COM:colors.warning}}"
+      },
       "findWorkDraw": {
         "title": "Three issues you could pick up",
         "description": "{{ISSUES}}\n\n{{NOTICE}}"
@@ -454,6 +470,7 @@
       "grantAccess": "grant-access",
       "linkAccount": "link-account",
       "pingSkillRole": "ping-skill-role",
+      "pingTeam": "ping-team",
       "findWork": "find-work",
       "kudos": "democracy-points"
     },
@@ -505,6 +522,7 @@
       "grantAccess": "Grant a member access to a team's service (e.g. a Google Group or GitHub team).",
       "linkAccount": "Link an external account (e.g. your Google email or GitHub username) to a Discord profile.",
       "pingSkillRole": "Ping the online members of a skill role (works in forum posts).",
+      "pingTeam": "Ping the Discord members of a GitHub team who linked their GitHub account.",
       "findWork": "Find an open issue to pick up, or a pull request you could review.",
       "kudos": "Give {{COM:pointsName.other}}, view a member's total, or check the leaderboard.",
       "kudosGive": "Give a member a {{COM:pointsName.one}} for something they did well.",
@@ -527,6 +545,7 @@
       "linkAccountUser": "Coordinators only: the member to link an account for (defaults to you).",
       "pingSkillRoleSkill": "The skill role whose online members should be pinged.",
       "pingSkillRoleNote": "An optional note to include with the ping.",
+      "pingTeamTeam": "The GitHub team whose linked members should be pinged.",
       "kudosGiveUser": "The member to give a {{COM:pointsName.one}} to.",
       "kudosGiveReason": "What you're giving the {{COM:pointsName.one}} for. Shown in the announcement.",
       "kudosViewUser": "The member to view {{COM:pointsName.other}} for (defaults to you).",
@@ -622,6 +641,9 @@
     "pingSkillRole": {
       "header": "📣 Paging online **{{SKILL}}** members (requested by {{USER}})",
       "headerWithNote": "📣 Paging online **{{SKILL}}** members (requested by {{USER}}): {{NOTE}}"
+    },
+    "pingTeam": {
+      "header": "📣 Paging **{{TEAM}}** (requested by {{USER}})"
     },
     "kudosPeriods": {
       "weekly": "Weekly",

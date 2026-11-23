@@ -366,4 +366,84 @@ describe('GitHubTeamsService', () => {
       expect(fetchMock).toHaveBeenCalledOnce()
     })
   })
+
+  describe('listTeamMembers', () => {
+    const membersPage = (logins: string[]): unknown =>
+      teamsResponse(logins.map((login) => ({ login })))
+
+    it('reports not-configured without calling the API when no token is set', async () => {
+      const result = await new GitHubTeamsService('  ', 'dgg').listTeamMembers('dev-team')
+
+      expect(result).toEqual({ status: 'not-configured' })
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('GETs the team members with the authenticated headers', async () => {
+      fetchMock.mockResolvedValue(membersPage(['octocat', 'hubot']))
+
+      const result = await new GitHubTeamsService('  ghp_token  ', '  dgg org  ').listTeamMembers(
+        'dev team',
+      )
+
+      expect(result).toEqual({ status: 'ok', logins: ['octocat', 'hubot'] })
+      expect(fetchMock).toHaveBeenCalledOnce()
+      const [url, init] = fetchMock.mock.calls[0] as [string, Record<string, unknown>]
+      expect(url).toBe(
+        'https://api.github.com/orgs/dgg%20org/teams/dev%20team/members?per_page=100&page=1',
+      )
+      expect(init.method).toBe('get')
+      expect(init.headers).toMatchObject({
+        Authorization: 'Bearer ghp_token',
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      })
+      expect(init.signal).toBeInstanceOf(AbortSignal)
+    })
+
+    it('follows every page of a large team', async () => {
+      const full = Array.from({ length: 100 }, (_, index) => `user-${index}`)
+      fetchMock
+        .mockResolvedValueOnce(membersPage(full))
+        .mockResolvedValueOnce(membersPage(['last']))
+
+      const result = await new GitHubTeamsService('t', 'dgg').listTeamMembers('dev-team')
+
+      expect(result).toEqual({ status: 'ok', logins: [...full, 'last'] })
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+    })
+
+    it('skips entries without a string login', async () => {
+      fetchMock.mockResolvedValue(
+        teamsResponse([{ login: 'octocat' }, { login: 42 }, { nope: true }]),
+      )
+
+      const result = await new GitHubTeamsService('t', 'dgg').listTeamMembers('dev-team')
+
+      expect(result).toEqual({ status: 'ok', logins: ['octocat'] })
+    })
+
+    it('reports an error on a non-OK response', async () => {
+      fetchMock.mockResolvedValue(errorResponse(404, 'Not Found'))
+
+      const result = await new GitHubTeamsService('t', 'dgg').listTeamMembers('dev-team')
+
+      expect(result).toEqual({ status: 'error', message: '404 Not Found' })
+    })
+
+    it('reports an error when the response is not an array', async () => {
+      fetchMock.mockResolvedValue(teamsResponse({ message: 'nope' }))
+
+      const result = await new GitHubTeamsService('t', 'dgg').listTeamMembers('dev-team')
+
+      expect(result.status).toBe('error')
+    })
+
+    it('reports an error when the request fails', async () => {
+      fetchMock.mockRejectedValue(new Error('socket hang up'))
+
+      const result = await new GitHubTeamsService('t', 'dgg').listTeamMembers('dev-team')
+
+      expect(result).toEqual({ status: 'error', message: 'socket hang up' })
+    })
+  })
 })

@@ -160,6 +160,14 @@ export class Args {
     type: ApplicationCommandOptionType.String,
     max_length: 500,
   }
+  public static readonly PING_TEAM_TEAM: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.team', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.team'),
+    description: Lang.getRef('argDescs.pingTeamTeam', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.pingTeamTeam'),
+    type: ApplicationCommandOptionType.String,
+    autocomplete: true,
+  }
   public static readonly KUDOS_GIVE_USER: APIApplicationCommandBasicOption = {
     name: Lang.getRef('arguments.user', Language.Default),
     name_localizations: Lang.getRefLocalizationMap('arguments.user'),
