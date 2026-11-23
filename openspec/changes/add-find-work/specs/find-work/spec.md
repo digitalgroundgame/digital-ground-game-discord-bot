@@ -21,17 +21,51 @@ The `/find-work` command SHALL be available to every guild member. It MUST reply
 
 ### Requirement: Claimable issue pool
 
-The bot SHALL offer only open, unassigned issues, not pull requests, that carry the configured marker label (default `available`) in the organization's public repositories. It MUST NOT enumerate private repositories, and MUST leave out repositories listed in `config.findWork.excludeRepos`. The pool SHALL be loaded when the bot starts and refreshed on a schedule (hourly by default).
+The bot SHALL offer only open, unassigned issues, not pull requests, that carry at least one of the configured opt-in labels (default `available`, `good first issue` and `help wanted`) in the organization's public repositories. It MUST NOT enumerate private repositories, and MUST leave out repositories listed in `config.findWork.excludeRepos`. The pool SHALL be loaded when the bot starts and refreshed on a schedule (hourly by default).
+
+#### Scenario: Any one opt-in label is enough
+
+- **WHEN** an open, unassigned issue in a public repository carries only `help wanted`, under the default labels
+- **THEN** it can be offered, the same as one labelled `available`
+
+#### Scenario: Several opt-in labels
+
+- **WHEN** an issue carries more than one opt-in label
+- **THEN** it appears in the pool once
+
+#### Scenario: Label case
+
+- **WHEN** an issue's label differs from a configured opt-in label only in case, such as `Help Wanted`
+- **THEN** it counts as that opt-in label
 
 #### Scenario: Unlabelled issue
 
-- **WHEN** an open, unassigned issue in a public repository lacks the marker label
+- **WHEN** an open, unassigned issue in a public repository carries none of the opt-in labels
 - **THEN** it is never offered
 
 #### Scenario: Excluded repository
 
 - **WHEN** a repository is listed in `config.findWork.excludeRepos`
-- **THEN** none of its issues are offered, even ones carrying the marker label
+- **THEN** none of its issues are offered, even ones carrying an opt-in label
+
+### Requirement: Opt-in label configuration
+
+The opt-in labels SHALL come from `config.findWork.markerLabels`, a list of label names matched without regard to case, defaulting to `available`, `good first issue` and `help wanted` when the key is absent. The bot MUST refuse to start when the list is not an array, is empty, or holds a name that is blank or contains a comma, or when the retired `markerLabel` key is present.
+
+#### Scenario: Default labels
+
+- **WHEN** `config.findWork.markerLabels` is absent
+- **THEN** issues labelled `available`, `good first issue` or `help wanted` are offered
+
+#### Scenario: Retired key left in config
+
+- **WHEN** `config.findWork` still has `markerLabel`
+- **THEN** the bot refuses to start and names `markerLabels` as its replacement, rather than quietly ignoring the old setting
+
+#### Scenario: Empty list
+
+- **WHEN** `config.findWork.markerLabels` is `[]`
+- **THEN** the bot refuses to start, rather than running with a pool that can never fill
 
 ### Requirement: Team-matched draw with a wildcard
 
@@ -64,7 +98,7 @@ A draw SHALL offer up to three issues: two from repositories the member's GitHub
 
 ### Requirement: Matching from GitHub team membership
 
-A member's matched repositories SHALL be every repository reached by an organization team their linked GitHub account belongs to, read from GitHub when they run `/find-work` so access granted moments earlier counts. Teams listed in `config.grantAccess.excludeTeams`, and teams nested beneath them at any depth, MUST be ignored. An issue matches a member when its repository is one of their matched repositories. Discord roles and issue labels other than the marker label MUST NOT affect matching.
+A member's matched repositories SHALL be every repository reached by an org team their linked GitHub account is on, read live on each `/find-work` so access granted moments earlier counts. Teams in `config.grantAccess.excludeTeams`, and teams nested beneath them at any depth, MUST be ignored. Matched repositories decide which issues match and fill the team tier of review suggestions. Discord roles and labels other than the opt-in labels MUST NOT affect matching.
 
 #### Scenario: Team granted through /grant-access
 
@@ -81,19 +115,61 @@ A member's matched repositories SHALL be every repository reached by an organiza
 - **WHEN** a member is on a team two or more levels beneath an excluded team, including before the bot has cached the org's team list
 - **THEN** that team matches nothing either
 
+#### Scenario: Only pull requests to offer
+
+- **WHEN** the issue pool is empty but there are open pull requests
+- **THEN** the member's teams are still read, once, so the team tier of review suggestions can be filled
+
 ### Requirement: Review suggestions
 
-Alongside the draw, the bot SHALL suggest up to two open pull requests in the organization's public repositories that change files the member has committed to on the default branch. It MUST leave out draft pull requests, the member's own pull requests and pull requests on which they are already a requested or past reviewer, and MUST ignore lockfiles, build output and snapshots when matching. Suggestions SHALL be ordered by most matched files, then most commits across them, then longest waiting.
+Alongside the draw, the bot SHALL suggest up to two open pull requests in the organization's public repositories: history matches first, then team-repository pull requests for any slot left over. A pull request MUST NOT be suggested twice. Each suggestion SHALL say why it was offered, and a suggestion from either source pays the same `review` points.
+
+#### Scenario: History match outranks the team tier
+
+- **WHEN** one open pull request changes files the member has committed to and others are only in their team's repositories
+- **THEN** the history match is suggested first, and one team-tier pull request fills the second slot
+
+### Requirement: Suggestions from commit history
+
+The bot SHALL suggest open pull requests that change files the member has committed to on the default branch, ordered by most matched files, then most commits across them, then longest waiting. Lockfiles, build output and snapshots MUST be ignored when matching.
+
+#### Scenario: Only lockfiles in common
+
+- **WHEN** the only file a pull request shares with the member's history is a lockfile, and the pull request is not in one of the member's matched repositories
+- **THEN** that pull request is not suggested
+
+### Requirement: Suggestions from team repositories
+
+When fewer than two pull requests match by history, the bot SHALL fill the remaining slots with open pull requests in the member's matched repositories (see "Matching from GitHub team membership"), those with no requested or past reviewer first, then longest waiting. When the member's teams can't be read, or team matching isn't configured, this tier MUST offer nothing.
+
+#### Scenario: Pull request that only adds files
+
+- **WHEN** an open pull request in a repository the member's team reaches only adds new files, so no one has history on them
+- **THEN** it can still be suggested to the member from the team tier
+
+#### Scenario: Member with no commit history
+
+- **WHEN** a member who has never committed to the organization's repositories is on a team that reaches a repository with open pull requests
+- **THEN** up to two of those pull requests are suggested, unreviewed ones first
+
+#### Scenario: Teams can't be read for reviews
+
+- **WHEN** the member's teams can't be read, or team matching isn't configured
+- **THEN** only history matches are suggested
+
+### Requirement: Pull requests never suggested
+
+Review suggestions MUST leave out draft pull requests, pull requests authored by a bot account, the member's own pull requests, and pull requests on which the member is already a requested or past reviewer.
 
 #### Scenario: Member's own pull request
 
 - **WHEN** the member authored an open pull request that touches files they committed to
 - **THEN** that pull request is not suggested
 
-#### Scenario: Only lockfiles in common
+#### Scenario: Pull request opened by a bot
 
-- **WHEN** the only file a pull request shares with the member's history is a lockfile
-- **THEN** that pull request is not suggested
+- **WHEN** an open pull request was opened by a bot account, such as a dependency update or an automated release
+- **THEN** it is never suggested, from either tier
 
 ### Requirement: Claiming an issue
 

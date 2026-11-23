@@ -1,6 +1,6 @@
 # /find-work live testing
 
-Manual checks against a real Discord server and the **Bigital-Bround-Bame** test org. Covers tasks 6.2–6.4 in [tasks.md](tasks.md) plus the GitHub team matching and button-label changes.
+Manual checks against a real Discord server and the **Bigital-Bround-Bame** test org. Covers rollout tasks 9.2–9.4 in [tasks.md](tasks.md), the GitHub team matching and button-label changes, and the live checks for the follow-ups in sections 6, 7 and 8 (team-tier reviews, bot pull requests, release on age expiry, several opt-in labels). Checks marked **(after 6.x)**, **(after 7.x)** or **(after 8.x)** need that task implemented first.
 
 ## Setup
 
@@ -12,7 +12,7 @@ Manual checks against a real Discord server and the **Bigital-Bround-Bame** test
 - [ ] `pnpm run db:push` creates the `issue_claim` and `review_request` tables
 - [ ] `/find-work` shows in Discord's command menu. If it doesn't, run `pnpm run commands:register` once.
 - [ ] `config/debug.json` has `dummyMode.enabled: false`. Scheduled jobs, including payouts, don't run in dummy mode.
-- [ ] Labelled test issues `available` in at least two **public** repos:
+- [ ] Test issues labelled `available` (or, **(after 8.1–8.2)**, `good first issue` or `help wanted`) in at least two **public** repos:
   - [ ] one in a repo a team you're on can access (e.g. add yourself to `test-team` and give it a repo)
   - [ ] one in a repo none of your teams can access
   - [ ] two issues with the **same number** in different repos, for the button-label check
@@ -23,6 +23,8 @@ Manual checks against a real Discord server and the **Bigital-Bround-Bame** test
 >
 > - `/find-work` allows 2 runs per hour per person, and developers aren't exempt. Restarting the bot resets the limit.
 > - The issue pool reloads at startup and at the top of each hour. Restart after labelling or unlabelling issues.
+> - The open pull request cache reloads at startup and at :30 past each hour. A pull request opened after the last refresh isn't suggested until the next one, so restart after opening a test pull request.
+> - Run only one bot at a time. Two bots on the same token both receive every interaction, so buttons fail and every job runs twice.
 
 ## 1. Gates
 
@@ -38,6 +40,14 @@ Manual checks against a real Discord server and the **Bigital-Bround-Bame** test
 - [ ] On only `admin` (excluded): it's ignored, so you get the no-team-match notice
 - [ ] A team that can access a **private** repo with labelled issues: those issues never appear
 - [ ] With `excludeTeams` emptied (then restart): the draw still works, with the "Couldn't read your GitHub teams" notice. Restore `["admin"]` afterwards.
+
+## Opt-in labels (after 8.1–8.2)
+
+- [ ] An issue labelled only `help wanted` can be drawn, and so can one labelled only `good first issue`
+- [ ] An issue labelled both `available` and `good first issue` appears once, and the startup log's count includes it once
+- [ ] An issue labelled `Help Wanted` (different case) counts
+- [ ] Removing every opt-in label from an issue drops it from the pool after the next refresh
+- [ ] A leftover `"markerLabel"` in `config/config.json`, or `"markerLabels": []`, stops the bot at startup with an error naming `markerLabels`
 
 ## 3. Buttons
 
@@ -59,9 +69,15 @@ Manual checks against a real Discord server and the **Bigital-Bround-Bame** test
 
 ## 5. Reviews
 
-- [ ] An open PR (not yours, not a draft) touching files you've committed to shows under "Pull requests you know your way around"
+Suggestions match on files you've **modified** before. A pull request that only adds new files has no history, so it can't match by history; it can only appear from the team tier (after 6.2–6.3).
+
+- [ ] An open PR (not yours, not a draft) that edits a file you've committed to on the default branch shows in the review section, with "you've worked on `<file>`"
 - [ ] Press Review: you're requested as a reviewer on GitHub, and the reply promises 1 point
 - [ ] Your own PR, or a draft PR: never suggested
+- [ ] **(after 6.2–6.3)** An open PR that only adds a file, in a repo one of your teams reaches, shows as a team-tier suggestion ("open in a repository your team works on"). The review section's title and hint fit both kinds.
+- [ ] **(after 6.2–6.3)** An account with no commits in the org, on a team that reaches a repo with open PRs, gets up to two of them, unreviewed ones first
+- [ ] **(after 6.2–6.3)** With one history match and other PRs in your team's repos: the history match is R1, a team-tier PR is R2
+- [ ] **(after 6.1)** A PR opened by a bot (e.g. Dependabot) is never suggested
 
 ## 6. `/grant-access service:github`
 
@@ -70,16 +86,25 @@ Manual checks against a real Discord server and the **Bigital-Bround-Bame** test
 
 ## 7. Payouts
 
-The payout job runs at :45 past each hour (`config.jobs.payFindWork.schedule`, `"0 45 * * * *"`). To test faster, set it to `"0 */5 * * * *"` (every 5 minutes), then restart. **Don't commit that either.**
+The payout job runs at :45 past each hour (`config.jobs.payFindWork.schedule`, `"0 45 * * * *"`). To test faster, set it to `"0 * * * * *"` (every minute) and `log` to `true`, then restart. **Don't commit that either.**
 
-- [ ] Claim, then merge **your own** PR containing `Fixes #N`: points arrive (check `/democracy-points`)
+The issue has to be closed by GitHub, which only happens when the PR merges into the repo's **default branch** (`main` in the test repos) and says `Fixes #N` or `Closes #N`.
+
+- [ ] Claim, then merge **your own** PR containing `Fixes #N` into the default branch: points arrive (check `/democracy-points`)
 - [ ] Claim, then close the issue by hand: no points, and the claim expires
 - [ ] Claim, then get unassigned on GitHub and wait at least 10 minutes: the claim expires, and the issue can be claimed again
 - [ ] Request a review, then submit a review on GitHub: review points arrive
 - [ ] Restart the bot and let the job run again: nothing is paid twice
+- [ ] **(after 7.1)** Release on age expiry. Claim an issue, then back its claim date up 31 days so the next run treats it as 30 days old. Claim dates are stored in seconds, and the claim's `id` is in the `issue_claim` table:
+
+  ```sh
+  node -e "require('better-sqlite3')('data/dggac.sqlite').prepare('UPDATE issue_claim SET claimed_at = claimed_at - 31*86400 WHERE id = ?').run(Number(process.argv[1]))" <id>
+  ```
+
+  After the next payout run, the claim is `expired`, you're **unassigned** on GitHub, and no points are paid. After the next pool refresh (or a restart), the issue appears in `/find-work` again and you can claim it again.
 
 ## Cleanup
 
-- [ ] Reverted local-only config: `excludeTeams`, the `payFindWork` schedule, and `dummyMode`
+- [ ] Reverted local-only config: `excludeTeams`, `dummyMode`, and any test schedule for `payFindWork` (back to the committed value)
 - [ ] Unassigned yourself and removed the `available` label from test issues you don't want left open
-- [ ] Ticked tasks 6.2–6.4 in [tasks.md](tasks.md), then ran `/opsx:archive`
+- [ ] Ticked tasks 6.4, 8.3 and 9.2–9.4 in [tasks.md](tasks.md) once their checks pass, then ran `/opsx:archive` after deploy

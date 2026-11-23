@@ -78,12 +78,26 @@ A claim less than 10 minutes old whose claimer is not yet assigned SHALL stay li
 #### Scenario: Claim left open too long
 
 - **WHEN** the issue is still open 30 days after the claim, with the claimer still assigned
-- **THEN** the claim expires without payment
+- **THEN** the claim expires without payment and the claimer is unassigned (see "Release on age expiry")
 
 #### Scenario: Review never submitted
 
 - **WHEN** the pull request is still open 14 days after the request and the member has not submitted a counted review
 - **THEN** the request expires without payment
+
+### Requirement: Release on age expiry
+
+When an issue claim expires because it is 30 days old, the bot SHALL remove the claimer's GitHub login from the issue's assignees, so the issue can return to the pool. If the removal fails, the claim MUST still expire and the failure MUST be logged. Other expiries MUST NOT change the issue's assignees, since in those the claimer is already unassigned or the issue is closed.
+
+#### Scenario: Released after 30 days
+
+- **WHEN** an issue claim expires for age with the claimer still assigned and the issue still carrying an opt-in label
+- **THEN** the claimer is unassigned on GitHub, and after the next pool refresh the issue can be drawn and claimed again, including by the same member
+
+#### Scenario: Unassign fails
+
+- **WHEN** an issue claim expires for age and GitHub rejects or times out the unassignment
+- **THEN** the claim still expires without payment, the failure is logged, and the issue stays assigned until someone removes the assignee by hand
 
 ### Requirement: Issue payout amount
 
