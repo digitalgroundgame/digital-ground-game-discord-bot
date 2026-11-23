@@ -427,4 +427,53 @@ export class GitHubIssuesService {
       return { status: 'error', message }
     }
   }
+  /**
+   * Remove `username` from an issue's assignees. True once GitHub's answer no
+   * longer lists them; false, and logged, when the request fails or they are
+   * still listed. Never throws.
+   *
+   * The issue rejoins the claimable pool at the next refresh, if it is still
+   * open, unassigned and labelled.
+   */
+  public async unassign(repo: string, issueNumber: number, username: string): Promise<boolean> {
+    if (!this.isConfigured()) return false
+
+    const url = `${GITHUB_API_BASE}/repos/${repo}/issues/${issueNumber}/assignees`
+    try {
+      const res = await fetch(url, {
+        method: 'delete',
+        headers: { ...githubHeaders(this.token), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignees: [username] }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      })
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        Logger.error(
+          `GitHub Issues: failed to unassign ${username} from ${repo}#${issueNumber}: ${`${res.status} ${text}`.trim()}`,
+        )
+        return false
+      }
+
+      const body = (await res.json()) as { assignees?: { login?: unknown }[] }
+      const stillAssigned = (body.assignees ?? []).some(
+        (assignee) =>
+          typeof assignee.login === 'string' &&
+          assignee.login.toLowerCase() === username.toLowerCase(),
+      )
+      if (stillAssigned) {
+        Logger.warn(
+          `GitHub Issues: GitHub accepted the request but still lists ${username} on ${repo}#${issueNumber}`,
+        )
+        return false
+      }
+      return true
+    } catch (err: unknown) {
+      Logger.error(
+        `GitHub Issues: request failed unassigning ${username} from ${repo}#${issueNumber}: ${describeError(err)}`,
+        err,
+      )
+      return false
+    }
+  }
 }

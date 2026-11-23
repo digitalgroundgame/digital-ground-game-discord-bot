@@ -32,7 +32,8 @@ export const CLAIM_GRACE_MS = 10 * 60 * 1000
 /**
  * How long an unfinished issue claim stays live. Past this the claim expires
  * even if the claimer is still assigned, so abandoned claims stop costing the
- * payout job a GitHub read every hour.
+ * payout job a GitHub read every hour, and the claimer is unassigned so the
+ * issue can be claimed again (see `isAgedOut`).
  */
 export const ISSUE_CLAIM_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
 
@@ -68,6 +69,24 @@ export function decideIssueClaim(
   }
   if (!stillAssigned) return age < CLAIM_GRACE_MS ? 'wait' : 'expire'
   return age > ISSUE_CLAIM_MAX_AGE_MS ? 'expire' : 'wait'
+}
+
+/**
+ * Whether an expiring issue claim expired for age alone: the issue is still
+ * open, the claimer is still assigned, and the claim is past
+ * `ISSUE_CLAIM_MAX_AGE_MS`. Only then does the claimer need unassigning, since
+ * every other expiry finds them already unassigned or the issue closed.
+ */
+export function isAgedOut(
+  claim: Pick<IssueClaim, 'githubLogin' | 'claimedAt'>,
+  status: IssueStatus,
+  now: Date = new Date(),
+): boolean {
+  return (
+    status.state === 'open' &&
+    status.assignees.includes(claim.githubLogin.toLowerCase()) &&
+    now.getTime() - claim.claimedAt.getTime() > ISSUE_CLAIM_MAX_AGE_MS
+  )
 }
 
 /**
@@ -149,7 +168,8 @@ export class FindWorkPayoutService {
     const status = await this.issuesService.getIssueStatus(claim.repo, claim.issueNumber)
     if (!status) return
 
-    const decision = decideIssueClaim(claim, status)
+    const now = new Date()
+    const decision = decideIssueClaim(claim, status, now)
     if (decision === 'wait') return
 
     const points = claim.wildcard ? this.points.wildcardIssue : this.points.issue
@@ -170,6 +190,22 @@ export class FindWorkPayoutService {
       )
     } else {
       summary.expired++
+      // Expiry only changes our record. A claimer left assigned would keep the
+      // issue out of the pool, which takes only unassigned issues, for good.
+      // Unassigning comes after the claim has expired, and a failure is
+      // logged by `unassign`, so the expiry stands either way.
+      if (isAgedOut(claim, status, now)) {
+        const released = await this.issuesService.unassign(
+          claim.repo,
+          claim.issueNumber,
+          claim.githubLogin,
+        )
+        if (released) {
+          Logger.info(
+            `/find-work: released ${claim.repo}#${claim.issueNumber} from ${claim.githubLogin} after its claim aged out`,
+          )
+        }
+      }
     }
   }
 
