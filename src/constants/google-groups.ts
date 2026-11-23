@@ -1,5 +1,7 @@
 import { createRequire } from 'node:module'
 
+import { type ServerRole, ServerRoles } from './server-roles.js'
+
 const require = createRequire(import.meta.url)
 const Config = require('../../config/config.json')
 
@@ -26,6 +28,15 @@ export const GoogleGroups: Record<string, string> = Object.fromEntries(
 export const GrantAccessAllowedRoleKeys: string[] = Array.isArray(rawConfig.allowedRoleKeys)
   ? rawConfig.allowedRoleKeys
   : []
+
+/**
+ * Discord role IDs of the coordinator roles (`GrantAccessAllowedRoleKeys`). They
+ * gate `/grant-access`, linking an account on another member's behalf, and
+ * looking up another member's linked accounts. Unknown role keys are skipped.
+ */
+export const CoordinatorRoleIds: string[] = GrantAccessAllowedRoleKeys.map(
+  (key) => (ServerRoles as Record<string, ServerRole | undefined>)[key]?.id,
+).filter((id): id is string => typeof id === 'string')
 
 /** Resolve a team shortname to its Google Group address, or null if unknown. */
 export function getGoogleGroupAddress(shortname: string): string | null {

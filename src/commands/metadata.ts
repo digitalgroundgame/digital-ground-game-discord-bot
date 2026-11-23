@@ -221,6 +221,25 @@ export const ChatCommandMetadata: {
       },
     ],
   },
+  LINKED_ACCOUNTS: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.linkedAccounts', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.linkedAccounts'),
+    description: Lang.getRef('commandDescs.linkedAccounts', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.linkedAccounts'),
+    dm_permission: false,
+    // Visible to everyone so members can look up their own links. Looking up
+    // another member is gated at runtime on the coordinator roles, as for
+    // /grant-access and /link-account (a Discord permission gate could lock
+    // out coordinators who lack that permission).
+    default_member_permissions: undefined,
+    options: [
+      {
+        ...Args.LINKED_ACCOUNTS_USER,
+        required: false,
+      },
+    ],
+  },
   KUDOS: {
     type: ApplicationCommandType.ChatInput,
     name: Lang.getRef('chatCommands.kudos', Language.Default),

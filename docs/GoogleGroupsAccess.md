@@ -10,11 +10,17 @@ Google Workspace groups:
   linked Google email and calls the Admin SDK Directory API to add them to a
   team's Google Group.
 
+To check which email a member linked (e.g. when `/grant-access` can't find
+them, or added the wrong address), a coordinator runs `/linked-accounts
+user:@member`. It replies privately with every account linked to that member.
+Looking up another member is restricted to the roles in
+`grantAccess.allowedRoleKeys`; any member can look up their own links.
+
 ## What needs to be configured
 
 | Piece | Required by |
 | --- | --- |
-| SQLite database (`SQLITE_PATH`) | `/link-account`, `/grant-access` |
+| SQLite database (`SQLITE_PATH`) | `/link-account`, `/linked-accounts`, `/grant-access` |
 | Service account JSON key with Domain-Wide Delegation | `/grant-access` |
 | A Workspace admin to impersonate | `/grant-access` |
 | Admin SDK API + Groups Settings API enabled on the project | `/grant-access` |

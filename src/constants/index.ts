@@ -9,6 +9,7 @@ export {
   type ManagedContentField,
 } from './managed-content.js'
 export {
+  CoordinatorRoleIds,
   GOOGLE_DIRECTORY_SCOPES,
   GoogleGroups,
   GrantAccessAllowedRoleKeys,
