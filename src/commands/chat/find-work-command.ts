@@ -78,14 +78,20 @@ function rewardLine(ref: string, points: number, lang: Locale): string {
 /** How many of a suggestion's matched files to name before summarizing the rest. */
 const FILES_SHOWN = 3
 
-/** Render one suggested pull request as a line in the reply. */
+/** Render one suggested pull request as a line in the reply, saying why it was suggested. */
 function describeReview(suggestion: ReviewSuggestion, index: number): string {
   const { pr, matchedFiles } = suggestion
-  const shown = matchedFiles.slice(0, FILES_SHOWN).map((path) => `\`${path}\``)
-  const more = matchedFiles.length - shown.length
+  let reason: string
+  if (suggestion.source === 'team') {
+    reason = 'open in a repository your team works on'
+  } else {
+    const shown = matchedFiles.slice(0, FILES_SHOWN).map((path) => `\`${path}\``)
+    const more = matchedFiles.length - shown.length
+    reason = `you’ve worked on ${shown.join(', ')}${more > 0 ? ` (+${more} more)` : ''}`
+  }
   return [
     `**R${index + 1}.** [${pr.repo} #${pr.number}](${pr.htmlUrl}) — ${pr.title}`,
-    `> by ${pr.author} · you’ve worked on ${shown.join(', ')}${more > 0 ? ` (+${more} more)` : ''}`,
+    `> by ${pr.author} · ${reason}`,
   ].join('\n')
 }
 
@@ -100,9 +106,10 @@ function describeReview(suggestion: ReviewSuggestion, index: number): string {
  * from the cached pool (see `GitHubIssuesService`), which holds only open,
  * unassigned, marker-labelled issues in the org's *public* repositories.
  *
- * Alongside the draw, it suggests up to two open pull requests that change
- * files the member has committed to before (see `GitHubPullRequestsService`
- * and `suggestReviews`). These sit in their own section rather than taking an
+ * Alongside the draw, it suggests up to two open pull requests: first ones
+ * that change files the member has committed to before, then ones open in
+ * their teams' repositories (see `GitHubPullRequestsService` and
+ * `suggestReviews`). These sit in their own section rather than taking an
  * issue slot, and pressing one requests a review from the member on GitHub.
  *
  * The reply is ephemeral, so the claim buttons live only as long as the
@@ -158,13 +165,29 @@ export class FindWorkCommand implements Command {
 
     const pool = issuesService.getIssues()
     const pullRequestsService = this.pullRequestsService
-    const reviews = pullRequestsService?.isConfigured()
-      ? suggestReviews(
-          pullRequestsService.getPullRequests(),
-          pullRequestsService.getFileAuthors(),
-          githubLogin,
-        )
+    const pullRequests = pullRequestsService?.isConfigured()
+      ? pullRequestsService.getPullRequests()
       : []
+
+    // The matched slots, and the team tier of review suggestions, come from
+    // repositories the member's GitHub teams reach, which is the access
+    // `/grant-access` hands out. Read once, and only when there's something
+    // to match against. Without an answer the draw still goes ahead, entirely
+    // from the wider pool, and reviews come from history alone.
+    const teamsService = this.teamsService
+    const teamsConfigured = teamsService?.isConfigured() === true
+    const teamRepos =
+      (pool.length > 0 || pullRequests.length > 0) && teamsConfigured && teamsService
+        ? await teamsService.getMemberTeamRepos(githubLogin)
+        : null
+    const repos = teamRepos?.repos ?? new Set<string>()
+
+    const reviews =
+      pullRequestsService && pullRequests.length > 0
+        ? suggestReviews(pullRequests, pullRequestsService.getFileAuthors(), githubLogin, {
+            teamRepos: teamRepos?.repos,
+          })
+        : []
     if (pool.length === 0 && reviews.length === 0) {
       await InteractionUtils.send(
         intr,
@@ -174,16 +197,6 @@ export class FindWorkCommand implements Command {
       return
     }
 
-    // The matched slots come from repositories the member's GitHub teams
-    // reach, which is the access `/grant-access` hands out. Without an answer
-    // the draw still goes ahead, entirely from the wider pool.
-    const teamsService = this.teamsService
-    const teamsConfigured = teamsService?.isConfigured() === true
-    const teamRepos =
-      pool.length > 0 && teamsConfigured && teamsService
-        ? await teamsService.getMemberTeamRepos(githubLogin)
-        : null
-    const repos = teamRepos?.repos ?? new Set<string>()
     const drawn = pool.length > 0 ? drawIssues(pool, repos) : []
 
     // Say so rather than quietly serving a draw from the wider pool: a silent

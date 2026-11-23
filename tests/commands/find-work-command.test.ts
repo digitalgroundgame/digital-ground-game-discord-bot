@@ -498,6 +498,95 @@ describe('FindWorkCommand', () => {
     })
   })
 
+  describe('review suggestions', () => {
+    /** A PR the member has no history on: it only adds a file, so `files` is empty. */
+    const ADDS_ONLY: OpenPullRequest = { ...PULL, number: 5, title: 'Add a licence', files: [] }
+
+    it('says a history match is one the member has worked on', async () => {
+      const intr = interaction(undefined)
+      await command(issuesService([]), pullRequestsService([PULL])).execute(intr, data)
+
+      const reply = described(intr.followUp.mock.calls[0])
+      expect(reply).toContain('#17')
+      expect(reply).toContain('you’ve worked on `src/nav.ts`')
+    })
+
+    it('reads the teams with no issues in the pool, and suggests a PR from a team repository', async () => {
+      const intr = interaction(undefined)
+      const teams = teamsService([REPO])
+      await command(issuesService([]), pullRequestsService([ADDS_ONLY]), POINTS, teams).execute(
+        intr,
+        data,
+      )
+
+      expect(teams.getMemberTeamRepos).toHaveBeenCalledOnce()
+      const reply = described(intr.followUp.mock.calls[0])
+      expect(reply).toContain('#5')
+      expect(reply).toContain('open in a repository your team works on')
+      expect(reply).not.toContain('Nothing is up for grabs')
+    })
+
+    it('puts the history match first and a team pull request second', async () => {
+      const intr = interaction(undefined)
+      await command(
+        issuesService([]),
+        pullRequestsService([ADDS_ONLY, PULL]),
+        POINTS,
+        teamsService([REPO]),
+      ).execute(intr, data)
+
+      const reply = described(intr.followUp.mock.calls[0])
+      expect(reply.indexOf('**R1.**')).toBeLessThan(reply.indexOf('#17'))
+      expect(reply.indexOf('#17')).toBeLessThan(reply.indexOf('**R2.**'))
+      expect(reply.indexOf('**R2.**')).toBeLessThan(reply.indexOf('#5'))
+    })
+
+    it('suggests only history matches when the teams can’t be read', async () => {
+      const intr = interaction(undefined)
+      await command(
+        issuesService([]),
+        pullRequestsService([ADDS_ONLY]),
+        POINTS,
+        teamsService(null),
+      ).execute(intr, data)
+
+      expect(described(intr.followUp.mock.calls[0])).toContain('Nothing is up for grabs')
+    })
+
+    it('reads the teams once when there are both issues and pull requests', async () => {
+      const intr = interaction(undefined)
+      const teams = teamsService([REPO])
+      await command(
+        issuesService([issue({ number: 1 })]),
+        pullRequestsService([ADDS_ONLY]),
+        POINTS,
+        teams,
+      ).execute(intr, data)
+
+      expect(teams.getMemberTeamRepos).toHaveBeenCalledOnce()
+    })
+
+    it('doesn’t read the teams when there are no issues and no pull requests', async () => {
+      const intr = interaction(undefined)
+      const teams = teamsService([REPO])
+      await command(issuesService([]), pullRequestsService([]), POINTS, teams).execute(intr, data)
+
+      expect(teams.getMemberTeamRepos).not.toHaveBeenCalled()
+      expect(described(intr.followUp.mock.calls[0])).toContain('Nothing is up for grabs')
+    })
+
+    it('requests a review on a team-tier suggestion', async () => {
+      const pressed = reviewButton()
+      const pulls = pullRequestsService([ADDS_ONLY])
+      await command(issuesService([]), pulls, POINTS, teamsService([REPO])).execute(
+        interaction(pressed),
+        data,
+      )
+
+      expect(pulls.requestReview).toHaveBeenCalledWith(REPO, 5, 'alice')
+    })
+  })
+
   describe('taking a review', () => {
     it('requests the review, records it and promises the review points', async () => {
       const pressed = reviewButton()

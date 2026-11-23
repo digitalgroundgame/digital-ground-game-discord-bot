@@ -27,13 +27,32 @@ export interface OpenPullRequest {
  */
 export type FileAuthorIndex = ReadonlyMap<string, ReadonlyMap<string, number>>
 
-/** A pull request suggested for review, with the files that earned it. */
+/**
+ * Why a pull request was suggested: it changes files the member has
+ * committed to (`history`), or it is open in a repository one of their teams
+ * reaches (`team`).
+ */
+export type ReviewSuggestionSource = 'history' | 'team'
+
+/** A pull request suggested for review, with what earned it. */
 export interface ReviewSuggestion {
   pr: OpenPullRequest
-  /** The PR's files the member has committed to before. */
+  source: ReviewSuggestionSource
+  /** The PR's files the member has committed to before. Empty for a `team` suggestion. */
   matchedFiles: string[]
   /** The member's commits across `matchedFiles`. */
   commits: number
+}
+
+export interface SuggestReviewsOptions {
+  /**
+   * The member's matched repositories, lowercased `owner/name` (see
+   * `GitHubTeamsService.getMemberTeamRepos`). Fills any slot history leaves
+   * empty. Omit when the teams couldn't be read, and only history matches are
+   * suggested.
+   */
+  teamRepos?: ReadonlySet<string>
+  limit?: number
 }
 
 export function fileKey(repo: string, path: string): string {
@@ -71,24 +90,33 @@ export function isNoiseFile(path: string): boolean {
 }
 
 /**
- * Open pull requests touching files `login` has committed to, best match
- * first: most matched files, then most commits across them, then the PR that
- * has waited longest — the same lean toward neglected work as the wildcard.
+ * Pull requests to suggest to `login`, in two tiers.
  *
- * Leaves out the member's own PRs and any they are already reviewing.
+ * History first: open pull requests touching files the member has committed
+ * to, best match first — most matched files, then most commits across them,
+ * then the PR that has waited longest, the same lean toward neglected work as
+ * the wildcard.
+ *
+ * Any slot left over goes to open pull requests in `teamRepos`, which history
+ * alone leaves out: PRs that only add files, and repos the member hasn't
+ * committed to yet. Those with no reviewer yet come first, then the
+ * longest-waiting.
+ *
+ * Both tiers leave out the member's own PRs and any they are already
+ * reviewing, and no PR is suggested twice. Drafts and bot-authored PRs never
+ * reach here (see `toOpenPullRequest`).
  */
 export function suggestReviews(
   prs: readonly OpenPullRequest[],
   index: FileAuthorIndex,
   login: string,
-  limit: number = REVIEW_SUGGESTION_LIMIT,
+  { teamRepos, limit = REVIEW_SUGGESTION_LIMIT }: SuggestReviewsOptions = {},
 ): ReviewSuggestion[] {
   const me = login.toLowerCase()
-  const suggestions: ReviewSuggestion[] = []
+  const open = prs.filter((pr) => pr.author !== me && !pr.reviewers.includes(me))
 
-  for (const pr of prs) {
-    if (pr.author === me || pr.reviewers.includes(me)) continue
-
+  const history: ReviewSuggestion[] = []
+  for (const pr of open) {
     const matchedFiles: string[] = []
     let commits = 0
     for (const path of pr.files) {
@@ -98,10 +126,10 @@ export function suggestReviews(
         commits += count
       }
     }
-    if (matchedFiles.length > 0) suggestions.push({ pr, matchedFiles, commits })
+    if (matchedFiles.length > 0) history.push({ pr, source: 'history', matchedFiles, commits })
   }
 
-  return suggestions
+  const suggestions = history
     .sort(
       (a, b) =>
         b.matchedFiles.length - a.matchedFiles.length ||
@@ -109,4 +137,18 @@ export function suggestReviews(
         a.pr.updatedAt.getTime() - b.pr.updatedAt.getTime(),
     )
     .slice(0, limit)
+  if (suggestions.length >= limit || !teamRepos || teamRepos.size === 0) return suggestions
+
+  const taken = new Set(suggestions.map((suggestion) => suggestion.pr))
+  const team = open
+    .filter((pr) => !taken.has(pr) && teamRepos.has(pr.repo.toLowerCase()))
+    .sort(
+      (a, b) =>
+        Number(a.reviewers.length > 0) - Number(b.reviewers.length > 0) ||
+        a.updatedAt.getTime() - b.updatedAt.getTime(),
+    )
+    .slice(0, limit - suggestions.length)
+    .map((pr): ReviewSuggestion => ({ pr, source: 'team', matchedFiles: [], commits: 0 }))
+
+  return [...suggestions, ...team]
 }
