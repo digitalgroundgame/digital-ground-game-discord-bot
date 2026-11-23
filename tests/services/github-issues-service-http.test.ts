@@ -72,6 +72,118 @@ describe('GitHubIssuesService', () => {
     })
   })
 
+  describe('getIssueStatus', () => {
+    const closedIssue = {
+      state: 'closed',
+      state_reason: 'completed',
+      assignees: [{ login: 'Alice' }],
+    }
+
+    /** `CLOSER_QUERY`'s answer, wrapped the way GraphQL returns it. */
+    function closerAnswer(closer: unknown): unknown {
+      return { data: { repository: { issue: { timelineItems: { nodes: [{ closer }] } } } } }
+    }
+
+    const timeout = (): Error =>
+      Object.assign(new Error('The operation was aborted due to timeout'), {
+        name: 'TimeoutError',
+      })
+
+    it('reads an open issue with one REST call and no closer lookup', async () => {
+      fetchMock.mockResolvedValueOnce(
+        response(200, { state: 'open', state_reason: null, assignees: [{ login: 'Alice' }] }),
+      )
+      expect(await service.getIssueStatus(REPO, 42)).toEqual({
+        state: 'open',
+        stateReason: null,
+        assignees: ['alice'],
+        closedByCode: false,
+        closerLogin: null,
+      })
+      expect(fetchMock).toHaveBeenCalledOnce()
+    })
+
+    it('reads a close by a merged pull request, naming its author', async () => {
+      fetchMock
+        .mockResolvedValueOnce(response(200, closedIssue))
+        .mockResolvedValueOnce(
+          response(
+            200,
+            closerAnswer({ __typename: 'PullRequest', merged: true, author: { login: 'Alice' } }),
+          ),
+        )
+      expect(await service.getIssueStatus(REPO, 42)).toEqual({
+        state: 'closed',
+        stateReason: 'completed',
+        assignees: ['alice'],
+        closedByCode: true,
+        closerLogin: 'alice',
+      })
+
+      const [restUrl] = fetchMock.mock.calls[0] ?? []
+      expect(String(restUrl)).toContain(`/repos/${REPO}/issues/42`)
+      const [graphqlUrl, init] = fetchMock.mock.calls[1] ?? []
+      expect(String(graphqlUrl)).toContain('/graphql')
+      expect(JSON.parse(String(init?.body)).variables).toEqual({
+        owner: 'digitalgroundgame',
+        name: 'website',
+        number: 42,
+      })
+    })
+
+    it('reads a close by a commit, naming the commit’s GitHub author', async () => {
+      fetchMock
+        .mockResolvedValueOnce(response(200, closedIssue))
+        .mockResolvedValueOnce(
+          response(200, closerAnswer({ __typename: 'Commit', author: { user: { login: 'Bob' } } })),
+        )
+      expect(await service.getIssueStatus(REPO, 42)).toMatchObject({
+        closedByCode: true,
+        closerLogin: 'bob',
+      })
+    })
+
+    it('reads a close by hand as not closed by code', async () => {
+      fetchMock
+        .mockResolvedValueOnce(response(200, closedIssue))
+        .mockResolvedValueOnce(response(200, closerAnswer(null)))
+      expect(await service.getIssueStatus(REPO, 42)).toMatchObject({
+        state: 'closed',
+        closedByCode: false,
+        closerLogin: null,
+      })
+    })
+
+    // A claim whose status can't be read is left for the next run, never expired.
+    it('returns null when either read fails or answers something unexpected', async () => {
+      fetchMock.mockResolvedValueOnce(response(500))
+      expect(await service.getIssueStatus(REPO, 42)).toBeNull()
+
+      fetchMock
+        .mockResolvedValueOnce(response(200, closedIssue))
+        .mockResolvedValueOnce(response(502))
+      expect(await service.getIssueStatus(REPO, 42)).toBeNull()
+
+      fetchMock
+        .mockResolvedValueOnce(response(200, closedIssue))
+        .mockResolvedValueOnce(response(200, { errors: [{ message: 'rate limited' }] }))
+      expect(await service.getIssueStatus(REPO, 42)).toBeNull()
+
+      fetchMock
+        .mockResolvedValueOnce(response(200, closedIssue))
+        .mockResolvedValueOnce(response(200, { data: { repository: null } }))
+      expect(await service.getIssueStatus(REPO, 42)).toBeNull()
+    })
+
+    it('returns null when a read times out', async () => {
+      fetchMock.mockRejectedValueOnce(timeout())
+      expect(await service.getIssueStatus(REPO, 42)).toBeNull()
+
+      fetchMock.mockResolvedValueOnce(response(200, closedIssue)).mockRejectedValueOnce(timeout())
+      expect(await service.getIssueStatus(REPO, 42)).toBeNull()
+    })
+  })
+
   describe('unassign', () => {
     it('sends a DELETE naming the member, and succeeds once GitHub no longer lists them', async () => {
       fetchMock.mockResolvedValueOnce(response(200, { assignees: [{ login: 'Bob' }] }))
