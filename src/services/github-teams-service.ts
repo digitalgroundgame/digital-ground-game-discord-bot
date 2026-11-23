@@ -1,8 +1,10 @@
 import fetch from 'node-fetch'
 
+import { githubGraphql } from './github-api.js'
 import { Logger } from './logger.js'
 import {
   DEFAULT_GITHUB_TEAM_ROLE,
+  GitHubExcludedTeamSlugs,
   type GitHubTeam,
   type GitHubTeamRole,
 } from '../constants/github-teams.js'
@@ -13,6 +15,8 @@ const GITHUB_API_VERSION = '2022-11-28'
 const REQUEST_TIMEOUT_MS = 10_000
 /** GitHub's maximum; the org fits in one page well below it. */
 const TEAMS_PAGE_SIZE = 100
+/** Matches `repositories(first: 100)` in `MEMBER_TEAM_REPOS_QUERY`. */
+const TEAM_REPOS_PAGE_SIZE = 100
 /** Bounds the paging loop if GitHub ever stops shrinking the final page. */
 const MAX_TEAM_PAGES = 10
 /**
@@ -21,6 +25,52 @@ const MAX_TEAM_PAGES = 10
  * mean one request per character typed.
  */
 const REFRESH_RETRY_COOLDOWN_MS = 60_000
+
+/**
+ * A member's teams in the org, each team's full ancestor chain, and the
+ * repositories each can reach. 100 of each is GitHub's page maximum and well
+ * past what one member holds; anything beyond it is dropped rather than paged,
+ * since this runs inside a command, and logged so the limit doesn't go
+ * unnoticed.
+ */
+const MEMBER_TEAM_REPOS_QUERY = `
+  query ($org: String!, $login: String!) {
+    organization(login: $org) {
+      teams(first: 100, userLogins: [$login]) {
+        pageInfo { hasNextPage }
+        nodes {
+          slug
+          ancestors(first: 100) { nodes { slug } }
+          repositories(first: 100) {
+            pageInfo { hasNextPage }
+            nodes { nameWithOwner }
+          }
+        }
+      }
+    }
+  }
+`
+
+/** The member's teams and the repositories they reach, as `/find-work` matches on them. */
+export interface MemberTeamRepos {
+  /** Team slugs, lowercased, minus excluded teams. */
+  teams: string[]
+  /** `owner/name` of every repository those teams reach, lowercased. */
+  repos: ReadonlySet<string>
+}
+
+interface PageInfo {
+  hasNextPage?: unknown
+}
+
+interface MemberTeamNode {
+  slug?: unknown
+  ancestors?: { nodes?: ({ slug?: unknown } | null)[] | null } | null
+  repositories?: {
+    pageInfo?: PageInfo | null
+    nodes?: ({ nameWithOwner?: unknown } | null)[] | null
+  } | null
+}
 
 export type AddTeamMemberResult =
   | { status: 'active' }
@@ -172,6 +222,77 @@ export class GitHubTeamsService {
     this.teams = collected
     Logger.info(`GitHub Teams: cached ${collected.length} team(s) from ${org}`)
     return true
+  }
+
+  /**
+   * Read the org teams `login` belongs to and the repositories they reach.
+   * `/find-work` matches a member's issues on these: membership is what
+   * `/grant-access` hands out, so it is the org's own record of who works on
+   * what.
+   *
+   * Read live rather than from the hourly cache, so access granted a minute
+   * ago counts. Teams in `grantAccess.excludeTeams`, and their children, are
+   * left out: those are leadership or admin teams that tend to reach every
+   * repository, which would make every issue a match. Returns null when the
+   * service isn't configured or GitHub can't answer, so the caller can tell
+   * "no teams" apart from "couldn't tell".
+   */
+  public async getMemberTeamRepos(
+    login: string,
+    excluded: ReadonlySet<string> = GitHubExcludedTeamSlugs,
+  ): Promise<MemberTeamRepos | null> {
+    const token = this.token
+    const org = this.org
+    if (!token || !org) return null
+
+    let nodes: MemberTeamNode[]
+    try {
+      const data = (await githubGraphql(token, MEMBER_TEAM_REPOS_QUERY, { org, login })) as {
+        organization?: {
+          teams?: { pageInfo?: PageInfo | null; nodes?: (MemberTeamNode | null)[] | null } | null
+        } | null
+      } | null
+      const connection = data?.organization?.teams
+      nodes = (connection?.nodes ?? []).filter((node): node is MemberTeamNode => node !== null)
+      if (connection?.pageInfo?.hasNextPage === true) {
+        Logger.warn(
+          `GitHub Teams: ${login} is on more than ${nodes.length} teams in ${org}; the rest are ignored`,
+        )
+      }
+    } catch (err: unknown) {
+      Logger.error(
+        `GitHub Teams: failed to read ${login}'s teams in ${org}: ${describeError(err)}`,
+        err,
+      )
+      return null
+    }
+
+    // Each team arrives with its whole ancestor chain, so an excluded team
+    // covers every level beneath it without relying on the hourly cache,
+    // which may still be cold.
+    const teams: string[] = []
+    const repos = new Set<string>()
+    for (const node of nodes) {
+      if (typeof node.slug !== 'string') continue
+      const lineage = [
+        node.slug,
+        ...(node.ancestors?.nodes ?? []).flatMap((ancestor) =>
+          typeof ancestor?.slug === 'string' ? [ancestor.slug] : [],
+        ),
+      ]
+      if (lineage.some((slug) => excluded.has(slug.trim().toLowerCase()))) continue
+
+      teams.push(node.slug.toLowerCase())
+      for (const repo of node.repositories?.nodes ?? []) {
+        if (typeof repo?.nameWithOwner === 'string') repos.add(repo.nameWithOwner.toLowerCase())
+      }
+      if (node.repositories?.pageInfo?.hasNextPage === true) {
+        Logger.warn(
+          `GitHub Teams: ${org}/${node.slug} reaches more than ${TEAM_REPOS_PAGE_SIZE} repositories; the rest won't match in /find-work`,
+        )
+      }
+    }
+    return { teams, repos }
   }
 
   /**

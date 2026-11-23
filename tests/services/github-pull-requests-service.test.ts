@@ -36,6 +36,27 @@ describe('toOpenPullRequest', () => {
     expect(toOpenPullRequest('r/x', raw({ draft: true }))).toBeNull()
   })
 
+  it('rejects pull requests opened by a bot account', () => {
+    expect(
+      toOpenPullRequest('r/x', raw({ user: { login: 'dependabot[bot]', type: 'Bot' } })),
+    ).toBeNull()
+    expect(
+      toOpenPullRequest(
+        'r/x',
+        raw({ user: { login: 'digital-ground-game-deployment-bot[bot]', type: 'Bot' } }),
+      ),
+    ).toBeNull()
+  })
+
+  it('keeps pull requests opened by a person or an organization', () => {
+    expect(
+      toOpenPullRequest('r/x', raw({ user: { login: 'Author', type: 'User' } })),
+    ).not.toBeNull()
+    expect(
+      toOpenPullRequest('r/x', raw({ user: { login: 'Org', type: 'Organization' } })),
+    ).not.toBeNull()
+  })
+
   it('rejects entries missing fields', () => {
     expect(toOpenPullRequest('r/x', raw({ user: null }))).toBeNull()
     expect(toOpenPullRequest('r/x', raw({ number: undefined }))).toBeNull()

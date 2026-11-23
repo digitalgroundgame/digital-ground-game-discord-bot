@@ -290,7 +290,7 @@
         "color": "{{COM:colors.warning}}"
       },
       "findWorkReviews": {
-        "title": "Pull requests you know your way around",
+        "title": "Pull requests to review",
         "description": "{{PULLS}}\n\n{{HINT}}"
       },
       "findWorkReviewRequested": {
@@ -662,8 +662,10 @@
       "claimHint": "Pick one to have yourself assigned on GitHub.",
       "issueReward": "You’ll earn **{{POINTS}}** when your merged pull request closes it while you’re still assigned.",
       "reviewReward": "You’ll earn **{{POINTS}}** once you submit your review.",
-      "reviewHint": "You’ve committed to files these change. Pick one to be requested as a reviewer.",
-      "noSkillMatch": "None of your skill roles matched a labelled issue, so these are drawn from the whole pool. If that looks wrong, the role name and the GitHub label probably don't line up — tell a lead."
+      "reviewHint": "Each one says why it’s here: files you’ve worked on, or a repository your team works on. Pick one to be requested as a reviewer.",
+      "noTeamMatch": "None of your GitHub teams’ repositories have issues up for grabs, so these are drawn from the whole pool. Teams come from `/grant-access` — ask a lead if you’re missing one.",
+      "teamsUnavailable": "Couldn’t read your GitHub teams just now, so these are drawn from the whole pool.",
+      "teamsNotConfigured": "Team matching isn’t set up on this bot yet, so these are drawn from the whole pool."
     }
   }
 }

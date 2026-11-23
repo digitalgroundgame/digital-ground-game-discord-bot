@@ -8,6 +8,7 @@ vi.mock('../../src/services/logger.js', () => ({
 }))
 
 import { GitHubTeamsService } from '../../src/services/github-teams-service.js'
+import { Logger } from '../../src/services/logger.js'
 
 /** A successful membership upsert, which GitHub answers with the new state. */
 function membershipResponse(state: string): unknown {
@@ -364,6 +365,157 @@ describe('GitHubTeamsService', () => {
       for (let i = 0; i < 10; i++) service.warmTeams()
 
       expect(fetchMock).toHaveBeenCalledOnce()
+    })
+  })
+
+  describe('getMemberTeamRepos', () => {
+    function graphqlResponse(teams: unknown[], hasNextPage = false): unknown {
+      const body = {
+        data: { organization: { teams: { pageInfo: { hasNextPage }, nodes: teams } } },
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => body,
+        text: async () => JSON.stringify(body),
+      }
+    }
+
+    /** A team node; `ancestors` runs from the immediate parent upwards. */
+    function team(
+      slug: string,
+      repos: string[],
+      ancestors: string[] = [],
+      moreRepos = false,
+    ): unknown {
+      return {
+        slug,
+        ancestors: { nodes: ancestors.map((ancestor) => ({ slug: ancestor })) },
+        repositories: {
+          pageInfo: { hasNextPage: moreRepos },
+          nodes: repos.map((nameWithOwner) => ({ nameWithOwner })),
+        },
+      }
+    }
+
+    it("returns the member's teams and every repository they reach, lowercased", async () => {
+      fetchMock.mockResolvedValueOnce(
+        graphqlResponse([
+          team('discord-bot', ['DGG/Digital-Ground-Game-Discord-Bot']),
+          team('dgg-website', ['dgg/dgg-frontpage', 'dgg/digital-ground-game-discord-bot']),
+        ]),
+      )
+      const result = await new GitHubTeamsService('t', 'dgg').getMemberTeamRepos('alice', new Set())
+
+      expect(result?.teams).toEqual(['discord-bot', 'dgg-website'])
+      expect([...(result?.repos ?? [])].sort()).toEqual([
+        'dgg/dgg-frontpage',
+        'dgg/digital-ground-game-discord-bot',
+      ])
+      const [url, init] = fetchMock.mock.calls[0] as [string, { body: string }]
+      expect(url).toBe('https://api.github.com/graphql')
+      expect(JSON.parse(init.body).variables).toEqual({ org: 'dgg', login: 'alice' })
+    })
+
+    it('leaves out excluded teams and their children', async () => {
+      fetchMock.mockResolvedValueOnce(
+        graphqlResponse([
+          team('admins', ['dgg/everything']),
+          team('admins-child', ['dgg/secret-ish'], ['admins']),
+          team('discord-bot', ['dgg/discord-bot']),
+        ]),
+      )
+      const result = await new GitHubTeamsService('t', 'dgg').getMemberTeamRepos(
+        'alice',
+        new Set(['admins']),
+      )
+
+      expect(result?.teams).toEqual(['discord-bot'])
+      expect([...(result?.repos ?? [])]).toEqual(['dgg/discord-bot'])
+    })
+
+    it('leaves out teams nested several levels under an excluded team, with a cold cache', async () => {
+      fetchMock.mockResolvedValueOnce(
+        graphqlResponse([
+          team('leads-sub', ['dgg/everything'], ['leads', 'admins']),
+          team('discord-bot', ['dgg/discord-bot']),
+        ]),
+      )
+      const service = new GitHubTeamsService('t', 'dgg')
+      expect(service.getTeams()).toEqual([])
+      const result = await service.getMemberTeamRepos('alice', new Set(['admins']))
+
+      expect(result?.teams).toEqual(['discord-bot'])
+      expect([...(result?.repos ?? [])]).toEqual(['dgg/discord-bot'])
+    })
+
+    it('matches excluded slugs regardless of case', async () => {
+      fetchMock.mockResolvedValueOnce(graphqlResponse([team('Child', ['dgg/x'], ['Admins'])]))
+      const result = await new GitHubTeamsService('t', 'dgg').getMemberTeamRepos(
+        'alice',
+        new Set(['admins']),
+      )
+
+      expect(result?.teams).toEqual([])
+    })
+
+    it('warns when a team reaches more repositories than one page holds', async () => {
+      const warn = vi.mocked(Logger.warn)
+      warn.mockClear()
+      fetchMock.mockResolvedValueOnce(graphqlResponse([team('big', ['dgg/a'], [], true)]))
+      const result = await new GitHubTeamsService('t', 'dgg').getMemberTeamRepos('alice', new Set())
+
+      expect([...(result?.repos ?? [])]).toEqual(['dgg/a'])
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('dgg/big reaches more than 100'))
+    })
+
+    it('warns when the member is on more teams than one page holds', async () => {
+      const warn = vi.mocked(Logger.warn)
+      warn.mockClear()
+      fetchMock.mockResolvedValueOnce(graphqlResponse([team('a', ['dgg/a'])], true))
+      await new GitHubTeamsService('t', 'dgg').getMemberTeamRepos('alice', new Set())
+
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('alice is on more than 1 teams'))
+    })
+
+    it('stays quiet when nothing was cut off', async () => {
+      const warn = vi.mocked(Logger.warn)
+      warn.mockClear()
+      fetchMock.mockResolvedValueOnce(graphqlResponse([team('a', ['dgg/a'])]))
+      await new GitHubTeamsService('t', 'dgg').getMemberTeamRepos('alice', new Set())
+
+      expect(warn).not.toHaveBeenCalled()
+    })
+
+    it('answers with no teams for a member on none', async () => {
+      fetchMock.mockResolvedValueOnce(graphqlResponse([]))
+      const result = await new GitHubTeamsService('t', 'dgg').getMemberTeamRepos('alice', new Set())
+
+      expect(result).toEqual({ teams: [], repos: new Set() })
+    })
+
+    it('returns null, not an empty answer, when GitHub fails', async () => {
+      fetchMock.mockResolvedValueOnce(errorResponse(502, 'bad gateway'))
+      expect(
+        await new GitHubTeamsService('t', 'dgg').getMemberTeamRepos('alice', new Set()),
+      ).toBeNull()
+    })
+
+    it('returns null when the query itself errors', async () => {
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ errors: [{ message: 'Resource not accessible by integration' }] }),
+        text: async () => '',
+      })
+      expect(
+        await new GitHubTeamsService('t', 'dgg').getMemberTeamRepos('alice', new Set()),
+      ).toBeNull()
+    })
+
+    it('returns null without calling GitHub when not configured', async () => {
+      expect(await new GitHubTeamsService(undefined, 'dgg').getMemberTeamRepos('alice')).toBeNull()
+      expect(fetchMock).not.toHaveBeenCalled()
     })
   })
 })

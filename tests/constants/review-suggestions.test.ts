@@ -88,13 +88,108 @@ describe('suggestReviews', () => {
       [newerOneCommit, olderOneCommit, manyCommits, twoFiles],
       idx,
       'alice',
-      4,
+      { limit: 4 },
     )
     expect(result.map((s) => s.pr.number)).toEqual([1, 2, 3, 4])
   })
 
   it('honours the limit', () => {
     const prs = [1, 2, 3].map((number) => pr({ number }))
-    expect(suggestReviews(prs, index([['src/nav.ts', { alice: 1 }]]), 'alice', 2)).toHaveLength(2)
+    expect(
+      suggestReviews(prs, index([['src/nav.ts', { alice: 1 }]]), 'alice', { limit: 2 }),
+    ).toHaveLength(2)
+  })
+
+  it('marks a history match with where it came from', () => {
+    const [suggestion] = suggestReviews([pr()], index([['src/nav.ts', { alice: 3 }]]), 'alice', {
+      teamRepos: new Set([REPO]),
+    })
+    expect(suggestion).toMatchObject({ source: 'history', matchedFiles: ['src/nav.ts'] })
+  })
+})
+
+describe('suggestReviews team tier', () => {
+  const TEAM_REPOS = new Set([REPO])
+
+  it('suggests a pull request that only adds files, in a team repository', () => {
+    // Added files carry no history, so `files` is empty for such a PR.
+    const addsOnly = pr({ files: [] })
+    const result = suggestReviews([addsOnly], index([]), 'alice', { teamRepos: TEAM_REPOS })
+    expect(result).toMatchObject([{ pr: { number: 1 }, source: 'team', matchedFiles: [] }])
+  })
+
+  it('suggests up to two team pull requests to a member with no history, unreviewed first', () => {
+    const reviewed = pr({ number: 1, reviewers: ['bob'], updatedAt: new Date('2026-01-01') })
+    const freshUnreviewed = pr({ number: 2, updatedAt: new Date('2026-10-01') })
+    const oldUnreviewed = pr({ number: 3, updatedAt: new Date('2026-03-01') })
+
+    const result = suggestReviews([reviewed, freshUnreviewed, oldUnreviewed], index([]), 'alice', {
+      teamRepos: TEAM_REPOS,
+    })
+    expect(result.map((s) => s.pr.number)).toEqual([3, 2])
+    expect(result.every((s) => s.source === 'team')).toBe(true)
+  })
+
+  it('puts a history match first and fills the second slot from the team tier', () => {
+    const idx = index([['src/nav.ts', { alice: 2 }]])
+    const teamOnly = pr({ number: 2, files: ['docs/new.md'], updatedAt: new Date('2026-01-01') })
+    const matched = pr({ number: 1, files: ['src/nav.ts'] })
+
+    const result = suggestReviews([teamOnly, matched], idx, 'alice', { teamRepos: TEAM_REPOS })
+    expect(result.map((s) => [s.pr.number, s.source])).toEqual([
+      [1, 'history'],
+      [2, 'team'],
+    ])
+  })
+
+  it('never suggests the same pull request twice', () => {
+    const matched = pr({ files: ['src/nav.ts'] })
+    const result = suggestReviews([matched], index([['src/nav.ts', { alice: 1 }]]), 'alice', {
+      teamRepos: TEAM_REPOS,
+    })
+    expect(result).toHaveLength(1)
+  })
+
+  it('leaves no room for the team tier when history fills every slot', () => {
+    const idx = index([['src/nav.ts', { alice: 1 }]])
+    const prs = [1, 2].map((number) => pr({ number }))
+    const extra = pr({ number: 3, files: [] })
+    const result = suggestReviews([...prs, extra], idx, 'alice', { teamRepos: TEAM_REPOS })
+    expect(result.map((s) => s.source)).toEqual(['history', 'history'])
+  })
+
+  it('applies the same exclusions as history: own and already-reviewing', () => {
+    const own = pr({ number: 1, author: 'alice', files: [] })
+    const reviewing = pr({ number: 2, reviewers: ['alice'], files: [] })
+    expect(suggestReviews([own, reviewing], index([]), 'Alice', { teamRepos: TEAM_REPOS })).toEqual(
+      [],
+    )
+  })
+
+  it('matches team repositories regardless of how GitHub cased the name', () => {
+    const cased = pr({ repo: 'DigitalGroundGame/Website', files: [] })
+    expect(
+      suggestReviews([cased], index([]), 'alice', { teamRepos: new Set([REPO.toLowerCase()]) }),
+    ).toHaveLength(1)
+  })
+
+  it('ignores pull requests outside the member’s team repositories', () => {
+    const elsewhere = pr({ repo: 'digitalgroundgame/other', files: [] })
+    expect(suggestReviews([elsewhere], index([]), 'alice', { teamRepos: TEAM_REPOS })).toEqual([])
+  })
+
+  it('suggests only history matches when the teams are unknown', () => {
+    const addsOnly = pr({ files: [] })
+    expect(suggestReviews([addsOnly], index([]), 'alice')).toEqual([])
+  })
+
+  it('still leaves out a lockfile-only pull request outside the team repositories', () => {
+    // `files` never holds noise (see `historyPathFor`), so a lockfile-only PR has none.
+    const lockfileOnly = pr({ repo: 'digitalgroundgame/other', files: [] })
+    expect(
+      suggestReviews([lockfileOnly], index([['pnpm-lock.yaml', { alice: 4 }]]), 'alice', {
+        teamRepos: TEAM_REPOS,
+      }),
+    ).toEqual([])
   })
 })

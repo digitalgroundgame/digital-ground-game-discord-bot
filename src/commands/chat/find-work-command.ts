@@ -6,7 +6,6 @@ import {
   type ChatInputCommandInteraction,
   ComponentType,
   type EmbedBuilder,
-  GuildMember,
   type Locale,
   type PermissionsString,
 } from 'discord.js'
@@ -17,9 +16,8 @@ import {
   drawIssues,
   FindWorkPoints,
   type FindWorkPointsConfig,
+  partitionByTeamRepos,
   type ReviewSuggestion,
-  skillSlugsForRoleNames,
-  partitionBySkills,
   suggestReviews,
 } from '../../constants/index.js'
 import { Language } from '../../models/enum-helpers/index.js'
@@ -27,6 +25,7 @@ import { type EventData } from '../../models/internal-models.js'
 import {
   type GitHubIssuesService,
   type GitHubPullRequestsService,
+  type GitHubTeamsService,
   Lang,
   Logger,
   type UserService,
@@ -37,6 +36,23 @@ import { type Command, CommandDeferType } from '../index.js'
 
 /** How long the claim buttons stay live before the draw goes stale. */
 const CLAIM_TIMEOUT_MS = 5 * 60 * 1000
+
+/** Discord's limit on a button label. */
+const BUTTON_LABEL_MAX = 80
+
+/**
+ * A button label naming the repository as well as the number, since two
+ * repositories can each have an issue #2 and the buttons would otherwise read
+ * the same. The org is the same for every repository, so only the name is
+ * shown, shortened if needed to fit Discord's limit.
+ */
+function buttonLabel(verb: string, repo: string, number: number): string {
+  const name = repo.split('/').pop() || repo
+  const suffix = ` #${number}`
+  const room = BUTTON_LABEL_MAX - verb.length - 1 - suffix.length
+  const shown = name.length > room ? `${name.slice(0, room - 1)}…` : name
+  return `${verb} ${shown}${suffix}`
+}
 
 /** Render one drawn issue as a line in the reply. */
 function describeIssue(drawn: DrawnIssue, index: number): string {
@@ -62,14 +78,20 @@ function rewardLine(ref: string, points: number, lang: Locale): string {
 /** How many of a suggestion's matched files to name before summarizing the rest. */
 const FILES_SHOWN = 3
 
-/** Render one suggested pull request as a line in the reply. */
+/** Render one suggested pull request as a line in the reply, saying why it was suggested. */
 function describeReview(suggestion: ReviewSuggestion, index: number): string {
   const { pr, matchedFiles } = suggestion
-  const shown = matchedFiles.slice(0, FILES_SHOWN).map((path) => `\`${path}\``)
-  const more = matchedFiles.length - shown.length
+  let reason: string
+  if (suggestion.source === 'team') {
+    reason = 'open in a repository your team works on'
+  } else {
+    const shown = matchedFiles.slice(0, FILES_SHOWN).map((path) => `\`${path}\``)
+    const more = matchedFiles.length - shown.length
+    reason = `you’ve worked on ${shown.join(', ')}${more > 0 ? ` (+${more} more)` : ''}`
+  }
   return [
     `**R${index + 1}.** [${pr.repo} #${pr.number}](${pr.htmlUrl}) — ${pr.title}`,
-    `> by ${pr.author} · you’ve worked on ${shown.join(', ')}${more > 0 ? ` (+${more} more)` : ''}`,
+    `> by ${pr.author} · ${reason}`,
   ].join('\n')
 }
 
@@ -77,15 +99,17 @@ function describeReview(suggestion: ReviewSuggestion, index: number): string {
  * Offers a member three open issues they could pick up and assigns them to
  * whichever one they claim.
  *
- * Two of the three are matched against the skill roles the member holds in
- * Discord; the third is a wildcard drawn from work their roles don't cover,
- * weighted toward whatever has been sitting longest. Everything on offer comes
+ * Two of the three come from repositories the member's GitHub teams reach
+ * (see `GitHubTeamsService.getMemberTeamRepos`); the third is a wildcard drawn
+ * from every other repository, weighted toward whatever has been sitting
+ * longest. Everything on offer comes
  * from the cached pool (see `GitHubIssuesService`), which holds only open,
  * unassigned, marker-labelled issues in the org's *public* repositories.
  *
- * Alongside the draw, it suggests up to two open pull requests that change
- * files the member has committed to before (see `GitHubPullRequestsService`
- * and `suggestReviews`). These sit in their own section rather than taking an
+ * Alongside the draw, it suggests up to two open pull requests: first ones
+ * that change files the member has committed to before, then ones open in
+ * their teams' repositories (see `GitHubPullRequestsService` and
+ * `suggestReviews`). These sit in their own section rather than taking an
  * issue slot, and pressing one requests a review from the member on GitHub.
  *
  * The reply is ephemeral, so the claim buttons live only as long as the
@@ -103,6 +127,8 @@ export class FindWorkCommand implements Command {
     private readonly userService?: UserService,
     private readonly claimService?: WorkClaimService,
     private readonly pullRequestsService?: GitHubPullRequestsService,
+    /** Reads the member's teams, whose repositories the matched slots draw from. */
+    private readonly teamsService?: GitHubTeamsService,
     /** The amounts promised in replies; the payout job pays the same config. */
     private readonly points: Readonly<FindWorkPointsConfig> = FindWorkPoints,
   ) {}
@@ -139,13 +165,29 @@ export class FindWorkCommand implements Command {
 
     const pool = issuesService.getIssues()
     const pullRequestsService = this.pullRequestsService
-    const reviews = pullRequestsService?.isConfigured()
-      ? suggestReviews(
-          pullRequestsService.getPullRequests(),
-          pullRequestsService.getFileAuthors(),
-          githubLogin,
-        )
+    const pullRequests = pullRequestsService?.isConfigured()
+      ? pullRequestsService.getPullRequests()
       : []
+
+    // The matched slots, and the team tier of review suggestions, come from
+    // repositories the member's GitHub teams reach, which is the access
+    // `/grant-access` hands out. Read once, and only when there's something
+    // to match against. Without an answer the draw still goes ahead, entirely
+    // from the wider pool, and reviews come from history alone.
+    const teamsService = this.teamsService
+    const teamsConfigured = teamsService?.isConfigured() === true
+    const teamRepos =
+      (pool.length > 0 || pullRequests.length > 0) && teamsConfigured && teamsService
+        ? await teamsService.getMemberTeamRepos(githubLogin)
+        : null
+    const repos = teamRepos?.repos ?? new Set<string>()
+
+    const reviews =
+      pullRequestsService && pullRequests.length > 0
+        ? suggestReviews(pullRequests, pullRequestsService.getFileAuthors(), githubLogin, {
+            teamRepos: teamRepos?.repos,
+          })
+        : []
     if (pool.length === 0 && reviews.length === 0) {
       await InteractionUtils.send(
         intr,
@@ -155,17 +197,20 @@ export class FindWorkCommand implements Command {
       return
     }
 
-    const roleNames =
-      intr.member instanceof GuildMember
-        ? intr.member.roles.cache.map((role) => role.name)
-        : ([] as string[])
-    const skillSlugs = skillSlugsForRoleNames(roleNames)
-    const drawn = pool.length > 0 ? drawIssues(pool, skillSlugs) : []
+    const drawn = pool.length > 0 ? drawIssues(pool, repos) : []
 
-    // Say so rather than quietly serving three wildcards: a silent fallback is
-    // how a broken role-to-label mapping goes unnoticed.
-    const { matched } = partitionBySkills(pool, skillSlugs)
-    const unmatchedNotice = matched.length === 0
+    // Say so rather than quietly serving a draw from the wider pool: a silent
+    // fallback is how a missing team grant or a broken token goes unnoticed.
+    // A bot with no teams token is told apart from a read that just failed,
+    // since only the second is worth retrying.
+    const { matched } = partitionByTeamRepos(pool, repos)
+    const notice = !teamsConfigured
+      ? 'findWork.teamsNotConfigured'
+      : teamRepos === null
+        ? 'findWork.teamsUnavailable'
+        : matched.length === 0
+          ? 'findWork.noTeamMatch'
+          : 'findWork.claimHint'
 
     const claimPrefix = `find-work-claim-${intr.id}-`
     const reviewPrefix = `find-work-review-${intr.id}-`
@@ -175,9 +220,7 @@ export class FindWorkCommand implements Command {
       embeds.push(
         Lang.getEmbed('displayEmbeds.findWorkDraw', data.lang, {
           ISSUES: drawn.map(describeIssue).join('\n\n'),
-          NOTICE: unmatchedNotice
-            ? Lang.getRef('findWork.noSkillMatch', data.lang)
-            : Lang.getRef('findWork.claimHint', data.lang),
+          NOTICE: Lang.getRef(notice, data.lang),
         }),
       )
       components.push(
@@ -185,7 +228,7 @@ export class FindWorkCommand implements Command {
           ...drawn.map((entry, index) =>
             new ButtonBuilder()
               .setCustomId(`${claimPrefix}${index}`)
-              .setLabel(`Claim #${entry.issue.number}`)
+              .setLabel(buttonLabel('Claim', entry.issue.repo, entry.issue.number))
               .setStyle(entry.wildcard ? ButtonStyle.Success : ButtonStyle.Primary),
           ),
         ),
@@ -203,7 +246,7 @@ export class FindWorkCommand implements Command {
           ...reviews.map((suggestion, index) =>
             new ButtonBuilder()
               .setCustomId(`${reviewPrefix}${index}`)
-              .setLabel(`Review #${suggestion.pr.number}`)
+              .setLabel(buttonLabel('Review', suggestion.pr.repo, suggestion.pr.number))
               .setStyle(ButtonStyle.Secondary),
           ),
         ),

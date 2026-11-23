@@ -1,4 +1,8 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('../../src/services/logger.js', () => ({
+  Logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}))
 
 import { issueClaim, kudosTransaction } from '../../src/database/schema.js'
 import {
@@ -6,6 +10,7 @@ import {
   decideIssueClaim,
   decideReviewRequest,
   FindWorkPayoutService,
+  isAgedOut,
   ISSUE_CLAIM_MAX_AGE_MS,
   REVIEW_REQUEST_MAX_AGE_MS,
 } from '../../src/services/find-work-payout-service.js'
@@ -98,6 +103,29 @@ describe('decideIssueClaim', () => {
   it('expires a claim left open past the maximum age', () => {
     const old = { ...claim, claimedAt: new Date(now.getTime() - ISSUE_CLAIM_MAX_AGE_MS - 1000) }
     expect(decideIssueClaim(old, issue(), now)).toBe('expire')
+  })
+})
+
+describe('isAgedOut', () => {
+  const now = new Date('2026-10-10T12:00:00Z')
+  const old = {
+    githubLogin: 'Alice',
+    claimedAt: new Date(now.getTime() - ISSUE_CLAIM_MAX_AGE_MS - 1000),
+  }
+
+  it('is true for an open issue the claimer still holds past the maximum age', () => {
+    expect(isAgedOut(old, issue(), now)).toBe(true)
+  })
+
+  it('is false for a claim still inside the maximum age', () => {
+    const young = { ...old, claimedAt: new Date(now.getTime() - ISSUE_CLAIM_MAX_AGE_MS + 1000) }
+    expect(isAgedOut(young, issue(), now)).toBe(false)
+  })
+
+  // Every other expiry finds the claimer already off the issue, or the issue closed.
+  it('is false once the claimer is unassigned or the issue is closed', () => {
+    expect(isAgedOut(old, issue({ assignees: ['bob'] }), now)).toBe(false)
+    expect(isAgedOut(old, issue({ state: 'closed', stateReason: 'not_planned' }), now)).toBe(false)
   })
 })
 
@@ -228,6 +256,64 @@ describe('FindWorkPayoutService', () => {
 
     expect(await service().run()).toEqual({ paid: 0, expired: 2 })
     expect(db.select().from(kudosTransaction).all()).toEqual([])
+  })
+
+  describe('release on age expiry', () => {
+    function ageClaim(): void {
+      db.update(issueClaim)
+        .set({ claimedAt: new Date(Date.now() - ISSUE_CLAIM_MAX_AGE_MS - 60_000) })
+        .run()
+    }
+
+    function issuesWith(unassign: ReturnType<typeof vi.fn>): GitHubIssuesService {
+      return {
+        getIssueStatus: async () => issueStatus,
+        unassign,
+      } as unknown as GitHubIssuesService
+    }
+
+    it('expires the claim without paying and unassigns the claimer', async () => {
+      ageClaim()
+      issueStatus = issue()
+      const unassign = vi.fn().mockResolvedValue(true)
+
+      const run = new FindWorkPayoutService(issuesWith(unassign), pulls, claims, 'bot-1', POINTS)
+      expect(await run.run()).toMatchObject({ paid: 0, expired: 1 })
+      expect(unassign).toHaveBeenCalledWith('org/site', 7, 'alice')
+      expect(await claims.listLiveClaims()).toEqual([])
+      expect(db.select().from(kudosTransaction).all()).toEqual([])
+    })
+
+    it('still expires the claim when the unassign fails', async () => {
+      ageClaim()
+      issueStatus = issue()
+      const unassign = vi.fn().mockResolvedValue(false)
+
+      const run = new FindWorkPayoutService(issuesWith(unassign), pulls, claims, 'bot-1', POINTS)
+      expect(await run.run()).toMatchObject({ expired: 1 })
+      expect(unassign).toHaveBeenCalledOnce()
+      expect(await claims.listLiveClaims()).toEqual([])
+    })
+
+    it('leaves the assignees alone for any other expiry', async () => {
+      const unassign = vi.fn().mockResolvedValue(true)
+      const run = new FindWorkPayoutService(issuesWith(unassign), pulls, claims, 'bot-1', POINTS)
+
+      // Closed by hand, with the claimer still assigned.
+      issueStatus = issue({ state: 'closed', stateReason: 'completed' })
+      expect(await run.run()).toMatchObject({ expired: 1 })
+      expect(unassign).not.toHaveBeenCalled()
+    })
+
+    it('leaves the assignees alone when the claimer was already unassigned', async () => {
+      ageClaim()
+      issueStatus = issue({ assignees: [] })
+      const unassign = vi.fn().mockResolvedValue(true)
+
+      const run = new FindWorkPayoutService(issuesWith(unassign), pulls, claims, 'bot-1', POINTS)
+      expect(await run.run()).toMatchObject({ expired: 1 })
+      expect(unassign).not.toHaveBeenCalled()
+    })
   })
 
   it('keeps settling the rest when one claim fails', async () => {

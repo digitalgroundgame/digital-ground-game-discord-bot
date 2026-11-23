@@ -5,7 +5,7 @@ const Config = require('../../config/config.json')
 
 /** How many issues a single draw offers. */
 export const DRAW_SIZE = 3
-/** Of those, how many are matched to the member's skill roles. The rest are wildcards. */
+/** Of those, how many come from the member's team repositories. The rest are wildcards. */
 export const MATCHED_SLOTS = 2
 
 /** An open, claimable issue as `/find-work` sees it. */
@@ -28,7 +28,9 @@ export interface DrawnIssue {
 }
 
 interface FindWorkConfig {
-  markerLabel: string
+  markerLabels: unknown
+  /** Retired in favour of `markerLabels`; rejected at startup if still present. */
+  markerLabel: unknown
   excludeRepos: string[]
   points: unknown
 }
@@ -43,14 +45,68 @@ export interface FindWorkPointsConfig {
 const rawConfig = (Config.findWork ?? {}) as Partial<FindWorkConfig>
 
 /**
- * The opt-in label an issue must carry to be offered. Curation lives on
- * GitHub rather than in this file — adding the label to an issue is what
- * advertises it, and removing the label withdraws it.
+ * Opt-in labels used when `config.findWork.markerLabels` is absent: the
+ * bot's own `available`, plus GitHub's standard labels for work that wants an
+ * owner, which repositories already apply.
  */
-export const FindWorkMarkerLabel: string =
-  typeof rawConfig.markerLabel === 'string' && rawConfig.markerLabel.trim() !== ''
-    ? rawConfig.markerLabel.trim().toLowerCase()
-    : 'available'
+export const DEFAULT_MARKER_LABELS: readonly string[] = Object.freeze([
+  'available',
+  'good first issue',
+  'help wanted',
+])
+
+/**
+ * Read the opt-in labels from `config.findWork`: lowercased, trimmed and
+ * deduplicated, or `DEFAULT_MARKER_LABELS` when `markerLabels` is absent.
+ *
+ * Throws on a `markerLabels` that isn't a list, an empty list (the pool could
+ * never fill), and a name that is blank or contains a comma, since GitHub's
+ * `labels` filter splits on commas. Also throws when the retired
+ * `markerLabel` key is still present: ignoring it would quietly swap a custom
+ * label for the defaults. Exported for tests; the bot reads it once, at
+ * import, so a bad value stops startup.
+ */
+export function parseMarkerLabels(
+  config: Readonly<{ markerLabels?: unknown; markerLabel?: unknown }>,
+): readonly string[] {
+  if (config.markerLabel !== undefined) {
+    throw new Error(
+      `config.findWork.markerLabel has been replaced by markerLabels, a list of label names; move ${JSON.stringify(config.markerLabel)} into that list`,
+    )
+  }
+  const raw = config.markerLabels
+  if (raw === undefined) return DEFAULT_MARKER_LABELS
+  if (!Array.isArray(raw)) {
+    throw new Error(
+      `config.findWork.markerLabels must be a list of label names (got: ${JSON.stringify(raw)})`,
+    )
+  }
+
+  const labels: string[] = []
+  for (const entry of raw as unknown[]) {
+    if (typeof entry !== 'string' || entry.trim() === '' || entry.includes(',')) {
+      throw new Error(
+        `config.findWork.markerLabels entries must be label names that aren't blank and contain no comma (got: ${JSON.stringify(entry)})`,
+      )
+    }
+    const label = entry.trim().toLowerCase()
+    if (!labels.includes(label)) labels.push(label)
+  }
+  if (labels.length === 0) {
+    throw new Error(
+      'config.findWork.markerLabels must name at least one label; an empty list leaves /find-work with nothing to offer',
+    )
+  }
+  return Object.freeze(labels)
+}
+
+/**
+ * The opt-in labels, lowercased. An issue carrying any one of them is
+ * offered. Curation lives on GitHub rather than in this file — adding one of
+ * the labels to an issue is what advertises it, and removing them all
+ * withdraws it.
+ */
+export const FindWorkMarkerLabels: readonly string[] = parseMarkerLabels(rawConfig)
 
 /**
  * Repositories never drawn from, as `owner/name`. The pool is public repos in
@@ -123,59 +179,25 @@ export function parseFindWorkPoints(points: unknown): Readonly<FindWorkPointsCon
  */
 export const FindWorkPoints: Readonly<FindWorkPointsConfig> = parseFindWorkPoints(rawConfig.points)
 
-/**
- * Normalize a Discord role name or a GitHub label into a comparable slug:
- * lowercase, runs of non-alphanumerics collapsed to a hyphen. "Front End
- * Development" and the label `front-end-development` meet here.
- *
- * Same shape as `toGitHubTeamSlug`, kept separate because the two are matching
- * against different vocabularies and there is no reason they must stay
- * identical.
- */
-export function toLabelSlug(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, '-')
-    .replaceAll(/^-+|-+$/g, '')
+/** Whether an issue sits in one of the repositories the member's teams reach. */
+export function issueInTeamRepos(issue: CandidateIssue, teamRepos: ReadonlySet<string>): boolean {
+  return teamRepos.has(issue.repo.toLowerCase())
 }
 
 /**
- * Slugs derived from a member's Discord role names, minus the marker label
- * itself so a role coincidentally named "Available" cannot match everything.
- *
- * Aliases (a role whose name does not slug to any label in use) are out of
- * scope here — see the override file described in the issue.
+ * Split the pool into issues in the member's team repositories and those
+ * elsewhere. `teamRepos` holds lowercased `owner/name`, as
+ * `GitHubTeamsService.getMemberTeamRepos` returns them. The wildcard slot
+ * draws from the second half.
  */
-export function skillSlugsForRoleNames(roleNames: readonly string[]): Set<string> {
-  const slugs = new Set<string>()
-  for (const name of roleNames) {
-    const slug = toLabelSlug(name)
-    if (slug !== '' && slug !== FindWorkMarkerLabel) slugs.add(slug)
-  }
-  return slugs
-}
-
-/** Whether an issue carries at least one label matching the member's skill slugs. */
-export function issueMatchesSkills(
-  issue: CandidateIssue,
-  skillSlugs: ReadonlySet<string>,
-): boolean {
-  return issue.labels.some((label) => skillSlugs.has(toLabelSlug(label)))
-}
-
-/**
- * Split the pool into issues that match the member's skill roles and those
- * that don't. The wildcard slot draws from the second half.
- */
-export function partitionBySkills(
+export function partitionByTeamRepos(
   issues: readonly CandidateIssue[],
-  skillSlugs: ReadonlySet<string>,
+  teamRepos: ReadonlySet<string>,
 ): { matched: CandidateIssue[]; unmatched: CandidateIssue[] } {
   const matched: CandidateIssue[] = []
   const unmatched: CandidateIssue[] = []
   for (const issue of issues) {
-    if (issueMatchesSkills(issue, skillSlugs)) matched.push(issue)
+    if (issueInTeamRepos(issue, teamRepos)) matched.push(issue)
     else unmatched.push(issue)
   }
   return { matched, unmatched }
@@ -206,33 +228,32 @@ function sample(
  * Bias the wildcard toward whatever has been sitting longest, so the slot
  * points at neglected work rather than just unfamiliar work.
  *
- * Staleness is a stand-in for the real signal, which is how few members hold
- * the matching skill role. That needs a guild member count the selection layer
- * doesn't have; see the issue.
+ * Staleness is a stand-in for the real signal, which is how few members are
+ * on the teams that reach an issue's repository.
  */
 function stalestFirst(issues: readonly CandidateIssue[]): CandidateIssue[] {
   return [...issues].sort((a, b) => a.updatedAt.getTime() - b.updatedAt.getTime())
 }
 
 /**
- * Draw the issues a member is offered: `MATCHED_SLOTS` from issues matching
- * their skill roles, the remainder wildcards from everything else.
+ * Draw the issues a member is offered: `MATCHED_SLOTS` from issues in their
+ * team repositories, the remainder wildcards from everything else.
  *
  * Both slots degrade rather than returning short, but only the wildcard slot
  * is ever flagged as one, since the flag prices the payout. A member whose
- * skills match nothing gets one wildcard and the rest backfilled from the
- * pool at the ordinary rate; a member whose skills match everything gets
+ * teams reach none of the pool gets one wildcard and the rest backfilled from
+ * the pool at the ordinary rate; a member whose teams reach everything gets
  * matched issues in the wildcard slot, unflagged, because an unfilled third
  * card is worse than an unsurprising one. Callers that need to tell the
- * member their roles matched nothing should check `matched` themselves rather
+ * member their teams matched nothing should check `matched` themselves rather
  * than inferring it from the result.
  */
 export function drawIssues(
   issues: readonly CandidateIssue[],
-  skillSlugs: ReadonlySet<string>,
+  teamRepos: ReadonlySet<string>,
   random: () => number = Math.random,
 ): DrawnIssue[] {
-  const { matched, unmatched } = partitionBySkills(issues, skillSlugs)
+  const { matched, unmatched } = partitionByTeamRepos(issues, teamRepos)
 
   const matchedPicks = sample(matched, MATCHED_SLOTS, random)
   const pickedKeys = new Set(matchedPicks.map((issue) => `${issue.repo}#${issue.number}`))
@@ -249,7 +270,7 @@ export function drawIssues(
   ]
 
   // Backfill from whatever is left so a thin pool still returns a full draw.
-  // Backfilled cards are never wildcards: a member whose roles match nothing
+  // Backfilled cards are never wildcards: a member whose teams match nothing
   // would otherwise draw every card at the wildcard rate.
   if (drawn.length < DRAW_SIZE) {
     for (const picked of drawn) pickedKeys.add(`${picked.issue.repo}#${picked.issue.number}`)
