@@ -14,18 +14,27 @@ export class MasterApiService {
 
   constructor(private httpService: HttpService) {}
 
+  // Only read when clustering is enabled, which requires this variable.
+  private get masterApiToken(): string {
+    const token = process.env.DISCORD_BOT_MASTER_API_TOKEN
+    if (!token) {
+      throw new Error('DISCORD_BOT_MASTER_API_TOKEN must be set when clustering is enabled')
+    }
+    return token
+  }
+
   public async register(): Promise<void> {
     const reqBody: RegisterClusterRequest = {
       shardCount: Config.clustering.shardCount,
       callback: {
         url: Config.clustering.callbackUrl,
-        token: process.env.DISCORD_BOT_API_SECRET,
+        token: process.env.DISCORD_BOT_API_SECRET ?? '',
       },
     }
 
     const res = await this.httpService.post(
       new URL('/clusters', Config.clustering.masterApi.url),
-      process.env.DISCORD_BOT_MASTER_API_TOKEN,
+      this.masterApiToken,
       reqBody,
     )
 
@@ -40,7 +49,7 @@ export class MasterApiService {
   public async login(): Promise<LoginClusterResponse> {
     const res = await this.httpService.put(
       new URL(`/clusters/${this.clusterId}/login`, Config.clustering.masterApi.url),
-      process.env.DISCORD_BOT_MASTER_API_TOKEN,
+      this.masterApiToken,
     )
 
     if (!res.ok) {
@@ -53,7 +62,7 @@ export class MasterApiService {
   public async ready(): Promise<void> {
     const res = await this.httpService.put(
       new URL(`/clusters/${this.clusterId}/ready`, Config.clustering.masterApi.url),
-      process.env.DISCORD_BOT_MASTER_API_TOKEN,
+      this.masterApiToken,
     )
 
     if (!res.ok) {

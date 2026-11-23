@@ -28,6 +28,7 @@ import {
   UserCommandMetadata,
   type Command,
 } from './commands/index.js'
+import { getClientId, validateEnv } from './config/environment.js'
 import { ONBOARDING_CONFIGS, SendOnboarding } from './commands/user/index.js'
 import { GitHubExcludedTeamSlugs, KudosGiveAllowedRoleKeys } from './constants/index.js'
 import { createDatabase, type Database } from './database/index.js'
@@ -82,20 +83,30 @@ const require = createRequire(import.meta.url)
 const Config = require('../config/config.json')
 const Logs = require('../lang/logs.json')
 
+// Wait for any final logs to be written, then exit with the code already set
+// on process.exitCode. Exiting hard matters: as a sharding child the open IPC
+// channel to the manager would otherwise keep the event loop alive and the
+// process would hang instead of exiting.
+async function flushLogsAndExit(): Promise<never> {
+  await new Promise((resolve) => setTimeout(resolve, 1000))
+  process.exit()
+}
+
 async function start(): Promise<void> {
   if (process.argv[2] === 'calendar' && process.argv[3] === 'sync') {
+    validateEnv('calendar')
     try {
       await runCalendarSyncCli()
     } catch (error) {
       Logger.error(Logs.error.unspecified, error)
-      process.exit(1)
+      process.exitCode = 1
     }
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    process.exit(0)
+    await flushLogsAndExit()
   }
 
   // Register
   if (process.argv[2] == 'commands') {
+    validateEnv('commands')
     try {
       const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN)
       const commandRegistrationService = new CommandRegistrationService(rest)
@@ -107,16 +118,20 @@ async function start(): Promise<void> {
       await commandRegistrationService.process(localCmds, process.argv)
     } catch (error) {
       Logger.error(Logs.error.commandAction, error)
+      process.exitCode = 1
     }
-    // Wait for any final logs to be written.
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    process.exit()
+    await flushLogsAndExit()
   }
+
+  validateEnv('bot')
 
   // Services
   const eventDataService = new EventDataService()
   const attendanceService = new AttendanceService()
-  const crmService = new CrmService()
+  const crmService = Config.crm.enabled ? new CrmService() : undefined
+  if (!crmService) {
+    Logger.warn('CRM integration disabled via config — attendance will not be recorded in the CRM.')
+  }
 
   // Client
   const client = new CustomClient({
@@ -298,7 +313,7 @@ async function start(): Promise<void> {
           githubIssuesService,
           githubPullRequestsService,
           workClaimService,
-          process.env.DISCORD_CLIENT_ID,
+          getClientId(),
         ),
       ),
     )
@@ -354,6 +369,8 @@ process.on('unhandledRejection', (reason, _promise) => {
   Logger.error(Logs.error.unhandledRejection, reason)
 })
 
-start().catch((error) => {
+start().catch(async (error) => {
   Logger.error(Logs.error.unspecified, error)
+  process.exitCode = 1
+  await flushLogsAndExit()
 })

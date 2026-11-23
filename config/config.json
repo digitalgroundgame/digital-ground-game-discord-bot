@@ -39,6 +39,9 @@
     "spawnTimeout": 300,
     "serversPerShard": 1000
   },
+  "crm": {
+    "enabled": true
+  },
   "clustering": {
     "enabled": false,
     "shardCount": 16,
