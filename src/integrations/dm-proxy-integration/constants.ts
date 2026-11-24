@@ -37,6 +37,8 @@ export interface DmEvalFailure {
 
 export interface DmEvalSuccess {
   ok: true
+  messageId: string
+  channelId: string
 }
 
 export type DmEvalResult = DmEvalSuccess | DmEvalFailure

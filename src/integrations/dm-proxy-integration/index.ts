@@ -16,8 +16,8 @@ import {
 const sendDmOnShard = async (client: Client, ctx: SendDmPayload): Promise<DmEvalResult> => {
   try {
     const user = await client.users.fetch(ctx.userId)
-    await user.send(ctx.message)
-    return { ok: true }
+    const sent = await user.send(ctx.message)
+    return { ok: true, messageId: sent.id, channelId: sent.channelId }
   } catch (error) {
     return {
       ok: false,
@@ -58,7 +58,12 @@ export class DmProxyIntegration implements Integration {
         res.status(status).json(body)
         return
       }
-      res.status(200).json({ error: false, delivered: true })
+      res.status(200).json({
+        error: false,
+        delivered: true,
+        messageId: result.messageId,
+        channelId: result.channelId,
+      })
       return
     } catch (error) {
       if (!(error instanceof ValidationError)) throw error

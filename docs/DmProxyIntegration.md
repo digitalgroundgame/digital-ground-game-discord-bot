@@ -42,7 +42,7 @@ spawning would otherwise leave the request open indefinitely. The cap turns that
 
 | Status | Body | Meaning |
 | --- | --- | --- |
-| `200` | `{ "error": false, "delivered": true }` | DM delivered. |
+| `200` | `{ "error": false, "delivered": true, "messageId": "...", "channelId": "..." }` | DM delivered. `messageId` is the sent message's ID and `channelId` the bot's DM channel with the user, both snowflake strings. |
 | `200` | `{ "error": false, "delivered": false, "reason": "dms_closed" }` | The bot cannot DM this user: they have DMs disabled or blocked it (Discord `50007`), or they share no server with it (Discord `50278` — e.g. they left). Terminal — do not retry. |
 | `404` | `{ "error": true, "delivered": false, "reason": "unknown_user" }` | No Discord user with that ID (Discord `10013`). Terminal — do not retry. |
 | `400` | `{ "error": true, "message": "..." }` | Invalid `userId` or `message`, or a body that is not parseable JSON. |
