@@ -79,3 +79,23 @@ curl -X POST http://localhost:3000/integrations/dm-history \
   -H "Authorization: abc123" \
   -d '{ "userId": "123456789012345678", "limit": 20 }'
 ```
+
+## DM forwarding to the CRM
+
+So the CRM knows when to read a conversation, the bot also pushes to it. Both calls use the CRM
+Service's DRF token (`CRM_API_URL` and `CRM_API_TOKEN`, the same pair `/attendance-track` uses).
+
+- **Each DM.** When a person (not a bot, and not a system message) DMs the bot, the Message Handler
+  POSTs `{ "message_id", "channel_id", "author_id", "created_at" }` to
+  `/api/discord/inbound-dms/`, with `created_at` as an ISO 8601 string. The message text is never
+  sent; the CRM reads it through `/integrations/dm-history` if it needs it. The bot forwards every DM and keeps no
+  subscription state, so the CRM decides which ones matter. The call is not awaited, so trigger
+  processing doesn't wait on it.
+- **Catch-up at startup.** Once per manager start, after the shards and the API are up, the manager
+  POSTs to `/api/discord/inbound-dms/catch-up/`, and the CRM re-reads the DM history the bot missed
+  while it was down.
+
+Both requests are retried once, about 2 seconds later, after a network error or a 5xx. After that
+the bot logs a warning and moves on. While `crm.enabled` is true in `config/config.json` (the
+default), the bot and the manager both refuse to start without `CRM_API_URL` and `CRM_API_TOKEN`.
+With it false, neither request is sent.

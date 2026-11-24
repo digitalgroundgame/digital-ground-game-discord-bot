@@ -129,7 +129,9 @@ async function start(): Promise<void> {
   const attendanceService = new AttendanceService()
   const crmService = Config.crm.enabled ? new CrmService() : undefined
   if (!crmService) {
-    Logger.warn('CRM integration disabled via config — attendance will not be recorded in the CRM.')
+    Logger.warn(
+      'CRM integration disabled via config — attendance will not be recorded in the CRM, and DMs will not be forwarded to it.',
+    )
   }
 
   // Client
@@ -281,7 +283,7 @@ async function start(): Promise<void> {
   const commandHandler = new CommandHandler(commands, eventDataService)
   const buttonHandler = new ButtonHandler(buttons, eventDataService)
   const triggerHandler = new TriggerHandler(triggers, eventDataService)
-  const messageHandler = new MessageHandler(triggerHandler)
+  const messageHandler = new MessageHandler(triggerHandler, crmService)
   const reactionHandler = new ReactionHandler(reactions, eventDataService)
   const guildScheduledEventHandler = new GuildScheduledEventHandler(googleCalendarService)
 

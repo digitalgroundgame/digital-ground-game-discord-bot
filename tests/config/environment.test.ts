@@ -103,11 +103,23 @@ describe('validateEnv', () => {
       stubEnv({
         DISCORD_BOT_TOKEN: 'token',
         DISCORD_BOT_API_SECRET: 'secret',
+        CRM_API_URL: 'http://localhost:8080',
+        CRM_API_TOKEN: 'crm-token',
       })
 
       // DISCORD_BOT_MASTER_API_TOKEN stays unset: clustering is disabled in
       // config, so it must not be required.
       expect(() => validateEnv('manager')).not.toThrow()
+    })
+
+    it('requires the CRM variables while crm is enabled in config', () => {
+      stubEnv({
+        DISCORD_BOT_TOKEN: 'token',
+        DISCORD_BOT_API_SECRET: 'secret',
+      })
+
+      // The manager asks the CRM to catch up on missed DMs at startup.
+      expect(() => validateEnv('manager')).toThrow(/CRM_API_URL, CRM_API_TOKEN/)
     })
 
     it('requires the API secret', () => {

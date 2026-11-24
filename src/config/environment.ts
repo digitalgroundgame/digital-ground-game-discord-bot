@@ -46,7 +46,9 @@ export function validateEnv(mode: RuntimeMode): void {
   if (mode === 'manager' && Config.clustering.enabled) {
     required.push('DISCORD_BOT_MASTER_API_TOKEN')
   }
-  if (mode === 'bot' && Config.crm.enabled) {
+  // The bot syncs attendance and forwards DMs; the manager asks the CRM to
+  // catch up on missed DMs at startup.
+  if ((mode === 'bot' || mode === 'manager') && Config.crm.enabled) {
     required.push('CRM_API_URL', 'CRM_API_TOKEN')
   }
 

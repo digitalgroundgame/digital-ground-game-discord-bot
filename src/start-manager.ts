@@ -19,7 +19,7 @@ import {
 import { type Job } from './jobs/index.js'
 import { Api } from './models/api.js'
 import { Manager } from './models/manager.js'
-import { HttpService, JobService, Logger, MasterApiService } from './services/index.js'
+import { CrmService, HttpService, JobService, Logger, MasterApiService } from './services/index.js'
 import { MathUtils, ShardUtils } from './utils/index.js'
 
 const require = createRequire(import.meta.url)
@@ -110,6 +110,11 @@ async function start(): Promise<void> {
   // Start
   await manager.start()
   await api.start()
+  // Once per manager start (not per shard), now that the shards and the
+  // dm-history route the CRM reads from are up. Not awaited; it never throws.
+  if (Config.crm.enabled) {
+    void new CrmService().requestDmCatchUp()
+  }
   if (Config.clustering.enabled) {
     await masterApiService.ready()
   }

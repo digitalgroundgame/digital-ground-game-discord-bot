@@ -9,8 +9,8 @@ declare global {
       DISCORD_BOT_API_SECRET?: string // manager
       DISCORD_BOT_MASTER_API_TOKEN?: string // manager, when clustering is enabled
       DISCORD_BOT_DEVELOPER_IDS?: string // bot; comma-separated list of Discord user IDs
-      CRM_API_URL?: string // bot, when crm is enabled
-      CRM_API_TOKEN?: string // bot, when crm is enabled
+      CRM_API_URL?: string // bot and manager, when crm is enabled
+      CRM_API_TOKEN?: string // bot and manager, when crm is enabled; DRF token for the CRM's DISCORD_BOT service account
       // Optional integrations and overrides.
       INTEGRATION_DM_PROXY?: string // unset disables the /integrations/send-dm endpoint
       INTEGRATION_DM_HISTORY?: string // unset disables the /integrations/dm-history endpoint

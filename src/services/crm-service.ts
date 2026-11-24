@@ -1,9 +1,22 @@
-import fetch, { type RequestInit } from 'node-fetch'
+import fetch, { type RequestInit, type Response } from 'node-fetch'
 import { URL } from 'node:url'
 
+import { Logger } from './logger.js'
+
 const REQUEST_TIMEOUT_MS = 10_000
+const RETRY_DELAY_MS = 2_000
 const RECORD_ATTENDANCE_PATH = '/api/discord/staged-event-participations/'
 const CAN_RECORD_ATTENDANCE_PATH = '/api/discord/can-record-attendance/'
+const INBOUND_DM_PATH = '/api/discord/inbound-dms/'
+const INBOUND_DM_CATCH_UP_PATH = '/api/discord/inbound-dms/catch-up/'
+
+// IDs and the time only: the CRM never receives a DM's text from this call.
+export interface CrmInboundDmPayload {
+  message_id: string
+  channel_id: string
+  author_id: string
+  created_at: string // ISO 8601
+}
 
 export interface CrmAttendancePayload {
   event_id: string
@@ -75,7 +88,69 @@ export class CrmService {
     )
   }
 
+  /** Tells the CRM about a DM sent to the bot. Never throws; failures are logged. */
+  public async reportInboundDm(payload: CrmInboundDmPayload): Promise<void> {
+    await this.postWithRetry('inbound-dm', INBOUND_DM_PATH, payload)
+  }
+
+  /** Asks the CRM to re-read DMs the bot missed while it was down. Never throws. */
+  public async requestDmCatchUp(): Promise<void> {
+    await this.postWithRetry('inbound-dm-catch-up', INBOUND_DM_CATCH_UP_PATH, {})
+  }
+
   private async request<T>(label: string, pathAndQuery: string, init: RequestInit): Promise<T> {
+    return this.send(pathAndQuery, init, async (res) => {
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(`CRM ${label} failed: ${res.status} ${text}`)
+      }
+      return (await res.json()) as T
+    })
+  }
+
+  // POSTs JSON for a fire-and-forget call. A network error or 5xx is retried
+  // once after RETRY_DELAY_MS; any remaining failure is logged, not thrown.
+  private async postWithRetry(label: string, path: string, body: unknown): Promise<void> {
+    const init: RequestInit = {
+      method: 'post',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }
+
+    for (let attempt = 1; ; attempt++) {
+      let failure: string
+      let retryable: boolean
+      try {
+        const { ok, status, text } = await this.send(path, init, async (res) => ({
+          ok: res.ok,
+          status: res.status,
+          text: await res.text().catch(() => ''),
+        }))
+        if (ok) {
+          return
+        }
+        failure = `${status} ${text}`
+        retryable = status >= 500
+      } catch (error) {
+        failure = String(error)
+        retryable = true
+      }
+
+      if (!retryable || attempt >= 2) {
+        Logger.warn(`CRM ${label} failed after ${attempt} attempt(s): ${failure}`)
+        return
+      }
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
+    }
+  }
+
+  // Sends an authenticated request and reads the response with `read`, both
+  // under one REQUEST_TIMEOUT_MS timeout.
+  private async send<T>(
+    pathAndQuery: string,
+    init: RequestInit,
+    read: (res: Response) => Promise<T>,
+  ): Promise<T> {
     const url = new URL(pathAndQuery, this.baseUrl)
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
@@ -90,13 +165,7 @@ export class CrmService {
         },
         signal: controller.signal,
       })
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => '')
-        throw new Error(`CRM ${label} failed: ${res.status} ${text}`)
-      }
-
-      return (await res.json()) as T
+      return await read(res)
     } finally {
       clearTimeout(timer)
     }

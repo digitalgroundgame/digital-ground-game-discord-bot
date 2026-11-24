@@ -175,7 +175,7 @@ Discord event routing layer. Each handler processes a specific event type:
 - **Button Handler**: Routes button interactions to Button implementations
 - **Reaction Handler**: Routes reaction events to Reaction implementations
 - **Guild Handlers**: Manages guild join/leave, member add/update, voice state changes
-- **Message Handler**: Processes messages
+- **Message Handler**: Processes messages; forwards DMs to the CRM while crm is enabled
 - **Trigger Handler**: Evaluates and executes Triggers
 
 #### Framework Services
@@ -256,6 +256,7 @@ General-purpose informational commands.
 
 - **[DM Proxy Integration](../src/integrations/dm-proxy-integration/index.ts)**: Auth-keyed DM relay listening at `/send-dm`; the CRM (and future callers) POST a user ID and message, and the bot delivers it as a direct message ([details](./DmProxyIntegration.md))
 - **[DM History Integration](../src/integrations/dm-proxy-integration/history.ts)**: Auth-keyed reader listening at `/dm-history`; the CRM POSTs a user ID and gets back a page of the bot's DM conversation with that user ([details](./DmHistoryIntegration.md))
+- **[DM forwarding](../src/events/message-handler.ts)**: The Message Handler reports every DM a person sends the bot to the CRM (`POST /api/discord/inbound-dms/`, IDs and time only) through the [CRM Service](../src/services/crm-service.ts), and the manager asks the CRM to catch up on missed DMs once at startup ([details](./DmHistoryIntegration.md#dm-forwarding-to-the-crm))
 
 #### Infrastructure
 
