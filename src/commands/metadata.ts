@@ -256,6 +256,21 @@ export const ChatCommandMetadata: {
       },
     ],
   },
+  CLIP: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.clip', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.clip'),
+    description: Lang.getRef('commandDescs.clip', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.clip'),
+    dm_permission: false,
+    default_member_permissions: undefined,
+    options: [
+      { ...Args.CLIP_URL, required: true },
+      { ...Args.CLIP_START, required: false },
+      { ...Args.CLIP_END, required: false },
+      { ...Args.CLIP_NOTE, required: false },
+    ],
+  },
 }
 
 export const MessageCommandMetadata: {

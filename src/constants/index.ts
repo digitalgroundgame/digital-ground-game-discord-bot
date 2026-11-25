@@ -29,6 +29,7 @@ export {
 } from './github-teams.js'
 export { type LinkableAccount, LinkableAccounts, getLinkableAccount } from './linkable-accounts.js'
 export { PingSkillRoleAllowedRoleKeys } from './skill-roles.js'
+export { ClipSuggestionsAllowedRoleKeys, ClipSuggestionsChannelId } from './clip-suggestions.js'
 export {
   type CandidateIssue,
   DRAW_SIZE,

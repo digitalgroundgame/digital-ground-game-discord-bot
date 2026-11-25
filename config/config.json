@@ -174,6 +174,11 @@
     "giveCooldownDays": 7,
     "emoji": "🪙"
   },
+  "clipSuggestions": {
+    "// NOTE": "Where /clip posts clip suggestions for the media team. channelId may be a forum channel (one post per suggestion), a text or announcement channel, or a single thread such as a megathread post in the request board (one message per suggestion). Leave it empty to disable delivery; /clip then replies that suggestions aren't set up yet. A forum destination must not require tags, or the bot's untagged posts are rejected. Role config keys (see roles below) allowed to run /clip; an empty list lets everyone submit.",
+    "channelId": "",
+    "allowedRoleKeys": []
+  },
   "roles": {
     "COORDINATOR": {
       "id": "1347653968641134683",

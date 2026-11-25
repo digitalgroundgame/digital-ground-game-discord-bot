@@ -210,4 +210,36 @@ export class Args {
     required: false,
     max_length: 100,
   }
+  public static readonly CLIP_URL: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.url', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.url'),
+    description: Lang.getRef('argDescs.clipUrl', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.clipUrl'),
+    type: ApplicationCommandOptionType.String,
+    max_length: 500,
+  }
+  public static readonly CLIP_START: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.start', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.start'),
+    description: Lang.getRef('argDescs.clipStart', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.clipStart'),
+    type: ApplicationCommandOptionType.String,
+    max_length: 20,
+  }
+  public static readonly CLIP_END: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.end', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.end'),
+    description: Lang.getRef('argDescs.clipEnd', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.clipEnd'),
+    type: ApplicationCommandOptionType.String,
+    max_length: 20,
+  }
+  public static readonly CLIP_NOTE: APIApplicationCommandBasicOption = {
+    name: Lang.getRef('arguments.note', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('arguments.note'),
+    description: Lang.getRef('argDescs.clipNote', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('argDescs.clipNote'),
+    type: ApplicationCommandOptionType.String,
+    max_length: 500,
+  }
 }
