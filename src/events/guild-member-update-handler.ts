@@ -15,8 +15,8 @@ const Config = require('../../config/config.json')
  */
 export class GuildMemberUpdateHandler implements EventHandler {
   private rateLimiter = new RateLimiter(
-    Config.rateLimiting.buttons?.amount ?? 10,
-    (Config.rateLimiting.buttons?.interval ?? 30) * 1000,
+    Config.rateLimiting.memberUpdates?.amount ?? 10,
+    (Config.rateLimiting.memberUpdates?.interval ?? 30) * 1000,
   )
 
   constructor(private readonly useCases: MemberUpdateUseCase[]) {}
@@ -49,7 +49,7 @@ export class GuildMemberUpdateHandler implements EventHandler {
       try {
         await useCase.handle(oldMember, newMember, context)
       } catch (err) {
-        Logger.error(err, 'Member update use case threw; other use cases still run')
+        Logger.error('Member update use case threw; other use cases still run', err)
       }
     }
   }
