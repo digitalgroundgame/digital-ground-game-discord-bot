@@ -28,7 +28,7 @@ describe('KudosService', () => {
   it('records a give and returns the receiver total', async () => {
     const result = await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1', 'great work')
 
-    expect(result).toEqual({ status: 'given', total: 1 })
+    expect(result).toMatchObject({ status: 'given', total: 1 })
     expect(await service.getTotal(GUILD_ID, 'receiver-1')).toBe(1)
   })
 
@@ -64,7 +64,7 @@ describe('KudosService', () => {
 
     const result = await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1')
 
-    expect(result).toEqual({ status: 'given', total: 2 })
+    expect(result).toMatchObject({ status: 'given', total: 2 })
   })
 
   it('only records one give when two requests for the same pair race', async () => {
@@ -82,7 +82,7 @@ describe('KudosService', () => {
     await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1')
     const result = await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-2')
 
-    expect(result).toEqual({ status: 'given', total: 1 })
+    expect(result).toMatchObject({ status: 'given', total: 1 })
   })
 
   it('scopes totals to the given guild', async () => {
@@ -218,7 +218,7 @@ describe('KudosService', () => {
       await service.giveKudos(GUILD_ID, 'giver-1', 'receiver-1', undefined, source)
       const result = await service.giveKudos(GUILD_ID, 'giver-2', 'receiver-1', undefined, source)
 
-      expect(result).toEqual({ status: 'given', total: 2 })
+      expect(result).toMatchObject({ status: 'given', total: 2 })
     })
   })
 })

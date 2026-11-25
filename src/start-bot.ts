@@ -10,6 +10,7 @@ import {
   ClipCommand,
   ContentCommand,
   DevCommand,
+  FindWorkCommand,
   GrantAccessCommand,
   HelpCommand,
   InfoCommand,
@@ -27,8 +28,9 @@ import {
   UserCommandMetadata,
   type Command,
 } from './commands/index.js'
+import { getClientId, validateEnv } from './config/environment.js'
 import { ONBOARDING_CONFIGS, SendOnboarding } from './commands/user/index.js'
-import { KudosGiveAllowedRoleKeys } from './constants/index.js'
+import { GitHubExcludedTeamSlugs, KudosGiveAllowedRoleKeys } from './constants/index.js'
 import { createDatabase, type Database } from './database/index.js'
 import {
   ButtonHandler,
@@ -46,6 +48,9 @@ import {
 import { CustomClient } from './extensions/index.js'
 import {
   AutoCloseWelcomeThreadsJob,
+  PayFindWorkJob,
+  RefreshGitHubIssuesJob,
+  RefreshGitHubPullRequestsJob,
   RefreshGitHubTeamsJob,
   SyncDggpGoogleCalendarJob,
   type Job,
@@ -59,6 +64,9 @@ import {
   ContentService,
   CrmService,
   EventDataService,
+  FindWorkPayoutService,
+  GitHubIssuesService,
+  GitHubPullRequestsService,
   GitHubTeamsService,
   GoogleCalendarService,
   GoogleGroupsService,
@@ -66,6 +74,7 @@ import {
   KudosService,
   Logger,
   UserService,
+  WorkClaimService,
 } from './services/index.js'
 import { CTAPostTrigger } from './triggers/cta-post.js'
 import { type Trigger } from './triggers/index.js'
@@ -74,20 +83,30 @@ const require = createRequire(import.meta.url)
 const Config = require('../config/config.json')
 const Logs = require('../lang/logs.json')
 
+// Wait for any final logs to be written, then exit with the code already set
+// on process.exitCode. Exiting hard matters: as a sharding child the open IPC
+// channel to the manager would otherwise keep the event loop alive and the
+// process would hang instead of exiting.
+async function flushLogsAndExit(): Promise<never> {
+  await new Promise((resolve) => setTimeout(resolve, 1000))
+  process.exit()
+}
+
 async function start(): Promise<void> {
   if (process.argv[2] === 'calendar' && process.argv[3] === 'sync') {
+    validateEnv('calendar')
     try {
       await runCalendarSyncCli()
     } catch (error) {
       Logger.error(Logs.error.unspecified, error)
-      process.exit(1)
+      process.exitCode = 1
     }
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    process.exit(0)
+    await flushLogsAndExit()
   }
 
   // Register
   if (process.argv[2] == 'commands') {
+    validateEnv('commands')
     try {
       const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN)
       const commandRegistrationService = new CommandRegistrationService(rest)
@@ -99,16 +118,20 @@ async function start(): Promise<void> {
       await commandRegistrationService.process(localCmds, process.argv)
     } catch (error) {
       Logger.error(Logs.error.commandAction, error)
+      process.exitCode = 1
     }
-    // Wait for any final logs to be written.
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    process.exit()
+    await flushLogsAndExit()
   }
+
+  validateEnv('bot')
 
   // Services
   const eventDataService = new EventDataService()
   const attendanceService = new AttendanceService()
-  const crmService = new CrmService()
+  const crmService = Config.crm.enabled ? new CrmService() : undefined
+  if (!crmService) {
+    Logger.warn('CRM integration disabled via config — attendance will not be recorded in the CRM.')
+  }
 
   // Client
   const client = new CustomClient({
@@ -135,16 +158,41 @@ async function start(): Promise<void> {
   }
 
   // Token and org used by /grant-access to discover GitHub teams and manage
-  // their membership.
+  // their membership. Fails closed: every team not excluded is grantable, so
+  // the token is withheld until at least one team is excluded.
+  const githubExclusionsSet = GitHubExcludedTeamSlugs.size > 0
   const githubTeamsService = new GitHubTeamsService(
-    process.env.GITHUB_TEAMS_TOKEN,
+    githubExclusionsSet ? process.env.GITHUB_TEAMS_TOKEN : undefined,
     process.env.GITHUB_TEAMS_ORG,
   )
-  if (!githubTeamsService.isConfigured()) {
+  if (!githubExclusionsSet && process.env.GITHUB_TEAMS_TOKEN?.trim()) {
+    Logger.warn(
+      '/grant-access: disabled for service:github — grantAccess.excludeTeams in config.json is empty, which would make every org team grantable. List at least one team slug (e.g. an admin or leadership team) to enable it.',
+    )
+  } else if (!githubTeamsService.isConfigured()) {
     Logger.warn(
       '/grant-access: disabled for service:github — set GITHUB_TEAMS_TOKEN (a token from an org owner or team maintainer with the Members org permission / admin:org scope) and GITHUB_TEAMS_ORG (the organization its teams are read from). /link-account remains available.',
     )
   }
+
+  // A separate token from GITHUB_TEAMS_TOKEN on purpose: /find-work is open
+  // to every member, and the credential it reaches should not also be able to
+  // change organization membership.
+  const githubIssuesService = new GitHubIssuesService(
+    process.env.GITHUB_ISSUES_TOKEN,
+    process.env.GITHUB_TEAMS_ORG,
+  )
+  if (!githubIssuesService.isConfigured()) {
+    Logger.warn(
+      '/find-work: disabled — set GITHUB_ISSUES_TOKEN (repository Issues and Pull requests read & write, plus Metadata) and GITHUB_TEAMS_ORG (the organization its public repositories are read from).',
+    )
+  }
+
+  // Review suggestions ride on the same token and org as the issue pool.
+  const githubPullRequestsService = new GitHubPullRequestsService(
+    process.env.GITHUB_ISSUES_TOKEN,
+    process.env.GITHUB_TEAMS_ORG,
+  )
 
   let database: Database | undefined
   if (process.env.SQLITE_PATH) {
@@ -160,6 +208,7 @@ async function start(): Promise<void> {
   // Stores the external accounts members link via /link-account, and is read
   // by /grant-access to resolve a member's Google email.
   const userService = database ? new UserService(database) : undefined
+  const workClaimService = database ? new WorkClaimService(database) : undefined
   // Backs /democracy-points and the kudos reaction. Without a database, the command reports
   // itself as unconfigured and the reaction isn't registered.
   const kudosService = database ? new KudosService(database) : undefined
@@ -190,6 +239,12 @@ async function start(): Promise<void> {
     new LinkAccountCommand(userService),
     new ContentCommand(contentService),
     new PingSkillRoleCommand(),
+    new FindWorkCommand(
+      githubIssuesService,
+      userService,
+      workClaimService,
+      githubPullRequestsService,
+    ),
     new KudosCommand(kudosService),
     new ClipCommand(),
 
@@ -242,6 +297,27 @@ async function start(): Promise<void> {
   if (githubTeamsService.isConfigured()) {
     jobs.push(new RefreshGitHubTeamsJob(githubTeamsService))
   }
+  // Keeps the /find-work pool current. Same reasoning as above.
+  if (githubIssuesService.isConfigured()) {
+    jobs.push(new RefreshGitHubIssuesJob(githubIssuesService))
+  }
+  if (githubPullRequestsService.isConfigured()) {
+    jobs.push(new RefreshGitHubPullRequestsJob(githubPullRequestsService))
+  }
+  // Pays Democracy Points for finished /find-work claims. The bot's
+  // application id is its user id, and is recorded as the giver.
+  if (githubIssuesService.isConfigured() && workClaimService) {
+    jobs.push(
+      new PayFindWorkJob(
+        new FindWorkPayoutService(
+          githubIssuesService,
+          githubPullRequestsService,
+          workClaimService,
+          getClientId(),
+        ),
+      ),
+    )
+  }
 
   // Bot
   const bot = new Bot(
@@ -258,13 +334,21 @@ async function start(): Promise<void> {
     guildScheduledEventHandler,
     new JobService(jobs),
     voiceStateUpdateHandler,
-    // onBotReady callback: warm the GitHub team cache and run an immediate
+    // onBotReady callback: warm the GitHub caches and run an immediate
     // Google Calendar sync once after bot is ready
     async () => {
+      // None of these are awaited, so the calendar sync isn't held up; failures
+      // are logged by each service and leave the hourly jobs to retry.
       if (githubTeamsService.isConfigured()) {
-        // Not awaited so the calendar sync isn't held up; failures are logged
-        // by the service and leave the hourly job to retry.
         void githubTeamsService.refreshTeams()
+      }
+      // Without this, /find-work offers nothing until the first hourly refresh
+      // after every restart.
+      if (githubIssuesService.isConfigured()) {
+        void githubIssuesService.refreshIssues()
+      }
+      if (githubPullRequestsService.isConfigured()) {
+        void githubPullRequestsService.refresh()
       }
 
       try {
@@ -285,6 +369,8 @@ process.on('unhandledRejection', (reason, _promise) => {
   Logger.error(Logs.error.unhandledRejection, reason)
 })
 
-start().catch((error) => {
+start().catch(async (error) => {
   Logger.error(Logs.error.unspecified, error)
+  process.exitCode = 1
+  await flushLogsAndExit()
 })

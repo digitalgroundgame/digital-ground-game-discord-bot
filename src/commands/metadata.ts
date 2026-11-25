@@ -169,6 +169,16 @@ export const ChatCommandMetadata: {
       },
     ],
   },
+  FIND_WORK: {
+    type: ApplicationCommandType.ChatInput,
+    name: Lang.getRef('chatCommands.findWork', Language.Default),
+    name_localizations: Lang.getRefLocalizationMap('chatCommands.findWork'),
+    description: Lang.getRef('commandDescs.findWork', Language.Default),
+    description_localizations: Lang.getRefLocalizationMap('commandDescs.findWork'),
+    dm_permission: false,
+    default_member_permissions: undefined,
+    options: [],
+  },
   PING_SKILL_ROLE: {
     type: ApplicationCommandType.ChatInput,
     name: Lang.getRef('chatCommands.pingSkillRole', Language.Default),
@@ -227,7 +237,7 @@ export const ChatCommandMetadata: {
         description_localizations: Lang.getRefLocalizationMap('commandDescs.kudosGive'),
         options: [
           { ...Args.KUDOS_GIVE_USER, required: true },
-          { ...Args.KUDOS_GIVE_REASON, required: false },
+          { ...Args.KUDOS_GIVE_REASON, required: true },
         ],
       },
       {

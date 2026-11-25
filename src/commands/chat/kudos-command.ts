@@ -8,12 +8,7 @@ import {
 } from 'discord.js'
 import { RateLimiter } from 'discord.js-rate-limiter'
 
-import {
-  KudosEmoji,
-  KudosGiveAllowedRoleKeys,
-  ServerRoles,
-  getRoleNameById,
-} from '../../constants/index.js'
+import { KudosEmoji, KudosGiveAllowedRoleIds, getRoleNameById } from '../../constants/index.js'
 import { KudosSubcommand } from '../../enums/index.js'
 import { Language } from '../../models/enum-helpers/index.js'
 import { type EventData } from '../../models/internal-models.js'
@@ -25,8 +20,6 @@ import {
 } from '../../services/index.js'
 import { InteractionUtils, RoleUtils } from '../../utils/index.js'
 import { type Command, CommandDeferType } from '../index.js'
-
-const GIVE_ALLOWED_ROLE_IDS = KudosGiveAllowedRoleKeys.map((key) => ServerRoles[key].id)
 
 export interface KudosCommandOptions {
   /** Roles allowed to give Democracy Points; empty means anyone. Defaults to config. */
@@ -61,7 +54,7 @@ export class KudosCommand implements Command {
     private readonly kudosService?: KudosService,
     options: KudosCommandOptions = {},
   ) {
-    this.giveAllowedRoleIds = options.giveAllowedRoleIds ?? GIVE_ALLOWED_ROLE_IDS
+    this.giveAllowedRoleIds = options.giveAllowedRoleIds ?? KudosGiveAllowedRoleIds
   }
 
   public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
@@ -110,10 +103,13 @@ export class KudosCommand implements Command {
     }
 
     const targetUser = intr.options.getUser(Lang.getRef('arguments.user', Language.Default), true)
-    const reason = intr.options
-      .getString(Lang.getRef('arguments.reason', Language.Default))
-      ?.replace(/\s+/g, ' ')
-      .trim()
+    // Required so Discord moves straight to it after the member is picked,
+    // and every announcement says why. Blank after cleanup means no reason.
+    const reason =
+      intr.options
+        .getString(Lang.getRef('arguments.reason', Language.Default), true)
+        .replace(/\s+/g, ' ')
+        .trim() || undefined
 
     if (targetUser.bot) {
       await InteractionUtils.editReply(
@@ -149,7 +145,7 @@ export class KudosCommand implements Command {
             POINTS: pointsUnit(result.total, data.lang),
           }),
         )
-        await this.announce(intr, data, targetUser, reason)
+        await this.announce(intr, data, kudosService, result.transactionId, targetUser, reason)
 
         Logger.info(`${intr.user.tag} gave a Democracy Point to ${targetUser.tag}`)
         return
@@ -159,12 +155,16 @@ export class KudosCommand implements Command {
 
   /**
    * Publicly announces a give so the receiver sees it. Only the receiver is
-   * pinged; mentions inside the reason are not. A failure is logged rather
-   * than thrown, since the point is already recorded and confirmed.
+   * pinged; mentions inside the reason are not. The announcement becomes the
+   * give's source message, so others can pile on by reacting to it with the
+   * coin. A failure is logged rather than thrown, since the point is already
+   * recorded and confirmed.
    */
   private async announce(
     intr: ChatInputCommandInteraction,
     data: EventData,
+    kudosService: KudosService,
+    transactionId: number,
     receiver: User,
     reason: string | undefined,
   ): Promise<void> {
@@ -182,7 +182,16 @@ export class KudosCommand implements Command {
       : Lang.getRef('kudosAnnouncement.given', data.lang, vars)
 
     try {
-      await InteractionUtils.send(intr, { content, allowedMentions: { users: [receiver.id] } })
+      const message = await InteractionUtils.send(intr, {
+        content,
+        allowedMentions: { users: [receiver.id] },
+      })
+      if (message && intr.guild) {
+        await kudosService.setSource(intr.guild.id, transactionId, {
+          channelId: message.channelId,
+          messageId: message.id,
+        })
+      }
     } catch (error) {
       Logger.error(
         `democracy-points: failed to announce ${intr.user.tag}'s Democracy Point to ${receiver.tag}`,

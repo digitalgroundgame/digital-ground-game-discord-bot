@@ -28,12 +28,14 @@ const CRM_DISABLED_DM_NOTES: Record<CrmDisabledReason, string> = {
     "Your Discord account isn't linked to a CRM user, so this list wasn't synced — keep it for your records.",
   check_failed:
     "The CRM was unreachable when tracking started, so this list wasn't synced — keep it for your records.",
+  crm_disabled:
+    "CRM attendance recording is disabled on this bot, so this list wasn't synced — keep it for your records.",
 }
 
 export class VoiceStateUpdateHandler implements EventHandler {
   constructor(
     private readonly attendanceService: AttendanceService,
-    private readonly crmService: CrmService,
+    private readonly crmService: CrmService | undefined,
     private readonly client: Client,
   ) {}
 
@@ -70,14 +72,15 @@ export class VoiceStateUpdateHandler implements EventHandler {
       const displayEventName = customEventName ?? scheduledEvent?.name ?? defaultEventName
       const finalizedAt = new Date()
 
-      if (crmDisabledReason) {
+      const crmService = this.crmService
+      if (crmDisabledReason || !crmService) {
         await this.sendAttendanceFallbackDms(
           user,
           channelName,
           displayEventName,
           entries,
           finalizedAt,
-          CRM_DISABLED_DM_NOTES[crmDisabledReason],
+          CRM_DISABLED_DM_NOTES[crmDisabledReason ?? 'crm_disabled'],
           null,
         )
         return
@@ -95,7 +98,7 @@ export class VoiceStateUpdateHandler implements EventHandler {
       }
 
       try {
-        const response = await this.crmService.recordAttendance(payload)
+        const response = await crmService.recordAttendance(payload)
 
         try {
           const sent = await this.sendCrmSuccessDm(

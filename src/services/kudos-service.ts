@@ -13,17 +13,58 @@ export interface KudosLeaderboardEntry {
   total: number
 }
 
-/** The message a kudos was given for, when given by reaction. */
+/**
+ * The message a kudos is tied to: the message reacted to, or the public
+ * announcement of a `/democracy-points give`.
+ */
 export interface KudosSource {
   channelId: string
   messageId: string
 }
 
 export type GiveKudosResult =
-  | { status: 'given'; total: number }
+  | { status: 'given'; transactionId: number; total: number }
   | { status: 'self' }
   | { status: 'duplicate' }
   | { status: 'cooldown'; retryAt: Date }
+
+/** A transaction on the app database, as handed to `db.transaction`'s callback. */
+export type DatabaseTransaction = Parameters<Parameters<Database['transaction']>[0]>[0]
+
+/** Points the bot pays out itself, rather than one member giving another. */
+export interface PointsAward {
+  guildId: string
+  /** The bot's own user id, so the ledger shows the award wasn't a member's give. */
+  giverDiscordId: string
+  receiverDiscordId: string
+  reason: string
+  points: number
+}
+
+/**
+ * Write a system award as `points` ledger rows — totals and leaderboards
+ * count rows, so this is how an award worth more than one point is recorded.
+ *
+ * Skips the self, duplicate and cooldown checks in `giveKudos`: those police
+ * members giving each other points, and a payout is instead made idempotent
+ * by the claim it settles, which the caller must update in the same
+ * transaction.
+ */
+export function insertPointsAward(tx: DatabaseTransaction, award: PointsAward): void {
+  if (award.points <= 0) return
+  const createdAt = new Date()
+  tx.insert(kudosTransaction)
+    .values(
+      Array.from({ length: award.points }, () => ({
+        guildId: award.guildId,
+        giverDiscordId: award.giverDiscordId,
+        receiverDiscordId: award.receiverDiscordId,
+        reason: award.reason,
+        createdAt,
+      })),
+    )
+    .run()
+}
 
 /**
  * Tracks kudos given between members as an append-only ledger. Totals and
@@ -97,7 +138,8 @@ export class KudosService {
         return { status: 'cooldown' as const, retryAt }
       }
 
-      tx.insert(kudosTransaction)
+      const inserted = tx
+        .insert(kudosTransaction)
         .values({
           guildId,
           giverDiscordId,
@@ -107,9 +149,10 @@ export class KudosService {
           messageId: source?.messageId,
           createdAt: givenAt,
         })
-        .run()
+        .returning({ id: kudosTransaction.id })
+        .get()
 
-      return { status: 'given' as const }
+      return { status: 'given' as const, transactionId: inserted.id }
     })
 
     if (outcome.status !== 'given') {
@@ -118,7 +161,43 @@ export class KudosService {
 
     const total = await this.getTotal(guildId, receiverDiscordId)
     Logger.info(`${giverDiscordId} gave kudos to ${receiverDiscordId} in guild ${guildId}`)
-    return { status: 'given', total }
+    return { status: 'given', transactionId: outcome.transactionId, total }
+  }
+
+  /**
+   * Ties an already-recorded give to the message announcing it, so coin
+   * reactions on the announcement can be traced back to its receiver.
+   */
+  public async setSource(
+    guildId: string,
+    transactionId: number,
+    source: KudosSource,
+  ): Promise<void> {
+    await this.db
+      .update(kudosTransaction)
+      .set({ channelId: source.channelId, messageId: source.messageId })
+      .where(and(eq(kudosTransaction.guildId, guildId), eq(kudosTransaction.id, transactionId)))
+  }
+
+  /**
+   * The first give tied to a message, if any: for a bot announcement, the
+   * `/democracy-points give` it announced. Used to find who an announcement is
+   * about and why.
+   */
+  public async getGiveForMessage(
+    guildId: string,
+    messageId: string,
+  ): Promise<{ receiverDiscordId: string; reason: string | null } | null> {
+    const [row] = await this.db
+      .select({
+        receiverDiscordId: kudosTransaction.receiverDiscordId,
+        reason: kudosTransaction.reason,
+      })
+      .from(kudosTransaction)
+      .where(and(eq(kudosTransaction.guildId, guildId), eq(kudosTransaction.messageId, messageId)))
+      .orderBy(asc(kudosTransaction.id))
+      .limit(1)
+    return row ?? null
   }
 
   /** All-time kudos total for a receiver within a guild. */

@@ -19,6 +19,7 @@ export {
   type GitHubTeam,
   type GitHubTeamRole,
   GITHUB_TEAM_ROLES,
+  findGitHubTeam,
   GitHubExcludedTeamSlugs,
   isExcludedGitHubTeam,
   resolveGitHubTeamSlug,
@@ -30,7 +31,32 @@ export { type LinkableAccount, LinkableAccounts, getLinkableAccount } from './li
 export { PingSkillRoleAllowedRoleKeys } from './skill-roles.js'
 export { ClipSuggestionsAllowedRoleKeys, ClipSuggestionsChannelId } from './clip-suggestions.js'
 export {
+  type CandidateIssue,
+  DRAW_SIZE,
+  type DrawnIssue,
+  drawIssues,
+  FindWorkExcludedRepos,
+  FindWorkMarkerLabel,
+  FindWorkPoints,
+  type FindWorkPointsConfig,
+  issueMatchesSkills,
+  MATCHED_SLOTS,
+  partitionBySkills,
+  skillSlugsForRoleNames,
+  toLabelSlug,
+} from './find-work.js'
+export {
+  type FileAuthorIndex,
+  fileKey,
+  isNoiseFile,
+  type OpenPullRequest,
+  REVIEW_SUGGESTION_LIMIT,
+  type ReviewSuggestion,
+  suggestReviews,
+} from './review-suggestions.js'
+export {
   KudosEmoji,
+  KudosGiveAllowedRoleIds,
   KudosGiveAllowedRoleKeys,
   KudosGiveCooldownDays,
   KudosLeaderboardTimeZone,

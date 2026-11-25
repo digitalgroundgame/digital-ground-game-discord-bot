@@ -9,6 +9,7 @@ import {
   RootController,
   ShardsController,
 } from './controllers/index.js'
+import { validateEnv } from './config/environment.js'
 import {
   DmProxyIntegration,
   type Integration,
@@ -26,6 +27,8 @@ const Debug = require('../config/debug.json')
 const Logs = require('../lang/logs.json')
 
 async function start(): Promise<void> {
+  validateEnv('manager')
+
   Logger.info(Logs.info.appStarted)
 
   // Dependencies
@@ -54,11 +57,16 @@ async function start(): Promise<void> {
     }
   } catch (error) {
     Logger.error(Logs.error.retrieveShards, error)
+    process.exitCode = 1
     return
   }
 
   if (shardList.length === 0) {
+    // The process exits here without starting the API either way, so an
+    // empty shard list is fatal to the deployment regardless of clustering —
+    // report it as a failure instead of exiting 0.
     Logger.warn(Logs.warn.managerNoShards)
+    process.exitCode = 1
     return
   }
 
@@ -106,6 +114,12 @@ process.on('unhandledRejection', (reason, _promise) => {
   Logger.error(Logs.error.unhandledRejection, reason)
 })
 
-start().catch((error) => {
+start().catch(async (error) => {
   Logger.error(Logs.error.unspecified, error)
+  // A failure after shards spawn (e.g. the master API ready call) leaves
+  // shard child processes and the API server keeping the event loop alive,
+  // so wait for logs to flush and exit hard instead of waiting for a drain
+  // that never comes.
+  await new Promise((resolve) => setTimeout(resolve, 1000))
+  process.exit(1)
 })
